@@ -1,0 +1,340 @@
+/* ============================================================
+   ESTILOS DEL MÓDULO EDITAR - FORMULARIOS
+   ============================================================ */
+
+/* Header */
+.edit-header {
+    background: var(--gradient-morado-rosa);
+    color: white;
+    box-shadow: var(--shadow-lg);
+}
+
+.edit-header-content {
+    max-width: 56rem;
+    margin: 0 auto;
+    padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.edit-header .logo {
+    height: 3.5rem;
+    width: auto;
+    min-width: 50px;
+}
+
+.edit-header-title {
+    margin-left: 1rem;
+    flex-grow: 1;
+}
+
+.edit-header-title h1 {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin: 0;
+}
+
+.edit-header-title p {
+    font-size: 0.875rem;
+    opacity: 0.9;
+    margin: 0;
+}
+
+.edit-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.edit-header-back-link {
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    transition: all var(--transition-fast);
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.edit-header-back-link:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Main Content */
+.edit-main {
+    max-width: 56rem;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+    width: 100%;
+}
+
+/* Form Container */
+.edit-form-container {
+    background: white;
+    border-radius: 0.5rem;
+    box-shadow: var(--shadow-lg);
+    padding: 2rem;
+}
+
+/* Form Section */
+.form-section {
+    margin-bottom: 2rem;
+}
+
+.form-section:last-child {
+    margin-bottom: 0;
+}
+
+.form-section-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--color-gray-900);
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid var(--color-gray-200);
+}
+
+/* Form Row */
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.form-row.two-columns {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+.form-row.full-width {
+    grid-template-columns: 1fr;
+}
+
+/* Form Group */
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group label {
+    font-weight: 600;
+    color: var(--color-gray-700);
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.form-group label .required {
+    color: var(--color-error);
+    margin-left: 0.25rem;
+}
+
+.form-group input[type="text"],
+.form-group input[type="email"],
+.form-group input[type="number"],
+.form-group input[type="date"],
+.form-group input[type="datetime-local"],
+.form-group input[type="time"],
+.form-group input[type="search"],
+.form-group select,
+.form-group textarea {
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--color-gray-300);
+    border-radius: 0.5rem;
+    font-size: 1rem;
+    font-family: var(--font-family);
+    transition: all var(--transition-fast);
+    background-color: white;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--color-superarse-rosa);
+    box-shadow: 0 0 0 3px rgba(231, 91, 168, 0.1);
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+/* Form Help Text */
+.form-help {
+    font-size: 0.75rem;
+    color: var(--color-gray-500);
+    margin-top: 0.25rem;
+}
+
+/* Form Readonly */
+.form-group input:read-only,
+.form-group select:disabled,
+.form-group textarea:read-only {
+    background-color: var(--color-gray-100);
+    color: var(--color-gray-600);
+    cursor: not-allowed;
+}
+
+/* Status Badge in Form */
+.status-badge-inline {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
+}
+
+.status-badge-inline.activity {
+    background-color: #DBEAFE;
+    color: #1E40AF;
+}
+
+.status-badge-inline.plan {
+    background-color: #F3E8FF;
+    color: #6B21A8;
+}
+
+/* Form Actions */
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 2rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--color-gray-200);
+    justify-content: flex-end;
+}
+
+.form-actions button,
+.form-actions a {
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-primary {
+    background-color: var(--color-success);
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: #059669;
+    box-shadow: var(--shadow-md);
+}
+
+.btn-secondary {
+    background-color: var(--color-gray-200);
+    color: var(--color-gray-700);
+}
+
+.btn-secondary:hover {
+    background-color: var(--color-gray-300);
+}
+
+.btn-danger {
+    background-color: var(--color-error);
+    color: white;
+}
+
+.btn-danger:hover {
+    background-color: #991B1B;
+    box-shadow: var(--shadow-md);
+}
+
+/* Success/Error Messages */
+.alert {
+    padding: 1rem;
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
+    font-weight: 500;
+}
+
+.alert-success {
+    background-color: #DCFCE7;
+    border: 1px solid #BBEF63;
+    color: #166534;
+}
+
+.alert-error {
+    background-color: #FEE2E2;
+    border: 1px solid #FECACA;
+    color: #991B1B;
+}
+
+.alert-info {
+    background-color: #DBEAFE;
+    border: 1px solid #BFDBFE;
+    color: #1E40AF;
+}
+
+/* Loading State */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.spinner {
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid var(--color-gray-300);
+    border-radius: 50%;
+    border-top-color: var(--color-superarse-rosa);
+    animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .edit-header-content {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .edit-header-title {
+        margin-left: 0;
+        margin-top: 1rem;
+    }
+
+    .edit-header-actions {
+        margin-top: 1rem;
+        width: 100%;
+        justify-content: center;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .form-row.two-columns {
+        grid-template-columns: 1fr;
+    }
+
+    .edit-form-container {
+        padding: 1.5rem 1rem;
+    }
+
+    .form-actions {
+        flex-direction: column-reverse;
+    }
+
+    .form-actions button,
+    .form-actions a {
+        width: 100%;
+        justify-content: center;
+    }
+}

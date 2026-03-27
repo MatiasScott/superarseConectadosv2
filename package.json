@@ -1,0 +1,20 @@
+{
+  "name": "superarseconectadosv2",
+  "version": "1.0.0",
+  "description": "Proyecto de estudiante MVC en PHP",
+  "main": "public/index.php",
+  "scripts": {
+    "init-tailwind": "tailwindcss init",
+    "dev": "tailwindcss -i ./app/Assets/css/input.css -o ./app/Assets/css/tailwind.css --watch"
+  },
+  "keywords": [
+    "php",
+    "mvc",
+    "tailwind"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "tailwindcss": "^4.1.14"
+  }
+}

@@ -1,0 +1,166 @@
+/* ============================================================
+   VARIABLES Y COLORES GLOBALES SUPERARSE CONECTADOS
+   ============================================================ */
+
+:root {
+    /* Colores Superarse */
+    --color-superarse-morado-oscuro: #4A148C;
+    --color-superarse-morado-medio: #673AB7;
+    --color-superarse-rosa: #E91E63;
+
+    /* Gradientes principales */
+    --gradient-superarse: linear-gradient(to right, #4A148C, #673AB7, #E91E63);
+    --gradient-morado: linear-gradient(to right, #4a2c5e, #663d8a);
+    --gradient-morado-rosa: linear-gradient(to right, #4a2c5e, #663d8a, #e75ba8);
+    --gradient-rojo: linear-gradient(to right, #dc2626, #991b1b);
+    --gradient-avatar: linear-gradient(to br, #e75ba8, #663d8a);
+
+    /* Colores funcionales */
+    --color-error: #DC2626;
+    --color-success: #10B981;
+    --color-warning: #F59E0B;
+    --color-info: #3B82F6;
+    --color-purple: #8B5CF6;
+
+    /* Grises */
+    --color-gray-50: #F9FAFB;
+    --color-gray-100: #F3F4F6;
+    --color-gray-300: #D1D5DB;
+    --color-gray-400: #9CA3AF;
+    --color-gray-500: #6B7280;
+    --color-gray-600: #4B5563;
+    --color-gray-700: #374151;
+    --color-gray-900: #111827;
+
+    /* Espaciado */
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 2rem;
+    --spacing-2xl: 3rem;
+
+    /* Border radius */
+    --radius-sm: 0.25rem;
+    --radius-md: 0.5rem;
+    --radius-lg: 0.75rem;
+    --radius-xl: 1rem;
+
+    /* Sombras */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+
+    /* Transiciones */
+    --transition-fast: 150ms ease-in-out;
+    --transition-normal: 200ms ease-in-out;
+    --transition-slow: 300ms ease-in-out;
+
+    /* Tipografía */
+    --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    --font-size-xs: 0.75rem;
+    --font-size-sm: 0.875rem;
+    --font-size-base: 1rem;
+    --font-size-lg: 1.125rem;
+    --font-size-xl: 1.25rem;
+    --font-size-2xl: 1.5rem;
+    --font-size-3xl: 1.875rem;
+}
+
+/* Reset global */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--font-family);
+    color: var(--color-gray-900);
+    background-color: var(--color-gray-50);
+}
+
+/* Utilidades globales */
+[x-cloak] {
+    display: none !important;
+}
+
+/* Animaciones globales */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Select customizado */
+select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23999' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    padding-right: 2rem;
+}
+
+/* Input focus styling */
+input:focus,
+select:focus,
+textarea:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(231, 91, 168, 0.1);
+    border-color: var(--color-superarse-rosa);
+}
+
+/* Links */
+a {
+    color: var(--color-info);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+
+a:hover {
+    color: var(--color-superarse-rosa);
+}
+
+/* Badges comunes */
+.badge-activity {
+    background-color: #DBEAFE;
+    color: #075985;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.badge-plan {
+    background-color: #F3E8FF;
+    color: #6B21A8;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: bold;
+}

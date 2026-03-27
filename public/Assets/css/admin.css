@@ -1,0 +1,173 @@
+/* ============================================================
+   ESTILOS DEL MÓDULO ADMIN - DASHBOARD
+   ============================================================ */
+
+/* Header */
+.admin-header {
+    background: var(--gradient-superarse);
+    box-shadow: var(--shadow-lg);
+}
+
+.admin-header .logo {
+    height: 4rem;
+    width: auto;
+}
+
+/* Cards de estadísticas */
+.stats-card {
+    background: white;
+    overflow: hidden;
+    box-shadow: var(--shadow-xl);
+    border-radius: 0.75rem;
+    transition: all var(--transition-normal);
+}
+
+.stats-card:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+}
+
+.stats-card-icon {
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.stats-card-icon.morado-oscuro {
+    background-color: var(--color-superarse-morado-oscuro);
+}
+
+.stats-card-icon.morado-medio {
+    background-color: var(--color-superarse-morado-medio);
+}
+
+.stats-card-icon.rosa {
+    background-color: var(--color-superarse-rosa);
+}
+
+.stats-card-icon svg {
+    height: 2rem;
+    width: 2rem;
+    color: white;
+}
+
+/* Quick Access Cards */
+.quick-access-card {
+    background: white;
+    overflow: hidden;
+    box-shadow: var(--shadow-xl);
+    border-radius: 0.75rem;
+    transition: all var(--transition-normal);
+    display: block;
+}
+
+.quick-access-card:hover {
+    box-shadow: var(--shadow-2xl);
+    transform: scale(1.05);
+}
+
+/* Tabla Admin */
+.admin-table {
+    min-width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.admin-table thead {
+    background-color: var(--color-gray-50);
+}
+
+.admin-table thead tr {
+    border-bottom: 1px solid var(--color-gray-200);
+}
+
+.admin-table thead th {
+    padding: 1rem;
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--color-gray-500);
+    letter-spacing: 0.05em;
+}
+
+.admin-table tbody tr {
+    border-bottom: 1px solid var(--color-gray-200);
+    transition: background-color var(--transition-fast);
+}
+
+.admin-table tbody tr:hover {
+    background-color: var(--color-gray-50);
+}
+
+.admin-table tbody td {
+    padding: 1rem;
+    vertical-align: middle;
+}
+
+.admin-table .status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.5;
+}
+
+.admin-table .status-badge.completed {
+    background-color: #D1FAE5;
+    color: #065F46;
+}
+
+.admin-table .status-badge.pending {
+    background-color: #FEF3C7;
+    color: #92400E;
+}
+
+/* Footer Admin */
+.admin-footer {
+    background: transparent;
+    color: white;
+    width: 100%;
+    padding: 0.75rem 0;
+    margin-top: 2rem;
+}
+
+/* Animaciones */
+main > * {
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .admin-header {
+        padding: 0.5rem 0;
+    }
+
+    .admin-header .logo {
+        height: 3rem;
+    }
+
+    .admin-table {
+        font-size: 0.75rem;
+    }
+
+    .admin-table th,
+    .admin-table td {
+        padding: 0.5rem;
+    }
+}

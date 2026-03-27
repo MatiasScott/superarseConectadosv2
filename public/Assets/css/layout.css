@@ -1,0 +1,209 @@
+/* ============================================================
+   ESTILOS DEL LAYOUT PRINCIPAL
+   ============================================================ */
+
+/* Body */
+.layout-body {
+    background: var(--gradient-superarse);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding-top: 5rem;
+}
+
+/* Header */
+.layout-header {
+    background-color: var(--color-superarse-morado-oscuro);
+    box-shadow: var(--shadow-lg);
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 10;
+}
+
+.layout-header-content {
+    max-width: 80rem;
+    margin: 0 auto;
+    padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.layout-header h1 {
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: white;
+}
+
+.layout-header-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.layout-header-username {
+    color: white;
+    font-size: 0.875rem;
+}
+
+.layout-header-username.hidden-sm {
+    display: none;
+}
+
+.layout-logout-btn {
+    background-color: var(--color-superarse-rosa);
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 600;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    transition: all var(--transition-fast);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.layout-logout-btn:hover {
+    background-color: var(--color-superarse-morado-medio);
+    box-shadow: var(--shadow-md);
+}
+
+/* Main Content */
+.layout-main {
+    flex-grow: 1;
+    display: flex;
+    justify-content: center;
+    padding-top: 1rem;
+    width: 100%;
+}
+
+.layout-main-wrapper {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
+.layout-main-content {
+    width: 100%;
+}
+
+/* Footer */
+.layout-footer {
+    background: transparent;
+    color: white;
+    width: 100%;
+    padding: 0.75rem;
+    margin-top: auto;
+}
+
+.layout-footer-content {
+    max-width: 80rem;
+    margin: 0 auto;
+    padding: 0 1rem;
+    text-align: center;
+}
+
+.layout-footer p {
+    font-size: 0.875rem;
+    margin: 0;
+}
+
+/* Data Display */
+.data-script {
+    display: none;
+}
+
+/* Alert Messages */
+.layout-alert {
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    border-left: 4px solid;
+    font-weight: 500;
+    animation: slideDown 0.3s ease-out;
+}
+
+.layout-alert.success {
+    background-color: #DCFCE7;
+    border-left-color: var(--color-success);
+    color: #166534;
+}
+
+.layout-alert.error {
+    background-color: #FEE2E2;
+    border-left-color: var(--color-error);
+    color: #991B1B;
+}
+
+.layout-alert.warning {
+    background-color: #FEF3C7;
+    border-left-color: var(--color-warning);
+    color: #92400E;
+}
+
+.layout-alert.info {
+    background-color: #DBEAFE;
+    border-left-color: var(--color-info);
+    color: #1E40AF;
+}
+
+/* Animations */
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .layout-header-content {
+        gap: 0.5rem;
+    }
+
+    .layout-main {
+        padding: 0.5rem;
+    }
+}
+
+@media (max-width: 640px) {
+    .layout-body {
+        padding-top: 6rem;
+    }
+
+    .layout-header-content {
+        padding: 0.75rem 0.5rem;
+    }
+
+    .layout-header h1 {
+        font-size: 1rem;
+    }
+
+    .layout-header-username.hidden-sm {
+        display: none;
+    }
+
+    .layout-logout-btn {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+
+    .layout-main {
+        padding: 0.25rem;
+    }
+
+    .layout-footer p {
+        font-size: 0.75rem;
+    }
+}

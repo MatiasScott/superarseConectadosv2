@@ -1,0 +1,278 @@
+/* ============================================================
+   ESTILOS PARA DOCUMENTOS PDF
+   ============================================================ */
+
+/* Container */
+.pdf-container {
+    background: white;
+    padding: 2rem;
+    font-family: var(--font-family);
+    line-height: 1.6;
+}
+
+/* Header */
+.pdf-header {
+    text-align: center;
+    margin-bottom: 2rem;
+    border-bottom: 2px solid var(--color-gray-900);
+    padding-bottom: 1rem;
+}
+
+.pdf-header-logo {
+    width: 200px;
+    height: auto;
+    margin-bottom: 0.5rem;
+}
+
+.pdf-header-title {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--color-superarse-morado-oscuro);
+    margin: 0.5rem 0;
+}
+
+.pdf-header-subtitle {
+    font-size: 1rem;
+    color: var(--color-gray-600);
+    margin: 0.25rem 0;
+}
+
+/* Title Styles */
+.pdf-title {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--color-superarse-morado-oscuro);
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+.pdf-title-text {
+    font-size: 10pt;
+    margin-top: 0.5rem;
+    font-size: 10pt;
+}
+
+.pdf-section-title {
+    font-size: 11pt;
+    color: var(--color-superarse-morado-oscuro);
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+    border-bottom: 1px dotted #ccc;
+    padding-bottom: 0.25rem;
+}
+
+/* Tables */
+.pdf-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1.5rem;
+    font-size: 9pt;
+}
+
+.pdf-table th {
+    background-color: var(--color-superarse-morado-oscuro);
+    color: white;
+    padding: 0.5rem;
+    text-align: left;
+    font-weight: 600;
+    border: 1px solid var(--color-gray-400);
+}
+
+.pdf-table td {
+    padding: 0.5rem;
+    border: 1px solid var(--color-gray-300);
+}
+
+.pdf-table tbody tr:nth-child(even) {
+    background-color: var(--color-gray-50);
+}
+
+.pdf-table tbody tr:hover {
+    background-color: var(--color-gray-100);
+}
+
+/* Table Header Widths */
+.pdf-table th[style*="width: 15%"],
+.pdf-table td[style*="width: 15%"] {
+    width: 15%;
+}
+
+.pdf-table th[style*="width: 45%"],
+.pdf-table td[style*="width: 45%"] {
+    width: 45%;
+}
+
+.pdf-table th[style*="width: 12%"],
+.pdf-table td[style*="width: 12%"] {
+    width: 12%;
+}
+
+.pdf-table th[style*="width: 16%"],
+.pdf-table td[style*="width: 16%"] {
+    width: 16%;
+}
+
+/* Table Cell Types */
+.pdf-table .table-center {
+    text-align: center;
+}
+
+.pdf-table .table-date {
+    font-family: monospace;
+    font-size: 8pt;
+}
+
+.pdf-table .table-number {
+    text-align: right;
+}
+
+/* No Data Message */
+.pdf-no-data {
+    text-align: center;
+    padding: 2rem;
+    color: #999;
+}
+
+.pdf-no-data-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+.pdf-no-data-text {
+    font-size: 12pt;
+    font-weight: 200;
+}
+
+/* Approval Section */
+.pdf-approval-section {
+    margin-top: 3rem;
+    text-align: center;
+}
+
+.pdf-approval-heading {
+    font-size: 11pt;
+    text-align: center;
+    color: var(--color-info);
+    margin-bottom: 2rem;
+    font-weight: bold;
+}
+
+.pdf-signature-block {
+    display: inline-block;
+    width: 100%;
+    margin-bottom: 1rem;
+}
+
+.pdf-signature-line {
+    border-top: 1px solid #000;
+    padding-top: 0.25rem;
+    margin-top: 2rem;
+    font-size: 9pt;
+    font-weight: 600;
+}
+
+.pdf-signature-space {
+    height: 2rem;
+}
+
+/* Footer */
+.pdf-footer {
+    text-align: center;
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid #ccc;
+    font-size: 9pt;
+    color: #666;
+}
+
+.pdf-footer-contacto {
+    text-align: center;
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid #ccc;
+    font-size: 9pt;
+    color: #666;
+}
+
+.pdf-footer-contacto p {
+    margin: 0.25rem 0;
+}
+
+.pdf-footer-contacto strong {
+    font-weight: 600;
+}
+
+/* Info Boxes */
+.pdf-info-box {
+    border: 1px solid var(--color-gray-300);
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-radius: 0.25rem;
+    background-color: var(--color-gray-50);
+}
+
+.pdf-info-box-title {
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    color: var(--color-superarse-morado-oscuro);
+}
+
+.pdf-info-box-content {
+    font-size: 0.875rem;
+    color: var(--color-gray-700);
+}
+
+/* Page Break */
+.pdf-page-break {
+    page-break-after: always;
+    margin-bottom: 2rem;
+}
+
+/* Responsive - Print Styles */
+@media print {
+    body {
+        background: white;
+        margin: 0;
+        padding: 0;
+    }
+
+    .pdf-container {
+        padding: 0;
+        margin: 0;
+        box-shadow: none;
+    }
+
+    .pdf-page-break {
+        page-break-after: always;
+    }
+
+    .pdf-table {
+        page-break-inside: avoid;
+    }
+
+    .pdf-section-title {
+        page-break-after: avoid;
+    }
+
+    /* Hide elements on print */
+    .no-print {
+        display: none;
+    }
+
+    .pdf-table tbody tr {
+        page-break-inside: avoid;
+    }
+
+    .pdf-approval-section {
+        page-break-before: always;
+    }
+}
+
+/* HTML to PDF Conversion (DomPDF) */
+/* Ensure proper rendering of special characters in PDFs */
+.pdf-container * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}

@@ -1,0 +1,57 @@
+/* tab-pasantias.css
+   Styles for practices registration and management
+   Extracted from app/Views/dashboard/tab_pasantias.php */
+
+@keyframes slide-in-right {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes fade-out {
+    from {
+        opacity: 1;
+    }
+
+    to {
+        opacity: 0;
+    }
+}
+
+.animate-slide-in-right {
+    animation: slide-in-right 0.3s ease-out;
+}
+
+.animate-fade-out {
+    animation: fade-out 0.3s ease-out;
+}
+
+@keyframes slide-in-up {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-slide-in-up {
+    animation: slide-in-up 0.3s ease-in-out;
+}
+
+body {
+    background-color: #000;
+}
+
+#TablaProyectos {
+    transition: all 0.25s ease;
+}
