@@ -15,7 +15,12 @@ class UserModel
     }
     public function findByCedula($cedula)
     {
-        $query = "SELECT * FROM " . $this->table_name . " WHERE numero_identificacion = :cedula LIMIT 1";
+                $query = "SELECT * FROM " . $this->table_name . "
+                                    WHERE numero_identificacion = :cedula
+                                        AND UPPER(TRIM(estado)) = 'ACTIVO'
+                                        AND UPPER(TRIM(programa)) NOT IN ('AUTO EVALUACION', 'AUTO EVALUCION', 'SEGUIMIENTO DOCENTE', 'EJEMPLO 1', 'EJEMPLO')
+                                    ORDER BY id DESC
+                                    LIMIT 1";
 
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':cedula', $cedula);
@@ -32,7 +37,12 @@ class UserModel
 
     public function getUserInfoByIdentificacion($identificacion)
     {
-        $query = "SELECT * FROM " . $this->table_name . " WHERE numero_identificacion = :identificacion LIMIT 1";
+                $query = "SELECT * FROM " . $this->table_name . "
+                                    WHERE numero_identificacion = :identificacion
+                                        AND UPPER(TRIM(estado)) = 'ACTIVO'
+                                        AND UPPER(TRIM(programa)) NOT IN ('AUTO EVALUACION', 'AUTO EVALUCION', 'SEGUIMIENTO DOCENTE', 'EJEMPLO 1', 'EJEMPLO')
+                                    ORDER BY id DESC
+                                    LIMIT 1";
 
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':identificacion', $identificacion);
@@ -48,7 +58,14 @@ class UserModel
 
     public function getProgramaInfoByIdentificacion($identificacion)
     {
-        $query = "SELECT programas.* FROM programas INNER JOIN users ON users.programa = programas.programa WHERE numero_identificacion = :identificacion LIMIT 1";
+                $query = "SELECT programas.*
+                                    FROM programas
+                                    INNER JOIN users ON users.programa = programas.programa
+                                    WHERE users.numero_identificacion = :identificacion
+                                        AND UPPER(TRIM(users.estado)) = 'ACTIVO'
+                                        AND UPPER(TRIM(users.programa)) NOT IN ('AUTO EVALUACION', 'AUTO EVALUCION', 'SEGUIMIENTO DOCENTE', 'EJEMPLO 1', 'EJEMPLO')
+                                    ORDER BY users.id DESC
+                                    LIMIT 1";
 
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':identificacion', $identificacion);
@@ -91,6 +108,8 @@ WHERE programas.programa = :programa";
             u.telefono,
             u.direccion
         FROM " . $this->table_name . " u
+                WHERE UPPER(TRIM(u.estado)) = 'ACTIVO'
+                    AND UPPER(TRIM(u.programa)) NOT IN ('AUTO EVALUACION', 'AUTO EVALUCION', 'SEGUIMIENTO DOCENTE', 'EJEMPLO 1', 'EJEMPLO')
         ORDER BY u.primer_apellido ASC, u.primer_nombre ASC";
 
         try {

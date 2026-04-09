@@ -21,6 +21,8 @@ class AsignaturaModel extends Database
                     asignaturas a ON p.id = a.programa_id
                   WHERE 
                     u.numero_identificacion = :identificacion
+                    /*AND UPPER(TRIM(u.estado)) = 'ACTIVO'*/
+                    AND UPPER(TRIM(u.programa)) NOT IN ('AUTO EVALUACION', 'AUTO EVALUCION', 'SEGUIMIENTO DOCENTE', 'EJEMPLO 1', 'EJEMPLO')
                   ORDER BY 
                     a.nombre ASC";
 
