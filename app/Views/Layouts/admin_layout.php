@@ -42,88 +42,82 @@ $moduleBodyScripts = $moduleBodyScripts ?? [];
 
 </head>
 
-<body class="bg-gray-100 min-h-screen flex flex-col pt-20">
+<body class="bg-gray-100 min-h-screen flex flex-col pt-0 lg:pt-20">
 
     <!-- NAVBAR SUPERIOR -->
-    <header class="bg-superarse-morado-oscuro shadow-lg fixed top-0 left-0 w-full z-50">
+    <header class="bg-superarse-morado-oscuro shadow-lg w-full z-50 static lg:fixed top-0 left-0">
 
-        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+        <div class="max-w-7xl mx-auto px-4 py-3">
 
-            <!-- LOGO -->
-            <h1 class="text-xl font-bold text-white">
-                Superarse Admin
-            </h1>
+            <div class="flex justify-between items-center gap-3">
+                <!-- LOGO -->
+                <h1 class="text-lg sm:text-xl font-bold text-white whitespace-nowrap">
+                    Superarse Admin
+                </h1>
 
-            <!-- MENU -->
-            <nav class="flex items-center space-x-6 text-white text-sm">
+                <!-- MENU DESKTOP -->
+                <nav class="hidden lg:flex items-center space-x-3 xl:space-x-6 text-white text-sm">
+                    <a href="<?php echo $basePath; ?>/admin/dashboard" class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition">Dashboard</a>
+                    <a href="<?php echo $basePath; ?>/admin/practicas" class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition">Prácticas</a>
+                    <a href="<?php echo $basePath; ?>/admin/vinculacion" class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition">Vinculación</a>
+                    <a href="<?php echo $basePath; ?>/admin/investigacion" class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition">Investigación</a>
+                    <a href="<?php echo $basePath; ?>/admin/plan-estrategico" class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition">Planificación</a>
+                    <a href="<?php echo $basePath; ?>/admin/convenio" class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition">Convenios</a>
+                    <a href="<?php echo $basePath; ?>/admin/accounts" class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition">Cuentas</a>
+                    <a href="<?php echo $basePath; ?>/admin/reset-requests" class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition relative">
+                        Solicitudes
+                        <?php if (($pendingResetCount ?? 0) > 0): ?>
+                            <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                                <?= min((int)$pendingResetCount, 99) ?>
+                            </span>
+                        <?php endif; ?>
+                    </a>
+                </nav>
 
-                <a href="<?php echo $basePath; ?>/admin/dashboard"
-                    class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition">
-                    Dashboard
+                <!-- USUARIO DESKTOP -->
+                <div class="hidden lg:flex items-center space-x-4">
+                    <span class="text-white text-sm">
+                        <?= $nombreCompleto ?>
+                    </span>
+                    <a href="<?php echo $basePath; ?>/admin/logout"
+                        class="bg-superarse-rosa hover:bg-superarse-morado-medio text-white text-sm font-semibold py-1 px-3 rounded-full transition shadow-md">
+                        Salir
+                    </a>
+                </div>
+
+                <!-- SALIR MOBILE -->
+                <a href="<?php echo $basePath; ?>/admin/logout"
+                    class="lg:hidden bg-superarse-rosa hover:bg-superarse-morado-medio text-white text-xs font-semibold py-1.5 px-3 rounded-full transition shadow-md whitespace-nowrap">
+                    Salir
                 </a>
+            </div>
 
-                <a href="<?php echo $basePath; ?>/admin/practicas"
-                    class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition">
-                    Prácticas
-                </a>
-
-                <a href="<?php echo $basePath; ?>/admin/vinculacion"
-                    class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition">
-                    Vinculación
-                </a>
-
-                <a href="<?php echo $basePath; ?>/admin/investigacion"
-                    class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition">
-                    Investigación
-                </a>
-
-                <a href="<?php echo $basePath; ?>/admin/plan-estrategico"
-                    class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition">
-                    Planificación
-                </a>
-
-                <a href="<?php echo $basePath; ?>/admin/convenio"
-                    class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition">
-                    Convenios
-                </a>
-
-                <a href="<?php echo $basePath; ?>/admin/accounts"
-                    class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition">
-                    Cuentas
-                </a>
-
-                <a href="<?php echo $basePath; ?>/admin/reset-requests"
-                    class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition relative">
+            <!-- MENU MOBILE -->
+            <nav class="lg:hidden mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-white text-xs sm:text-sm">
+                <a href="<?php echo $basePath; ?>/admin/dashboard" class="text-center bg-superarse-morado-medio/30 hover:bg-superarse-morado-medio px-2 py-2 rounded transition">Dashboard</a>
+                <a href="<?php echo $basePath; ?>/admin/practicas" class="text-center bg-superarse-morado-medio/30 hover:bg-superarse-morado-medio px-2 py-2 rounded transition">Prácticas</a>
+                <a href="<?php echo $basePath; ?>/admin/vinculacion" class="text-center bg-superarse-morado-medio/30 hover:bg-superarse-morado-medio px-2 py-2 rounded transition">Vinculación</a>
+                <a href="<?php echo $basePath; ?>/admin/investigacion" class="text-center bg-superarse-morado-medio/30 hover:bg-superarse-morado-medio px-2 py-2 rounded transition">Investigación</a>
+                <a href="<?php echo $basePath; ?>/admin/plan-estrategico" class="text-center bg-superarse-morado-medio/30 hover:bg-superarse-morado-medio px-2 py-2 rounded transition">Planificación</a>
+                <a href="<?php echo $basePath; ?>/admin/convenio" class="text-center bg-superarse-morado-medio/30 hover:bg-superarse-morado-medio px-2 py-2 rounded transition">Convenios</a>
+                <a href="<?php echo $basePath; ?>/admin/accounts" class="text-center bg-superarse-morado-medio/30 hover:bg-superarse-morado-medio px-2 py-2 rounded transition">Cuentas</a>
+                <a href="<?php echo $basePath; ?>/admin/reset-requests" class="text-center bg-superarse-morado-medio/30 hover:bg-superarse-morado-medio px-2 py-2 rounded transition relative">
                     Solicitudes
                     <?php if (($pendingResetCount ?? 0) > 0): ?>
-                        <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                        <span class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold">
                             <?= min((int)$pendingResetCount, 99) ?>
                         </span>
                     <?php endif; ?>
                 </a>
-
             </nav>
 
-            <!-- USUARIO -->
-            <div class="flex items-center space-x-4">
-
-                <span class="text-white text-sm hidden md:block">
-                    <?= $nombreCompleto ?>
-                </span>
-
-                <a href="<?php echo $basePath; ?>/admin/logout"
-                    class="bg-superarse-rosa hover:bg-superarse-morado-medio text-white text-sm font-semibold py-1 px-3 rounded-full transition shadow-md">
-                    Salir
-                </a>
-
-            </div>
-
+            <p class="lg:hidden text-white/85 text-xs mt-2 truncate"><?= htmlspecialchars($nombreCompleto ?? '', ENT_QUOTES, 'UTF-8') ?></p>
         </div>
 
     </header>
 
     <!-- CONTENIDO -->
-    <main class="flex-grow p-6 max-w-7xl mx-auto w-full">
+    <main class="flex-grow p-4 sm:p-6 max-w-7xl mx-auto w-full">
 
         <h1 class="font-semibold text-xl mb-4">
             <?= $title ?? '' ?>

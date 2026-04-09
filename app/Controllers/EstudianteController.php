@@ -7,6 +7,7 @@ require_once '../app/Models/AsignaturaModel.php';
 require_once '../app/Models/CredencialModel.php';
 require_once '../app/Models/BancoModel.php';
 require_once '../app/Models/PasantiaModel.php';
+require_once '../app/Helpers/AuthSecurity.php';
 
 class EstudianteController
 {
@@ -124,6 +125,9 @@ class EstudianteController
             $data['moduleJs'] = ['tab-pasantias.js'];
             // Agregar practicaId directamente para facilitar el acceso
             $data['practicaId'] = $infoPractica['id_practica'] ?? 0;
+            $data['csrfTokenFaseOne'] = AuthSecurity::generateCsrfToken('student_fase_one');
+            $data['csrfTokenActividadForm'] = AuthSecurity::generateCsrfToken('student_actividad_form');
+            $data['csrfTokenActividadDelete'] = AuthSecurity::generateCsrfToken('student_actividad_delete');
 
             $vista_contenido = __DIR__ . '/../Views/dashboard/index.php';
             require_once __DIR__ . '/../Views/Layouts/main_layout.php';

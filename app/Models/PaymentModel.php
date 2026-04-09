@@ -1,6 +1,6 @@
 <?php
 // app/Models/PaymentModel.php
-require_once 'Database.php';
+require_once __DIR__ . '/Database.php';
 class PaymentModel extends Database
 {
     protected $table_name = "payments";

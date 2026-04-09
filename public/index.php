@@ -1,15 +1,21 @@
 <?php
 
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-
 require_once '../vendor/autoload.php';
 require_once '../app/Controllers/LoginController.php';
 require_once '../app/Controllers/EstudianteController.php';
 require_once '../app/Controllers/PagoController.php';
 require_once '../app/Controllers/PasantiaController.php';
 require_once '../app/Controllers/AdminController.php';
+
+$rootPath = dirname(__DIR__);
+if (file_exists($rootPath . '/.env')) {
+    Dotenv\Dotenv::createImmutable($rootPath)->safeLoad();
+}
+
+$appDebug = filter_var($_ENV['APP_DEBUG'] ?? getenv('APP_DEBUG') ?? false, FILTER_VALIDATE_BOOL);
+ini_set('display_errors', $appDebug ? '1' : '0');
+ini_set('display_startup_errors', $appDebug ? '1' : '0');
+error_reporting($appDebug ? E_ALL : 0);
 
 if (session_status() == PHP_SESSION_NONE) {
     session_start();

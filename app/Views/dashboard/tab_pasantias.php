@@ -35,6 +35,7 @@
 
     <form action="<?php echo $this->basePath; ?>/pasantias/saveFaseOne" method="POST"
         class="space-y-8 p-6 bg-white rounded-xl shadow-lg border border-gray-100">
+        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($data['csrfTokenFaseOne'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
         <h3 class="text-xl font-semibold text-superarse-morado-medio">1. Información del Estudiante</h3>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm bg-gray-50 p-4 rounded-lg">
@@ -295,8 +296,8 @@
                         <?php echo !empty($data['infoPractica']['direccion']) ? 'disabled' : ''; ?>>
                 </div>
 
-                <div id="TablaProyectos" class="md:col-span-2">
-                    <table style="width: 100%; border-collapse: collapse; font-family: Arial, sans-serif;">
+                <div id="TablaProyectos" class="md:col-span-2 overflow-x-auto">
+                    <table style="width: 100%; min-width: 760px; border-collapse: collapse; font-family: Arial, sans-serif;">
                         <thead>
                             <tr>
                                 <th style="border: 2px solid #000; padding: 10px; text-align: left; vertical-align: top; background-color: #ffffffff; color: #000000ff;">Proyecto</th>

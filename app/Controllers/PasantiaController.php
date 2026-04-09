@@ -6,6 +6,7 @@ use Dompdf\Options;
 
 require_once __DIR__ . '/../Models/PasantiaModel.php';
 require_once __DIR__ . '/../Models/UserModel.php';
+require_once __DIR__ . '/../Helpers/AuthSecurity.php';
 
 class PasantiaController
 {
@@ -85,6 +86,13 @@ class PasantiaController
             header("Location: " . $this->basePath . "/estudiante/registro?error=metodo_invalido");
             exit();
         }
+
+        if (!AuthSecurity::validateCsrfToken('student_fase_one', $_POST['csrf_token'] ?? '')) {
+            $_SESSION['mensaje'] = "Error: token de seguridad inválido. Intenta nuevamente.";
+            header("Location: " . $this->basePath . "/estudiante/informacion?module=pasantias");
+            exit();
+        }
+
         if (empty($_POST['modalidad']) || empty($_POST['entidad_ruc'])) {
             $_SESSION['mensaje'] = "Error: La modalidad y el RUC de la entidad son obligatorios.";
             header("Location: " . $this->basePath . "/estudiante/informacion");
@@ -313,6 +321,13 @@ class PasantiaController
             exit();
         }
 
+        if (!AuthSecurity::validateCsrfToken('student_actividad_form', $_POST['csrf_token'] ?? '')) {
+            $_SESSION['mensaje'] = "Error: token de seguridad inválido. Intenta nuevamente.";
+            $activityPage = max(1, (int) ($_POST['activity_page'] ?? 1));
+            header("Location: " . $this->basePath . "/estudiante/informacion?module=pasantias&tab=actividades&activity_page=" . $activityPage);
+            exit();
+        }
+
         $userId = $_SESSION['id_usuario'];
         $practica = $this->pasantiaModel->getActivePracticaByUserId($userId);
 
@@ -460,6 +475,13 @@ class PasantiaController
             exit();
         }
 
+        if (!AuthSecurity::validateCsrfToken('student_actividad_form', $_POST['csrf_token'] ?? '')) {
+            $_SESSION['mensaje'] = "Error: token de seguridad inválido. Intenta nuevamente.";
+            $activityPage = max(1, (int) ($_POST['activity_page'] ?? 1));
+            header("Location: {$this->basePath}/estudiante/informacion?module=pasantias&tab=actividades&activity_page={$activityPage}");
+            exit();
+        }
+
         $userId = $_SESSION['id_usuario'];
         $practica = $this->pasantiaModel->getActivePracticaByUserId($userId);
 
@@ -525,6 +547,13 @@ class PasantiaController
         if ($_SERVER['REQUEST_METHOD'] !== 'POST' || empty($_POST['id'])) {
             $_SESSION['mensaje'] = "Error: Solicitud inválida para eliminar.";
             header("Location: {$this->basePath}/estudiante/actividades_diarias");
+            exit();
+        }
+
+        if (!AuthSecurity::validateCsrfToken('student_actividad_delete', $_POST['csrf_token'] ?? '')) {
+            $_SESSION['mensaje'] = "Error: token de seguridad inválido. Intenta nuevamente.";
+            $activityPage = max(1, (int) ($_POST['activity_page'] ?? 1));
+            header("Location: {$this->basePath}/estudiante/informacion?module=pasantias&tab=actividades&activity_page={$activityPage}");
             exit();
         }
 

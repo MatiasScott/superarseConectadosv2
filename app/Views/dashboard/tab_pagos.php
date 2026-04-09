@@ -17,7 +17,7 @@ $formatMontoResumen = static function ($valor): string {
     </div>
 
     <h3 class="text-xl font-semibold text-superarse-morado-oscuro mb-4">Resumen Financiero</h3>
-    <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 mb-6">
 
         <!-- Tarjeta 1: ABONO TOTAL (EXISTENTE) -->
         <div class="bg-green-100 p-4 rounded-lg shadow-md border border-green-300">
@@ -72,13 +72,13 @@ $formatMontoResumen = static function ($valor): string {
     <p class="text-gray-700 mb-6">Selecciona una de las siguientes cuentas para realizar tu
         transferencia:</p>
 
-    <div class="flex space-x-4 mb-6" id="bank-buttons">
+    <div class="flex flex-wrap gap-3 mb-6" id="bank-buttons">
         <?php if (!empty($bancos)): // USANDO $data 
         ?>
             <?php foreach ($bancos as $index => $banco): // USANDO $data 
             ?>
                 <button type="button"
-                    class="bank-tab-button px-6 py-3 rounded-lg text-white font-semibold transition duration-300 
+                    class="bank-tab-button w-full sm:w-auto px-4 sm:px-6 py-3 rounded-lg text-white font-semibold transition duration-300 
                                     <?php echo ($index === 0) ? 'bg-superarse-morado-oscuro hover:bg-superarse-morado-medio' : 'bg-gray-400 hover:bg-gray-500'; ?>"
                     data-bank-id="<?php echo htmlspecialchars($banco['id']); ?>"
                     data-bank-name="<?php echo htmlspecialchars($banco['nombre_banco']); ?>"
@@ -98,7 +98,7 @@ $formatMontoResumen = static function ($valor): string {
         <p class="mb-2"><strong class="text-superarse-morado-oscuro">Tipo de cuenta:</strong> <span
                 id="selected-account-type"></span></p>
         <p class="mb-2"><strong class="text-superarse-morado-oscuro">Número de Cuenta:</strong>
-            <span id="selected-account-number"></span>
+            <span id="selected-account-number" class="break-all"></span>
         </p>
         <p class="mb-2"><strong class="text-superarse-morado-oscuro">RUC:</strong> 1792951704001</p>
         <p class="mb-4"><strong class="text-superarse-morado-oscuro">Nombre del
@@ -119,7 +119,7 @@ $formatMontoResumen = static function ($valor): string {
 
     <form id="upload-form" onsubmit="return false;">
         <a href="#" id="send-comprobante-btn"
-            class="bg-superarse-rosa hover:bg-superarse-morado-medio text-white font-bold py-3 px-6 rounded-lg shadow-md transition duration-300 opacity-50 cursor-not-allowed">
+            class="inline-flex w-full sm:w-auto justify-center bg-superarse-rosa hover:bg-superarse-morado-medio text-white font-bold py-3 px-6 rounded-lg shadow-md transition duration-300 opacity-50 cursor-not-allowed">
             Abrir Correo y Notificar Pago
         </a>
     </form>
@@ -154,7 +154,7 @@ $formatMontoResumen = static function ($valor): string {
         </p>
 
         <button id="payphone-link"
-            class="mt-4 py-3 px-8 bg-superarse-rosa text-white font-bold rounded-lg shadow-lg transition duration-300 hover:bg-pink-700 focus:outline-none focus:ring-4 focus:ring-pink-300"
+            class="mt-4 w-full sm:w-auto py-3 px-8 bg-superarse-rosa text-white font-bold rounded-lg shadow-lg transition duration-300 hover:bg-pink-700 focus:outline-none focus:ring-4 focus:ring-pink-300"
             target="_blank">
             <i class="fas fa-credit-card mr-2"></i> Pagar con Payphone
         </button>

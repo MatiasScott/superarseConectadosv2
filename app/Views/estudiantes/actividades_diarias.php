@@ -132,7 +132,7 @@ $totalPages = $totalPages ?? $data['totalActivityPages'] ?? (int) max(1, ceil(($
 }
 }" 
 data-actividades-existentes="<?php echo htmlspecialchars(json_encode(array_map(function($a) { return $a['fecha_actividad']; }, $actividadesDiarias)), ENT_QUOTES, 'UTF-8'); ?>">
-    <div class="flex justify-between items-center mb-4">
+    <div class="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center mb-4">
         <div>
             <h2 class="text-lg font-semibold text-gray-700">🗓️ Actividades Diarias</h2>
             <div class="mt-2 flex gap-2">
@@ -150,14 +150,14 @@ data-actividades-existentes="<?php echo htmlspecialchars(json_encode(array_map(f
                 </span>
             </div>
         </div>
-        <div class="flex gap-3">
+        <div class="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
             <a href="<?php echo $basePath; ?>/pasantias/generateActividadesPdf/<?php echo $practicaId; ?>" 
                 target="_blank"
-                class="bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700 transition duration-150 flex items-center gap-2">
+                class="bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700 transition duration-150 flex items-center justify-center gap-2">
                 📄 Descargar PDF
             </a>
             <button @click="mostrarFormulario ? cancelar() : nuevaActividad()" type="button"
-                class="bg-superarse-morado-medio text-white font-semibold py-2 px-4 rounded-lg hover:bg-superarse-morado-oscuro transition duration-150 flex items-center gap-2">
+                class="bg-superarse-morado-medio text-white font-semibold py-2 px-4 rounded-lg hover:bg-superarse-morado-oscuro transition duration-150 flex items-center justify-center gap-2">
                 <span x-show="!mostrarFormulario">Nueva Actividad</span>
                 <span x-show="mostrarFormulario">Cancelar</span>
             </button>
@@ -185,7 +185,7 @@ data-actividades-existentes="<?php echo htmlspecialchars(json_encode(array_map(f
         <form id="form_actividad"
             action="<?php echo $basePath; ?>/pasantias/addActividadDiaria"
             method="POST"
-            class="space-y-4 bg-white p-6 border border-gray-200 rounded-lg shadow-sm"
+            class="space-y-4 bg-white p-4 sm:p-6 border border-gray-200 rounded-lg shadow-sm"
             @submit="if (modoEdicion) { this.action = '<?php echo $basePath; ?>/pasantias/updateActividadDiaria'; }">
 
             <div class="border-b pb-2 mb-4">
@@ -199,6 +199,7 @@ data-actividades-existentes="<?php echo htmlspecialchars(json_encode(array_map(f
             <input type="hidden" id="horas_invertidas" name="horas_invertidas" value="">
             <input type="hidden" name="tab" value="actividades">
             <input type="hidden" name="activity_page" value="<?php echo (int) $activityPage; ?>">
+            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($data['csrfTokenActividadForm'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
 
             <div>
                 <label for="actividad_realizada" class="block text-gray-700 font-medium mb-1">
@@ -221,7 +222,7 @@ data-actividades-existentes="<?php echo htmlspecialchars(json_encode(array_map(f
                 <p class="text-xs text-gray-500 mt-1">Solo hasta hoy. Una actividad por día.</p>
             </div>
 
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                     <label for="hora_inicio" class="block text-gray-700 font-medium mb-1">
                         Hora de Inicio <span class="text-red-500">*</span>
@@ -259,7 +260,7 @@ data-actividades-existentes="<?php echo htmlspecialchars(json_encode(array_map(f
                 <span x-text="advertenciaFecha"></span>
             </div>
 
-            <div class="pt-2 flex gap-3">
+            <div class="pt-2 flex flex-col sm:flex-row gap-3">
                 <button type="submit"
                     :disabled="advertenciaFecha !== ''"
                     :class="advertenciaFecha !== '' ? 'opacity-50 cursor-not-allowed' : ''"
@@ -332,6 +333,7 @@ data-actividades-existentes="<?php echo htmlspecialchars(json_encode(array_map(f
                                             onsubmit="return confirm('⚠️ ¿Estás seguro de eliminar esta actividad?\n\nFecha: <?php echo date('d/m/Y', strtotime($actividad['fecha_actividad'])); ?>\nActividad: <?php echo htmlspecialchars($actividad['actividad_realizada']); ?>\n\nEsta acción no se puede deshacer.');"
                                             class="inline">
                                             <input type="hidden" name="id" value="<?php echo $actividad['id_actividad_diaria']; ?>">
+                                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($data['csrfTokenActividadDelete'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
                                             <button type="submit"
                                                 class="text-red-600 hover:text-red-800 font-medium transition duration-150"
                                                 title="Eliminar actividad">
