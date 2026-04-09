@@ -157,4 +157,18 @@ class ConvenioModel extends Database
             ':estado' => $data['estado']
         ]);
     }
+
+    public function eliminar($id)
+    {
+        $db = $this->getConnection();
+        $query = "DELETE FROM convenios WHERE id_convenio = :id";
+        $stmt = $db->prepare($query);
+
+        try {
+            return $stmt->execute([':id' => $id]);
+        } catch (PDOException $e) {
+            error_log("Error eliminar convenio: " . $e->getMessage());
+            return false;
+        }
+    }
 }

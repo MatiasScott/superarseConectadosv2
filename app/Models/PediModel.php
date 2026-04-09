@@ -79,4 +79,18 @@ class PediModel extends Database
             return false;
         }
     }
+
+    public function eliminar($id)
+    {
+        $db = $this->getConnection();
+        $query = "DELETE FROM " . $this->table_name . " WHERE id_pedi = ?";
+        $stmt = $db->prepare($query);
+
+        try {
+            return $stmt->execute([$id]);
+        } catch (PDOException $e) {
+            error_log("Error eliminar PEDI: " . $e->getMessage());
+            return false;
+        }
+    }
 }

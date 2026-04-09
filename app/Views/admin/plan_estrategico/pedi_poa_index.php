@@ -58,9 +58,16 @@
                             <td class="px-4 py-3 text-center">
 
                                 <a href="<?= $basePath ?>/admin/pedi/edit/<?= $p['id_pedi'] ?>"
-                                    class="text-blue-600 hover:text-blue-800 font-medium">
+                                    class="text-blue-600 hover:text-blue-800 font-medium"
+                                    title="Editar">
                                     ✏️
                                 </a>
+
+                                <form action="<?= $basePath ?>/admin/pedi/eliminar/<?= $p['id_pedi'] ?>" method="POST" class="inline" onsubmit="return confirm('¿Deseas eliminar este PEDI?');">
+                                    <button type="submit" class="text-red-600 hover:text-red-800 font-medium" title="Eliminar">
+                                        🗑️
+                                    </button>
+                                </form>
 
                             </td>
 
@@ -140,9 +147,16 @@
                             <td class="px-4 py-3 text-center">
 
                                 <a href="<?= $basePath ?>/admin/poa/edit/<?= $p['id_poa'] ?>"
-                                    class="text-blue-600 hover:text-blue-800 font-medium">
+                                    class="text-blue-600 hover:text-blue-800 font-medium"
+                                    title="Editar">
                                     ✏️
                                 </a>
+
+                                <form action="<?= $basePath ?>/admin/poa/eliminar/<?= $p['id_poa'] ?>" method="POST" class="inline" onsubmit="return confirm('¿Deseas eliminar este POA?');">
+                                    <button type="submit" class="text-red-600 hover:text-red-800 font-medium" title="Eliminar">
+                                        🗑️
+                                    </button>
+                                </form>
 
                             </td>
 
@@ -237,9 +251,16 @@
                             <td class="px-4 py-3 text-center">
 
                                 <a href="<?= $basePath ?>/admin/actividad/edit/<?= $a['id_actividad'] ?>"
-                                    class="text-blue-600 hover:text-blue-800 font-medium">
+                                    class="text-blue-600 hover:text-blue-800 font-medium"
+                                    title="Editar">
                                     ✏️
                                 </a>
+
+                                <form action="<?= $basePath ?>/admin/actividad/eliminar/<?= $a['id_actividad'] ?>" method="POST" class="inline" onsubmit="return confirm('¿Deseas eliminar esta actividad?');">
+                                    <button type="submit" class="text-red-600 hover:text-red-800 font-medium" title="Eliminar">
+                                        🗑️
+                                    </button>
+                                </form>
 
                             </td>
 

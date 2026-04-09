@@ -746,8 +746,40 @@ class PasantiaController
 
         // Si es POST, actualizar los datos
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $modalidadRaw = (string) ($practica['modalidad'] ?? '');
+            $modalidadUpper = strtoupper(strtr($modalidadRaw, [
+                'á' => 'A',
+                'é' => 'E',
+                'í' => 'I',
+                'ó' => 'O',
+                'ú' => 'U',
+                'Á' => 'A',
+                'É' => 'E',
+                'Í' => 'I',
+                'Ó' => 'O',
+                'Ú' => 'U',
+            ]));
+            $esHomologableLaboral = strpos($modalidadUpper, 'HOMOLOGABLES LABORALES') !== false;
+
             $datos = [
-                'estado_fase_uno_completado' => $_POST['estado_fase_uno_completado'] ?? $practica['estado_fase_uno_completado']
+                'estado_fase_uno_completado' => $_POST['estado_fase_uno_completado'] ?? $practica['estado_fase_uno_completado'],
+                'entidad_id' => $practica['entidad_id'] ?? null,
+                'tutor_empresarial_id' => $practica['tutor_empresarial_id'] ?? null,
+                'entidad_nombre_empresa' => $_POST['entidad_nombre_empresa'] ?? $practica['entidad_nombre_empresa'],
+                'entidad_ruc' => $_POST['entidad_ruc'] ?? $practica['ruc'],
+                'entidad_razon_social' => $_POST['entidad_razon_social'] ?? $practica['razon_social'],
+                'entidad_persona_contacto' => $_POST['entidad_persona_contacto'] ?? $practica['persona_contacto'],
+                'entidad_telefono_contacto' => $_POST['entidad_telefono_contacto'] ?? $practica['telefono_contacto'],
+                'entidad_email_contacto' => $_POST['entidad_email_contacto'] ?? $practica['email_contacto'],
+                'entidad_direccion' => $_POST['entidad_direccion'] ?? $practica['direccion'],
+                'plazas_disponibles' => $_POST['plazas_disponibles'] ?? $practica['plazas_disponibles'],
+                'afiliacion_iess' => $practica['afiliacion_iess'] ?? null,
+                'tutor_emp_nombre_completo' => $esHomologableLaboral ? ($practica['tutor_emp_nombre_completo'] ?? null) : ($_POST['tutor_emp_nombre_completo'] ?? $practica['tutor_emp_nombre_completo']),
+                'tutor_emp_cedula' => $esHomologableLaboral ? ($practica['tutor_emp_cedula'] ?? null) : ($_POST['tutor_emp_cedula'] ?? $practica['tutor_emp_cedula']),
+                'tutor_emp_funcion' => $esHomologableLaboral ? ($practica['tutor_emp_funcion'] ?? null) : ($_POST['tutor_emp_funcion'] ?? $practica['tutor_emp_funcion']),
+                'tutor_emp_email' => $esHomologableLaboral ? ($practica['tutor_emp_email'] ?? null) : ($_POST['tutor_emp_email'] ?? $practica['tutor_emp_email']),
+                'tutor_emp_telefono' => $esHomologableLaboral ? ($practica['tutor_emp_telefono'] ?? null) : ($_POST['tutor_emp_telefono'] ?? $practica['tutor_emp_telefono']),
+                'tutor_emp_departamento' => $esHomologableLaboral ? ($practica['tutor_emp_departamento'] ?? null) : ($_POST['tutor_emp_departamento'] ?? $practica['tutor_emp_departamento']),
             ];
 
             $resultado = $this->pasantiaModel->actualizarPasantia($id_practica, $datos);

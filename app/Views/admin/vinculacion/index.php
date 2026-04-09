@@ -56,9 +56,16 @@
                             <td class="px-4 py-3 text-center space-x-2">
 
                                 <a href="<?= $basePath ?>/admin/vinculacion/editar/<?= $proyecto['id_proyecto'] ?>"
-                                    class="text-blue-600 hover:text-blue-800 font-medium">
+                                    class="text-blue-600 hover:text-blue-800 font-medium"
+                                    title="Editar">
                                     ✏️
                                 </a>
+
+                                <form action="<?= $basePath ?>/admin/vinculacion/eliminar/<?= $proyecto['id_proyecto'] ?>" method="POST" class="inline" onsubmit="return confirm('¿Deseas eliminar este proyecto de vinculación?');">
+                                    <button type="submit" class="text-red-600 hover:text-red-800 font-medium" title="Eliminar">
+                                        🗑️
+                                    </button>
+                                </form>
 
                             </td>
 
@@ -135,9 +142,16 @@
                             <td class="px-4 py-3 text-center space-x-3">
 
                                 <a href="<?= $basePath ?>/admin/carrera/editarV/<?= $car['id'] ?>"
-                                    class="text-blue-600 hover:text-blue-800 font-medium">
+                                    class="text-blue-600 hover:text-blue-800 font-medium"
+                                    title="Editar">
                                     ✏️
                                 </a>
+
+                                <form action="<?= $basePath ?>/admin/carrera/eliminarV/<?= $car['id'] ?>" method="POST" class="inline" onsubmit="return confirm('¿Deseas eliminar este registro de carrera?');">
+                                    <button type="submit" class="text-red-600 hover:text-red-800 font-medium" title="Eliminar">
+                                        🗑️
+                                    </button>
+                                </form>
 
                             </td>
 

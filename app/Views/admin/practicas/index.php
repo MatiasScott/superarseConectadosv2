@@ -126,19 +126,21 @@
                             <?php endif; ?>
                         </td>
 
-                        <td class="px-6 py-4 flex gap-4">
+                        <td class="px-6 py-4 text-center space-x-3">
 
                             <a href="<?= $basePath ?>/admin/practicas/editar/<?= $p['id_practica'] ?>"
-                                class="text-yellow-600 hover:underline font-medium">
-                                Editar
+                                class="text-blue-600 hover:text-blue-800 font-medium"
+                                title="Editar">
+                                ✏️
                             </a>
 
                             <form action="<?= $basePath ?>/admin/practicas/eliminar/<?= $p['id_practica'] ?>"
                                 method="POST"
+                                class="inline"
                                 onsubmit="return confirm('¿Eliminar esta práctica?');">
 
-                                <button class="text-red-600 hover:underline font-medium">
-                                    Eliminar
+                                <button type="submit" class="text-red-600 hover:text-red-800 font-medium" title="Eliminar">
+                                    🗑️
                                 </button>
                             </form>
 

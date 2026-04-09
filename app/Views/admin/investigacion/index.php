@@ -37,9 +37,16 @@
                         <td class="px-4 py-3 text-center space-x-2">
 
                             <a href="<?= $basePath ?>/admin/proyecto/editar/<?= $proyecto['id_proyecto'] ?>"
-                                class="text-blue-600 hover:text-blue-800 font-medium">
+                                class="text-blue-600 hover:text-blue-800 font-medium"
+                                title="Editar">
                                 ✏️
                             </a>
+
+                            <form action="<?= $basePath ?>/admin/proyecto/eliminar/<?= $proyecto['id_proyecto'] ?>" method="POST" class="inline" onsubmit="return confirm('¿Deseas eliminar este proyecto de investigación?');">
+                                <button type="submit" class="text-red-600 hover:text-red-800 font-medium" title="Eliminar">
+                                    🗑️
+                                </button>
+                            </form>
 
                         </td>
                     </tr>
@@ -108,9 +115,16 @@
                             <td class="px-4 py-3 text-center space-x-3">
 
                                 <a href="<?= $basePath ?>/admin/publicacion/editar/<?= $pub['id_publicacion'] ?>"
-                                    class="text-blue-600 hover:text-blue-800 font-medium">
+                                    class="text-blue-600 hover:text-blue-800 font-medium"
+                                    title="Editar">
                                     ✏️
                                 </a>
+
+                                <form action="<?= $basePath ?>/admin/publicacion/eliminar/<?= $pub['id_publicacion'] ?>" method="POST" class="inline" onsubmit="return confirm('¿Deseas eliminar esta publicación?');">
+                                    <button type="submit" class="text-red-600 hover:text-red-800 font-medium" title="Eliminar">
+                                        🗑️
+                                    </button>
+                                </form>
 
                             </td>
                         </tr>
@@ -189,9 +203,16 @@
                             <td class="px-4 py-3 text-center space-x-3">
 
                                 <a href="<?= $basePath ?>/admin/ponencia/editar/<?= $pon['id_ponencia'] ?>"
-                                    class="text-blue-600 hover:text-blue-800 font-medium">
+                                    class="text-blue-600 hover:text-blue-800 font-medium"
+                                    title="Editar">
                                     ✏️
                                 </a>
+
+                                <form action="<?= $basePath ?>/admin/ponencia/eliminar/<?= $pon['id_ponencia'] ?>" method="POST" class="inline" onsubmit="return confirm('¿Deseas eliminar esta ponencia?');">
+                                    <button type="submit" class="text-red-600 hover:text-red-800 font-medium" title="Eliminar">
+                                        🗑️
+                                    </button>
+                                </form>
 
                             </td>
                         </tr>
@@ -267,9 +288,16 @@
                             <td class="px-4 py-3 text-center space-x-3">
 
                                 <a href="<?= $basePath ?>/admin/carrera/editar/<?= $car['id'] ?>"
-                                    class="text-blue-600 hover:text-blue-800 font-medium">
+                                    class="text-blue-600 hover:text-blue-800 font-medium"
+                                    title="Editar">
                                     ✏️
                                 </a>
+
+                                <form action="<?= $basePath ?>/admin/carrera/eliminar/<?= $car['id'] ?>" method="POST" class="inline" onsubmit="return confirm('¿Deseas eliminar este registro de carrera?');">
+                                    <button type="submit" class="text-red-600 hover:text-red-800 font-medium" title="Eliminar">
+                                        🗑️
+                                    </button>
+                                </form>
 
                             </td>
 

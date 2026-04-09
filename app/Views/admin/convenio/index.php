@@ -95,9 +95,16 @@
                             <td class="px-4 py-3 text-center">
 
                                 <a href="<?= $basePath ?>/admin/convenio/editar/<?= $convenio['id_convenio'] ?>"
-                                    class="text-blue-600 hover:text-blue-800 font-medium">
+                                    class="text-blue-600 hover:text-blue-800 font-medium"
+                                    title="Editar">
                                     ✏️
                                 </a>
+
+                                <form action="<?= $basePath ?>/admin/convenio/eliminar/<?= $convenio['id_convenio'] ?>" method="POST" class="inline" onsubmit="return confirm('¿Deseas eliminar este convenio?');">
+                                    <button type="submit" class="text-red-600 hover:text-red-800 font-medium" title="Eliminar">
+                                        🗑️
+                                    </button>
+                                </form>
 
                             </td>
 

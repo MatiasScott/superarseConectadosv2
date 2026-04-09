@@ -1842,6 +1842,150 @@ class AdminController
         exit();
     }
 
+    public function eliminarProyectoInvestigacion($id)
+    {
+        if (!isset($_SESSION['is_admin']) || $_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $eliminado = $this->proyectoModel->eliminar($id);
+        $_SESSION[$eliminado ? 'success' : 'error'] = $eliminado
+            ? 'Proyecto eliminado correctamente'
+            : 'No se pudo eliminar el proyecto';
+
+        header("Location: " . $this->basePath . "/admin/investigacion");
+        exit();
+    }
+
+    public function eliminarProyectoVinculacion($id)
+    {
+        if (!isset($_SESSION['is_admin']) || $_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $eliminado = $this->proyectoModel->eliminar($id);
+        $_SESSION[$eliminado ? 'success' : 'error'] = $eliminado
+            ? 'Proyecto eliminado correctamente'
+            : 'No se pudo eliminar el proyecto';
+
+        header("Location: " . $this->basePath . "/admin/vinculacion");
+        exit();
+    }
+
+    public function eliminarPublicacion($id)
+    {
+        if (!isset($_SESSION['is_admin']) || $_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $eliminado = $this->publicacionModel->eliminar($id);
+        $_SESSION[$eliminado ? 'success' : 'error'] = $eliminado
+            ? 'Publicación eliminada correctamente'
+            : 'No se pudo eliminar la publicación';
+
+        header("Location: " . $this->basePath . "/admin/investigacion");
+        exit();
+    }
+
+    public function eliminarPonencia($id)
+    {
+        if (!isset($_SESSION['is_admin']) || $_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $eliminado = $this->ponenciaModel->eliminar($id);
+        $_SESSION[$eliminado ? 'success' : 'error'] = $eliminado
+            ? 'Ponencia eliminada correctamente'
+            : 'No se pudo eliminar la ponencia';
+
+        header("Location: " . $this->basePath . "/admin/investigacion");
+        exit();
+    }
+
+    public function eliminarCarreraInvestigacion($id)
+    {
+        if (!isset($_SESSION['is_admin']) || $_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $eliminado = $this->carreraModel->eliminar($id);
+        $_SESSION[$eliminado ? 'success' : 'error'] = $eliminado
+            ? 'Carrera eliminada correctamente'
+            : 'No se pudo eliminar la carrera';
+
+        header("Location: " . $this->basePath . "/admin/investigacion");
+        exit();
+    }
+
+    public function eliminarCarreraVinculacion($id)
+    {
+        if (!isset($_SESSION['is_admin']) || $_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $eliminado = $this->carreraModel->eliminar($id);
+        $_SESSION[$eliminado ? 'success' : 'error'] = $eliminado
+            ? 'Carrera eliminada correctamente'
+            : 'No se pudo eliminar la carrera';
+
+        header("Location: " . $this->basePath . "/admin/vinculacion");
+        exit();
+    }
+
+    public function eliminarPedi($id)
+    {
+        if (!isset($_SESSION['is_admin']) || $_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $eliminado = $this->pediModel->eliminar($id);
+        $_SESSION[$eliminado ? 'success' : 'error'] = $eliminado
+            ? 'PEDI eliminado correctamente'
+            : 'No se pudo eliminar el PEDI';
+
+        header("Location: " . $this->basePath . "/admin/plan-estrategico");
+        exit();
+    }
+
+    public function eliminarPoa($id)
+    {
+        if (!isset($_SESSION['is_admin']) || $_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $eliminado = $this->poaModel->eliminar($id);
+        $_SESSION[$eliminado ? 'success' : 'error'] = $eliminado
+            ? 'POA eliminado correctamente'
+            : 'No se pudo eliminar el POA';
+
+        header("Location: " . $this->basePath . "/admin/plan-estrategico");
+        exit();
+    }
+
+    public function eliminarActividadPoa($id)
+    {
+        if (!isset($_SESSION['is_admin']) || $_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $eliminado = $this->actividadModel->eliminar($id);
+        $_SESSION[$eliminado ? 'success' : 'error'] = $eliminado
+            ? 'Actividad eliminada correctamente'
+            : 'No se pudo eliminar la actividad';
+
+        header("Location: " . $this->basePath . "/admin/plan-estrategico");
+        exit();
+    }
+
     /* Convenios */
     public function convenio()
     {
@@ -1920,5 +2064,21 @@ class AdminController
             header("Location: " . $this->basePath . "/admin/convenio");
             exit();
         }
+    }
+
+    public function eliminarConvenio($id)
+    {
+        if (!isset($_SESSION['is_admin']) || $_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $eliminado = $this->convenioModel->eliminar($id);
+        $_SESSION[$eliminado ? 'success' : 'error'] = $eliminado
+            ? 'Convenio eliminado correctamente'
+            : 'No se pudo eliminar el convenio';
+
+        header("Location: " . $this->basePath . "/admin/convenio");
+        exit();
     }
 }

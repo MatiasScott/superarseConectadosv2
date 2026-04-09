@@ -203,6 +203,14 @@ if (preg_match('#^/admin#', $uri)) {
             $controller->actualizarProyectoVinculacion();
             break;
 
+        case preg_match('/^\/admin\/proyecto\/eliminar\/(\d+)$/', $uri, $matches) && $method === 'POST':
+            $controller->eliminarProyectoInvestigacion((int)$matches[1]);
+            break;
+
+        case preg_match('/^\/admin\/vinculacion\/eliminar\/(\d+)$/', $uri, $matches) && $method === 'POST':
+            $controller->eliminarProyectoVinculacion((int)$matches[1]);
+            break;
+
         case $uri === '/admin/proyecto/actualizar' && $method === 'POST':
             $controller->actualizarProyecto();
             break;
@@ -211,16 +219,32 @@ if (preg_match('#^/admin#', $uri)) {
             $controller->actualizarPublicacion();
             break;
 
+        case preg_match('/^\/admin\/publicacion\/eliminar\/(\d+)$/', $uri, $matches) && $method === 'POST':
+            $controller->eliminarPublicacion((int)$matches[1]);
+            break;
+
         case $uri === '/admin/ponencia/actualizar' && $method === 'POST':
             $controller->actualizarPonencia();
+            break;
+
+        case preg_match('/^\/admin\/ponencia\/eliminar\/(\d+)$/', $uri, $matches) && $method === 'POST':
+            $controller->eliminarPonencia((int)$matches[1]);
             break;
 
         case $uri === '/admin/carrera/actualizar' && $method === 'POST':
             $controller->actualizarCarrera();
             break;
 
+        case preg_match('/^\/admin\/carrera\/eliminar\/(\d+)$/', $uri, $matches) && $method === 'POST':
+            $controller->eliminarCarreraInvestigacion((int)$matches[1]);
+            break;
+
         case $uri === '/admin/carrera/actualizarV' && $method === 'POST':
             $controller->actualizarCarreraV();
+            break;
+
+        case preg_match('/^\/admin\/carrera\/eliminarV\/(\d+)$/', $uri, $matches) && $method === 'POST':
+            $controller->eliminarCarreraVinculacion((int)$matches[1]);
             break;
 
         case $uri === '/admin/auditoria-fase-dos':
@@ -247,6 +271,10 @@ if (preg_match('#^/admin#', $uri)) {
             $controller->actualizarPedi();
             break;
 
+        case preg_match('/^\/admin\/pedi\/eliminar\/(\d+)$/', $uri, $matches) && $method === 'POST':
+            $controller->eliminarPedi((int)$matches[1]);
+            break;
+
         case $uri === '/admin/poa/create':
             $controller->crearPoa();
             break;
@@ -263,6 +291,10 @@ if (preg_match('#^/admin#', $uri)) {
             $controller->actualizarPoa();
             break;
 
+        case preg_match('/^\/admin\/poa\/eliminar\/(\d+)$/', $uri, $matches) && $method === 'POST':
+            $controller->eliminarPoa((int)$matches[1]);
+            break;
+
         case $uri === '/admin/actividad/create':
             $controller->crearActividad();
             break;
@@ -277,6 +309,10 @@ if (preg_match('#^/admin#', $uri)) {
 
         case $uri === '/admin/actividad/update' && $method === 'POST':
             $controller->actualizarActividad();
+            break;
+
+        case preg_match('/^\/admin\/actividad\/eliminar\/(\d+)$/', $uri, $matches) && $method === 'POST':
+            $controller->eliminarActividadPoa((int)$matches[1]);
             break;
 
         case $uri === '/admin/logout':
@@ -316,6 +352,10 @@ if (preg_match('#^/admin#', $uri)) {
 
         case $uri === '/admin/convenio/actualizar' && $method === 'POST':
             $controller->actualizarConvenio();
+            break;
+
+        case preg_match('/^\/admin\/convenio\/eliminar\/(\d+)$/', $uri, $matches) && $method === 'POST':
+            $controller->eliminarConvenio((int)$matches[1]);
             break;
 
         default:

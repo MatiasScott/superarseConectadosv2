@@ -25,6 +25,7 @@ class PasantiaModel extends Database
         $query = "SELECT
             pe.id_practica,
             pe.modalidad,
+            pe.proyecto_id,
             pe.estado_fase_uno_completado,
             pe.afiliacion_iess,
             ent.ruc,
@@ -62,9 +63,12 @@ class PasantiaModel extends Database
             pe.afiliacion_iess,
             pe.user_id,
             pe.docente_asignado_id,
+            pe.entidad_id,
+            pe.tutor_empresarial_id,
             pe.fecha_registro,
             ent.ruc,
             ent.nombre_empresa,
+            ent.id_entidad,
             pmod.id_practica_modalidad,
             ent.nombre_empresa AS entidad_nombre_empresa,
             ent.razon_social,
@@ -79,6 +83,11 @@ class PasantiaModel extends Database
             tutemp.email AS tutor_emp_email,
             tutemp.telefono AS tutor_emp_telefono,
             tutemp.departamento AS tutor_emp_departamento,
+            tutemp.id_tutor_empresa,
+            doc.nombre_completo AS docente_nombre,
+            p.descripcion AS proyecto_descripcion,
+            p.carreras AS proyecto_carreras,
+            p.lugar AS proyecto_lugar,
             u.codigo_matricula,
             u.programa,
             CONCAT(u.primer_nombre, ' ', IFNULL(u.segundo_nombre, ''), ' ', u.primer_apellido, ' ', u.segundo_apellido) AS estudiante_nombre
@@ -87,6 +96,8 @@ class PasantiaModel extends Database
         INNER JOIN practica_modalidad pmod ON pmod.modalidad = pe.modalidad
         INNER JOIN entidades ent ON ent.id_entidad = pe.entidad_id
         LEFT JOIN tutores_empresariales tutemp ON tutemp.id_tutor_empresa = pe.tutor_empresarial_id
+        LEFT JOIN docentes doc ON doc.id_docente = pe.docente_asignado_id
+        LEFT JOIN proyectos p ON p.id = pe.proyecto_id
         INNER JOIN users u ON u.id = pe.user_id
         WHERE pe.id_practica = :practicaId LIMIT 1";
         try {
@@ -923,17 +934,74 @@ class PasantiaModel extends Database
 
     public function actualizarPasantia($id_practica, $datos)
     {
-        $query = "UPDATE practicas_estudiantes SET 
-                  estado_fase_uno_completado = :estado_fase_uno_completado
-                  WHERE id_practica = :id_practica";
-
         try {
-            $stmt = $this->db->prepare($query);
-            $stmt->bindParam(':estado_fase_uno_completado', $datos['estado_fase_uno_completado']);
-            $stmt->bindParam(':id_practica', $id_practica);
+            $this->db->beginTransaction();
 
-            return $stmt->execute();
+            $queryPractica = "UPDATE practicas_estudiantes SET 
+                    estado_fase_uno_completado = :estado_fase_uno_completado,
+                    afiliacion_iess = :afiliacion_iess
+                    WHERE id_practica = :id_practica";
+            $stmtPractica = $this->db->prepare($queryPractica);
+            $stmtPractica->execute([
+                ':estado_fase_uno_completado' => (int) ($datos['estado_fase_uno_completado'] ?? 0),
+                ':afiliacion_iess' => trim((string) ($datos['afiliacion_iess'] ?? '')),
+                ':id_practica' => (int) $id_practica,
+            ]);
+
+            if (!empty($datos['entidad_id'])) {
+                $queryEntidad = "UPDATE entidades SET
+                        nombre_empresa = :nombre_empresa,
+                        ruc = :ruc,
+                        razon_social = :razon_social,
+                        persona_contacto = :persona_contacto,
+                        telefono_contacto = :telefono_contacto,
+                        email_contacto = :email_contacto,
+                        direccion = :direccion,
+                        plazas_disponibles = :plazas_disponibles
+                    WHERE id_entidad = :id_entidad";
+
+                $stmtEntidad = $this->db->prepare($queryEntidad);
+                $stmtEntidad->execute([
+                    ':nombre_empresa' => trim((string) ($datos['entidad_nombre_empresa'] ?? '')),
+                    ':ruc' => trim((string) ($datos['entidad_ruc'] ?? '')),
+                    ':razon_social' => trim((string) ($datos['entidad_razon_social'] ?? '')),
+                    ':persona_contacto' => trim((string) ($datos['entidad_persona_contacto'] ?? '')),
+                    ':telefono_contacto' => trim((string) ($datos['entidad_telefono_contacto'] ?? '')),
+                    ':email_contacto' => trim((string) ($datos['entidad_email_contacto'] ?? '')),
+                    ':direccion' => trim((string) ($datos['entidad_direccion'] ?? '')),
+                    ':plazas_disponibles' => max(0, (int) ($datos['plazas_disponibles'] ?? 0)),
+                    ':id_entidad' => (int) $datos['entidad_id'],
+                ]);
+            }
+
+            if (!empty($datos['tutor_empresarial_id'])) {
+                $queryTutor = "UPDATE tutores_empresariales SET
+                        nombre_completo = :nombre_completo,
+                        cedula = :cedula,
+                        funcion = :funcion,
+                        email = :email,
+                        telefono = :telefono,
+                        departamento = :departamento
+                    WHERE id_tutor_empresa = :id_tutor_empresa";
+
+                $stmtTutor = $this->db->prepare($queryTutor);
+                $stmtTutor->execute([
+                    ':nombre_completo' => trim((string) ($datos['tutor_emp_nombre_completo'] ?? '')),
+                    ':cedula' => trim((string) ($datos['tutor_emp_cedula'] ?? '')),
+                    ':funcion' => trim((string) ($datos['tutor_emp_funcion'] ?? '')),
+                    ':email' => trim((string) ($datos['tutor_emp_email'] ?? '')),
+                    ':telefono' => trim((string) ($datos['tutor_emp_telefono'] ?? '')),
+                    ':departamento' => trim((string) ($datos['tutor_emp_departamento'] ?? '')),
+                    ':id_tutor_empresa' => (int) $datos['tutor_empresarial_id'],
+                ]);
+            }
+
+            $this->db->commit();
+            return true;
         } catch (PDOException $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
             error_log("Error al actualizar pasantía: " . $e->getMessage());
             return false;
         }

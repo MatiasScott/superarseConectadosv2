@@ -125,4 +125,18 @@ class PoaActividadModel extends Database
             return false;
         }
     }
+
+    public function eliminar($id)
+    {
+        $db = $this->getConnection();
+        $query = "DELETE FROM " . $this->table_name . " WHERE id_actividad = ?";
+        $stmt = $db->prepare($query);
+
+        try {
+            return $stmt->execute([$id]);
+        } catch (PDOException $e) {
+            error_log("Error eliminar actividad POA: " . $e->getMessage());
+            return false;
+        }
+    }
 }
