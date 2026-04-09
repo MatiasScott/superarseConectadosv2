@@ -1,6 +1,14 @@
 <?php
 $infoPagos = (isset($data['infoPagos']) && is_array($data['infoPagos'])) ? $data['infoPagos'] : [];
 $bancos = (isset($data['bancos']) && is_array($data['bancos'])) ? $data['bancos'] : [];
+
+$formatMontoResumen = static function ($valor): string {
+    if ($valor === null || $valor === '' || !is_numeric($valor)) {
+        return '0.00';
+    }
+
+    return number_format((float) $valor, 2, '.', '');
+};
 ?>
 
 <div id="pagos" class="tab-pane hidden">
@@ -15,7 +23,7 @@ $bancos = (isset($data['bancos']) && is_array($data['bancos'])) ? $data['bancos'
         <div class="bg-green-100 p-4 rounded-lg shadow-md border border-green-300">
             <p class="text-sm font-medium text-green-700">ABONO TOTAL</p>
             <p class="text-2xl font-bold text-green-800 mt-1">
-                $<?php echo htmlspecialchars($infoPagos['ABONO_TOTAL2'] ?? '0.00'); // Usando ABONO_TOTAL2, el nombre estandarizado en DB 
+                $<?php echo $formatMontoResumen($infoPagos['ABONO_TOTAL2'] ?? 0); // Usando ABONO_TOTAL2, el nombre estandarizado en DB 
                     ?>
             </p>
         </div>
@@ -24,7 +32,7 @@ $bancos = (isset($data['bancos']) && is_array($data['bancos'])) ? $data['bancos'
         <div class="bg-red-100 p-4 rounded-lg shadow-md border border-red-300">
             <p class="text-sm font-medium text-red-700">SALDO TOTAL PENDIENTE</p>
             <p class="text-2xl font-bold text-red-800 mt-1">
-                $<?php echo htmlspecialchars($infoPagos['SALDO_TOTAL_FINAL'] ?? '0.00'); // Usando SALDO_TOTAL_FINAL, el nombre estandarizado en DB 
+                $<?php echo $formatMontoResumen($infoPagos['SALDO_TOTAL_FINAL'] ?? 0); // Usando SALDO_TOTAL_FINAL, el nombre estandarizado en DB 
                     ?>
             </p>
         </div>
@@ -33,7 +41,7 @@ $bancos = (isset($data['bancos']) && is_array($data['bancos'])) ? $data['bancos'
         <div class="bg-yellow-100 p-4 rounded-lg shadow-md border border-yellow-300">
             <p class="text-sm font-medium text-yellow-700">SALDO PERIODO ANTERIOR</p>
             <p class="text-2xl font-bold text-yellow-800 mt-1">
-                $<?php echo htmlspecialchars($infoPagos['SALDO_PENDIENTE_PERIODO_ANTERIOR'] ?? '0.00'); // NUEVO CAMPO: alineado a DB 
+                $<?php echo $formatMontoResumen($infoPagos['SALDO_PENDIENTE_PERIODO_ANTERIOR'] ?? 0); // NUEVO CAMPO: alineado a DB 
                     ?>
             </p>
         </div>
@@ -42,7 +50,7 @@ $bancos = (isset($data['bancos']) && is_array($data['bancos'])) ? $data['bancos'
         <div class="bg-indigo-100 p-4 rounded-lg shadow-md border border-indigo-300">
             <p class="text-sm font-medium text-indigo-700">VALOR CUOTA MENSUAL</p>
             <p class="text-2xl font-bold text-indigo-800 mt-1">
-                $<?php echo htmlspecialchars($infoPagos['VALOR_CUOTA_MENSUAL'] ?? '0.00'); // NUEVO CAMPO: alineado a DB 
+                $<?php echo $formatMontoResumen($infoPagos['VALOR_CUOTA_MENSUAL'] ?? 0); // NUEVO CAMPO: alineado a DB 
                     ?>
             </p>
         </div>

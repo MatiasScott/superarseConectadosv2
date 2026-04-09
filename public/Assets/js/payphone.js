@@ -7,6 +7,12 @@ document
       .value.trim()
       .replace(",", ".");
 
+    if (!/^\d+(\.\d{1,2})?$/.test(cantidadInput)) {
+      alert("Por favor, ingresa una cantidad valida con maximo 2 decimales.");
+      document.getElementById("cantidad").focus();
+      return;
+    }
+
     const cantidad = parseFloat(cantidadInput);
 
     if (!cantidad || isNaN(cantidad) || cantidad <= 0) {
@@ -22,9 +28,10 @@ document
       : "SIN_ID";
     const referenciaFinal = `ID: ${identificacion} | Ref: ${referencia || "Pago Estudiantil"
       }`;
+    const cantidadNormalizada = cantidad.toFixed(2);
     const url =
       `/superarseconectadosv2/public/pago?cantidad=` +
-      encodeURIComponent(cantidad) +
+      encodeURIComponent(cantidadNormalizada) +
       `&referencia=` +
       encodeURIComponent(referenciaFinal) +
       `&vista=pasarela`;
