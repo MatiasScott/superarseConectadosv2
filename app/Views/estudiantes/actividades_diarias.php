@@ -14,6 +14,8 @@ $offset = $offset ?? $data['offset'] ?? 0;
 $limit = $limit ?? $data['limit'] ?? 10;
 $search = $search ?? $data['search'] ?? '';
 $mensaje = $mensaje ?? $data['mensaje'] ?? null;
+$activityPage = $activityPage ?? $data['activityPage'] ?? (int) floor(($offset / max(1, $limit)) + 1);
+$totalPages = $totalPages ?? $data['totalActivityPages'] ?? (int) max(1, ceil(($totalRegistros ?: 0) / max(1, $limit)));
 
 // Debug - comentar después de verificar
 // echo "<!-- DEBUG: practicaId = " . $practicaId . " -->";
@@ -24,11 +26,37 @@ $mensaje = $mensaje ?? $data['mensaje'] ?? null;
     modoEdicion: false,
     actividadEditando: null,
     horasCalculadas: '',
+    advertenciaFecha: '',
+    actividadesExistentes: [],
+
+    obtenerActividadesExistentes() {
+        return this.$el.getAttribute('data-actividades-existentes') ? 
+            JSON.parse(this.$el.getAttribute('data-actividades-existentes')) : [];
+    },
+
+    validarFecha() {
+        const fechaInput = document.getElementById('fecha_actividad').value;
+        const hoy = new Date().toISOString().split('T')[0];
+        this.advertenciaFecha = '';
+
+        if (fechaInput > hoy) {
+            this.advertenciaFecha = '❌ No puedes registrar actividades futuras';
+            return false;
+        }
+
+        if (!this.modoEdicion && this.obtenerActividadesExistentes().includes(fechaInput)) {
+            this.advertenciaFecha = '⚠️ Ya existe una actividad para este día';
+            return false;
+        }
+
+        return true;
+    },
 
     nuevaActividad() {
         this.modoEdicion = false;
         this.actividadEditando = null;
         this.horasCalculadas = '';
+        this.advertenciaFecha = '';
         this.limpiarFormulario();
         this.mostrarFormulario = true;
     },
@@ -37,6 +65,7 @@ $mensaje = $mensaje ?? $data['mensaje'] ?? null;
         this.modoEdicion = true;
         this.actividadEditando = actividad;
         this.mostrarFormulario = true;
+        this.advertenciaFecha = '';
 
         this.$nextTick(() => {
             document.getElementById('id_actividad').value = actividad.id_actividad_diaria;
@@ -54,6 +83,7 @@ $mensaje = $mensaje ?? $data['mensaje'] ?? null;
         document.getElementById('fecha_actividad').value = '<?php echo date('Y-m-d'); ?>';
         document.getElementById('horas_invertidas').value = '';
         this.horasCalculadas = '';
+        this.advertenciaFecha = '';
     },
 
     cancelar() {
@@ -100,9 +130,26 @@ $mensaje = $mensaje ?? $data['mensaje'] ?? null;
         this.horasCalculadas = '';
     }
 }
-}">
+}" 
+data-actividades-existentes="<?php echo htmlspecialchars(json_encode(array_map(function($a) { return $a['fecha_actividad']; }, $actividadesDiarias)), ENT_QUOTES, 'UTF-8'); ?>">
     <div class="flex justify-between items-center mb-4">
-        <h2 class="text-lg font-semibold text-gray-700">🗓️ Actividades Diarias</h2>
+        <div>
+            <h2 class="text-lg font-semibold text-gray-700">🗓️ Actividades Diarias</h2>
+            <div class="mt-2 flex gap-2">
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-superarse-morado-claro text-superarse-morado-oscuro">
+                    ⏱️ Total de horas: <strong class="ml-1"><?php 
+                        $totalHoras = $totalHorasActividades ?? $data['totalHorasActividades'] ?? 0;
+                        echo number_format($totalHoras, 2, '.', '');
+                    ?> horas</strong>
+                </span>
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-700">
+                    📝 Registradas: <strong class="ml-1"><?php 
+                        $totalRegistradas = $totalRegistros ?? $data['totalActividadesDiarias'] ?? 0;
+                        echo $totalRegistradas;
+                    ?></strong>
+                </span>
+            </div>
+        </div>
         <div class="flex gap-3">
             <a href="<?php echo $basePath; ?>/pasantias/generateActividadesPdf/<?php echo $practicaId; ?>" 
                 target="_blank"
@@ -150,6 +197,8 @@ $mensaje = $mensaje ?? $data['mensaje'] ?? null;
             <input type="hidden" name="practica_id" value="<?php echo $practicaId; ?>">
             <input type="hidden" id="id_actividad" name="id" value="">
             <input type="hidden" id="horas_invertidas" name="horas_invertidas" value="">
+            <input type="hidden" name="tab" value="actividades">
+            <input type="hidden" name="activity_page" value="<?php echo (int) $activityPage; ?>">
 
             <div>
                 <label for="actividad_realizada" class="block text-gray-700 font-medium mb-1">
@@ -166,7 +215,10 @@ $mensaje = $mensaje ?? $data['mensaje'] ?? null;
                 </label>
                 <input type="date" id="fecha_actividad" name="fecha_actividad" required
                     value="<?php echo date('Y-m-d'); ?>"
+                    max="<?php echo date('Y-m-d'); ?>"
+                    @change="validarFecha()"
                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-superarse-morado-medio">
+                <p class="text-xs text-gray-500 mt-1">Solo hasta hoy. Una actividad por día.</p>
             </div>
 
             <div class="grid grid-cols-2 gap-4">
@@ -202,8 +254,15 @@ $mensaje = $mensaje ?? $data['mensaje'] ?? null;
                 <p class="text-sm text-gray-500 mt-1">Se calcula automáticamente según las horas de inicio y fin.</p>
             </div>
 
+            <!-- Advertencia de validación de fecha -->
+            <div x-show="advertenciaFecha" class="p-3 rounded-lg" :class="advertenciaFecha.includes('❌') ? 'bg-red-100 border border-red-300 text-red-700' : 'bg-yellow-100 border border-yellow-300 text-yellow-700'">
+                <span x-text="advertenciaFecha"></span>
+            </div>
+
             <div class="pt-2 flex gap-3">
                 <button type="submit"
+                    :disabled="advertenciaFecha !== ''"
+                    :class="advertenciaFecha !== '' ? 'opacity-50 cursor-not-allowed' : ''"
                     class="bg-superarse-morado-medio text-white font-semibold py-2 px-6 rounded-lg hover:bg-superarse-morado-oscuro transition duration-150"
                     x-text="modoEdicion ? 'Actualizar' : 'Guardar'">
                 </button>
@@ -278,6 +337,8 @@ $mensaje = $mensaje ?? $data['mensaje'] ?? null;
                                                 title="Eliminar actividad">
                                                 🗑️ Eliminar
                                             </button>
+                                                <input type="hidden" name="tab" value="actividades">
+                                                <input type="hidden" name="activity_page" value="<?php echo (int) $activityPage; ?>">
                                         </form>
 
                                     </div>
@@ -302,4 +363,21 @@ $mensaje = $mensaje ?? $data['mensaje'] ?? null;
             </table>
         </div>
     </div>
+
+    <?php if ($totalPages > 1): ?>
+        <div class="mt-4 flex items-center justify-between text-sm text-gray-600">
+            <span>Página <?php echo (int) $activityPage; ?> de <?php echo (int) $totalPages; ?></span>
+            <div class="flex items-center gap-2">
+                <?php if ($activityPage > 1): ?>
+                    <a href="<?php echo $basePath; ?>/estudiante/informacion?module=pasantias&tab=actividades&activity_page=<?php echo (int) ($activityPage - 1); ?>"
+                        class="px-3 py-1.5 rounded bg-gray-100 hover:bg-gray-200 text-gray-700">Anterior</a>
+                <?php endif; ?>
+
+                <?php if ($activityPage < $totalPages): ?>
+                    <a href="<?php echo $basePath; ?>/estudiante/informacion?module=pasantias&tab=actividades&activity_page=<?php echo (int) ($activityPage + 1); ?>"
+                        class="px-3 py-1.5 rounded bg-gray-100 hover:bg-gray-200 text-gray-700">Siguiente</a>
+                <?php endif; ?>
+            </div>
+        </div>
+    <?php endif; ?>
 </div>

@@ -44,6 +44,10 @@ class EstudianteController
         $data = [];
 
         try {
+            $activityPage = max(1, (int) ($_GET['activity_page'] ?? 1));
+            $activityLimit = 10;
+            $activityOffset = ($activityPage - 1) * $activityLimit;
+
             $userModel = new UserModel();
             $pagoModel = new PagoModel();
             $asignaturaModel = new AsignaturaModel();
@@ -62,11 +66,22 @@ class EstudianteController
             $infoPractica = $pasantiaModel->getActivePracticaByUserId($idUsuario);
             $infoStatusPractica = $pasantiaModel->getStatusPracticaByUserId($idUsuario);
             $infoBancos = $bancoModel->getAllBancosActivos();
+            $totalActividadesDiarias = 0;
+            $totalHorasActividades = 0;
+            $totalActivityPages = 1;
             if (!empty($infoPractica['id_practica']) && is_numeric($infoPractica['id_practica'])) {
+                $totalActividadesDiarias = $pasantiaModel->countActividadesDiarias((int) $infoPractica['id_practica']);
+                $totalHorasActividades = $pasantiaModel->getTotalHorasActividades((int) $infoPractica['id_practica']);
+                $totalActivityPages = max(1, (int) ceil($totalActividadesDiarias / $activityLimit));
+                $activityPage = min($activityPage, $totalActivityPages);
+                $activityOffset = ($activityPage - 1) * $activityLimit;
+
                 $actividadesDiarias = $pasantiaModel->getActividadesDiariasPaginated(
                     practicaId: (int)$infoPractica['id_practica'],
-                    offset: 0,
-                    limit: 10
+                    offset: $activityOffset,
+                    limit: $activityLimit,
+                    sortBy: 'fecha_actividad',
+                    sortDir: 'DESC'
                 );
             } else {
                 $actividadesDiarias = [];
@@ -97,6 +112,11 @@ class EstudianteController
             $data['infoPractica'] = $infoPractica ?? null;
             $data['infoStatusPractica'] = $infoStatusPractica ?? null;
             $data['actividadesDiarias'] = $actividadesDiarias ?? [];
+            $data['totalActividadesDiarias'] = $totalActividadesDiarias;
+            $data['totalHorasActividades'] = $totalHorasActividades;
+            $data['activityPage'] = $activityPage;
+            $data['activityLimit'] = $activityLimit;
+            $data['totalActivityPages'] = $totalActivityPages;
             $data['programaTrabajo'] = $programaTrabajo ?? [];
             $data['infoPrograma'] = $infoPrograma ?? [];
             $data['infoProyectos'] = $infoProyectos ?? [];

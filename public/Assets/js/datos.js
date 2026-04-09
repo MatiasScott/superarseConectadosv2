@@ -2,6 +2,7 @@
 document.addEventListener("DOMContentLoaded", function () {
   const tabButtons = document.querySelectorAll(".tab-button");
   const tabPanes = document.querySelectorAll(".tab-pane");
+  const searchParams = new URLSearchParams(window.location.search);
 
   function activateTab(tabName) {
     tabButtons.forEach((btn) => {
@@ -34,5 +35,36 @@ document.addEventListener("DOMContentLoaded", function () {
       activateTab(button.dataset.tab);
     });
   });
-  activateTab("informacion");
+
+  const allowedMainTabs = ["informacion", "asignaturas", "pasantias", "credenciales", "pagos"];
+  const moduleParam = (searchParams.get("module") || "").toLowerCase();
+  const tabParam = (searchParams.get("tab") || "").toLowerCase();
+
+  let initialTab = "informacion";
+  if (allowedMainTabs.includes(moduleParam)) {
+    initialTab = moduleParam;
+  } else if (allowedMainTabs.includes(tabParam)) {
+    initialTab = tabParam;
+  } else if (["programa", "actividades", "calificaciones", "manual"].includes(tabParam)) {
+    initialTab = "pasantias";
+  }
+
+  activateTab(initialTab);
+
+  if (initialTab === "pasantias") {
+    const pane = document.getElementById("pasantias");
+    if (pane) {
+      pane.scrollIntoView({ behavior: "auto", block: "start" });
+    }
+
+    // Si el tab específico dentro de pasantias es 'actividades', scroll a esa sección
+    if (tabParam === "actividades") {
+      setTimeout(() => {
+        const actividadesSection = document.getElementById("section-actividades-diarias");
+        if (actividadesSection) {
+          actividadesSection.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 100);
+    }
+  }
 });

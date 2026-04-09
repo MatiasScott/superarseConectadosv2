@@ -116,7 +116,14 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function buscarEntidadPorRUC(programa, ruc, esAuto = false) {
-        const basePath = document.body.getAttribute('data-basepath') || '/superarseconectadosv2';
+        const dataBasePath = (typeof DATOS_ESTUDIANTE !== 'undefined' && DATOS_ESTUDIANTE && DATOS_ESTUDIANTE.basePath)
+            ? DATOS_ESTUDIANTE.basePath
+            : null;
+        const bodyBasePath = document.body.getAttribute('data-basepath');
+        const rawBasePath = dataBasePath ?? bodyBasePath;
+        const basePath = (rawBasePath !== null && rawBasePath !== undefined)
+            ? String(rawBasePath).replace(/\/$/, '')
+            : '/superarseconectadosv2/public';
         if (!esAuto) {
             btnBuscarRuc.disabled = true;
             btnBuscarRuc.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Buscando...';

@@ -326,15 +326,36 @@ class PasantiaController
         foreach ($requiredFields as $field) {
             if (empty($_POST[$field])) {
                 $_SESSION['mensaje'] = "Error: Faltan campos obligatorios para el reporte diario.";
-                header("Location: " . $this->basePath . "/estudiante/informacion");
+                $activityPage = max(1, (int) ($_POST['activity_page'] ?? 1));
+                header("Location: " . $this->basePath . "/estudiante/informacion?module=pasantias&tab=actividades&activity_page=" . $activityPage);
                 exit();
             }
+        }
+
+        // Validar que la fecha no sea en el futuro
+        $fecha_actividad = $_POST['fecha_actividad'];
+        $fecha_hoy = date('Y-m-d');
+        if ($fecha_actividad > $fecha_hoy) {
+            $_SESSION['mensaje'] = "❌ Error: No puedes registrar actividades con fecha futura. Hoy es " . date('d/m/Y') . ".";
+            $activityPage = max(1, (int) ($_POST['activity_page'] ?? 1));
+            header("Location: " . $this->basePath . "/estudiante/informacion?module=pasantias&tab=actividades&activity_page=" . $activityPage);
+            exit();
+        }
+
+        // Validar que no haya otra actividad el mismo día
+        $existeActividadMismaFecha = $this->pasantiaModel->countActividadesByDateAndPractica($practica['id_practica'], $fecha_actividad);
+        if ($existeActividadMismaFecha > 0) {
+            $_SESSION['mensaje'] = "⚠️ Error: Ya existe una actividad registrada para " . date('d/m/Y', strtotime($fecha_actividad)) . ". Solo puedes registrar una actividad por día.";
+            $activityPage = max(1, (int) ($_POST['activity_page'] ?? 1));
+            header("Location: " . $this->basePath . "/estudiante/informacion?module=pasantias&tab=actividades&activity_page=" . $activityPage);
+            exit();
         }
 
         $horas_invertidas = (float) $_POST['horas_invertidas'];
         if ($horas_invertidas <= 0 || $horas_invertidas > 12.00) {
             $_SESSION['mensaje'] = "Error: Las horas invertidas deben ser mayores a 0 y menores o iguales a 12.";
-            header("Location: " . $this->basePath . "/estudiante/informacion");
+            $activityPage = max(1, (int) ($_POST['activity_page'] ?? 1));
+            header("Location: " . $this->basePath . "/estudiante/informacion?module=pasantias&tab=actividades&activity_page=" . $activityPage);
             exit();
         }
 
@@ -353,7 +374,8 @@ class PasantiaController
             $_SESSION['mensaje'] = "Error al guardar la actividad diaria.";
         }
 
-        header("Location: " . $this->basePath . "/estudiante/informacion");
+        $activityPage = max(1, (int) ($_POST['activity_page'] ?? 1));
+        header("Location: " . $this->basePath . "/estudiante/informacion?module=pasantias&tab=actividades&activity_page=" . $activityPage);
         exit();
     }
 
@@ -366,8 +388,8 @@ class PasantiaController
             return;
         }
 
-        $ruc = trim($_POST['ruc'] ?? '');
-        $idPrograma = trim($_POST['idPrograma'] ?? '');
+        $ruc = preg_replace('/\D+/', '', (string) ($_POST['ruc'] ?? ''));
+        $idPrograma = is_numeric($_POST['idPrograma'] ?? null) ? (int) $_POST['idPrograma'] : null;
 
         if (empty($ruc)) {
             echo json_encode(['success' => false, 'message' => 'RUC requerido']);
@@ -451,9 +473,30 @@ class PasantiaController
         foreach ($requiredFields as $field) {
             if (empty($_POST[$field])) {
                 $_SESSION['mensaje'] = "Error: Faltan campos obligatorios al actualizar.";
-                header("Location: {$this->basePath}/estudiante/informacion");
+                $activityPage = max(1, (int) ($_POST['activity_page'] ?? 1));
+                header("Location: {$this->basePath}/estudiante/informacion?module=pasantias&tab=actividades&activity_page={$activityPage}");
                 exit();
             }
+        }
+
+        // Validar que la fecha no sea en el futuro
+        $fecha_actividad = $_POST['fecha_actividad'];
+        $fecha_hoy = date('Y-m-d');
+        if ($fecha_actividad > $fecha_hoy) {
+            $_SESSION['mensaje'] = "❌ Error: No puedes registrar actividades con fecha futura. Hoy es " . date('d/m/Y') . ".";
+            $activityPage = max(1, (int) ($_POST['activity_page'] ?? 1));
+            header("Location: {$this->basePath}/estudiante/informacion?module=pasantias&tab=actividades&activity_page={$activityPage}");
+            exit();
+        }
+
+        // Validar que no haya otra actividad el mismo día (excluyendo la actual)
+        $actividadId = (int) $_POST['id'];
+        $existeActividadMismaFecha = $this->pasantiaModel->countActividadesByDateAndPractica($practica['id_practica'], $fecha_actividad, $actividadId);
+        if ($existeActividadMismaFecha > 0) {
+            $_SESSION['mensaje'] = "⚠️ Error: Ya existe otra actividad registrada para " . date('d/m/Y', strtotime($fecha_actividad)) . ". Solo puedes registrar una actividad por día.";
+            $activityPage = max(1, (int) ($_POST['activity_page'] ?? 1));
+            header("Location: {$this->basePath}/estudiante/informacion?module=pasantias&tab=actividades&activity_page={$activityPage}");
+            exit();
         }
 
         $data = [
@@ -472,7 +515,8 @@ class PasantiaController
             $_SESSION['mensaje'] = "Error al actualizar la actividad diaria.";
         }
 
-        header("Location: {$this->basePath}/estudiante/informacion");
+        $activityPage = max(1, (int) ($_POST['activity_page'] ?? 1));
+        header("Location: {$this->basePath}/estudiante/informacion?module=pasantias&tab=actividades&activity_page={$activityPage}");
         exit();
     }
 
@@ -501,7 +545,8 @@ class PasantiaController
             $_SESSION['mensaje'] = "Error al eliminar la actividad diaria.";
         }
 
-        header("Location: {$this->basePath}/estudiante/informacion");
+        $activityPage = max(1, (int) ($_POST['activity_page'] ?? 1));
+        header("Location: {$this->basePath}/estudiante/informacion?module=pasantias&tab=actividades&activity_page={$activityPage}");
         exit();
     }
 
@@ -776,20 +821,9 @@ class PasantiaController
 
         unset($_SESSION['mensaje']);
 
-        // Determinar qué vista cargar según la carrera
-        $carreraEstudiante = $carrera ?? strtolower(str_replace(' ', '_', $estudiante['programa'] ?? ''));
-
-        $viewsMap = [
-            'educación_básica' => 'plan_de_aprendizaje_educacion_basica',
-            'administración' => 'plan_de_aprendizaje_administracion',
-            'marketing' => 'plan_de_aprendizaje_marketing',
-            'enfermería' => 'plan_de_aprendizaje_enfermeria',
-            'producción_animal' => 'plan_de_aprendizaje_produccion_animal',
-            'seguridad_y_prevención' => 'plan_de_aprendizaje_seguridad_prevencion',
-            'topografía' => 'plan_de_aprendizaje_topografia'
-        ];
-
-        $viewFile = $viewsMap[$carreraEstudiante] ?? 'plan_de_aprendizaje';
+        // Determinar qué vista cargar según la carrera (normalización robusta)
+        $programa = $carrera ?? ($estudiante['programa'] ?? '');
+        $viewFile = $this->resolvePlanViewByProgram($programa);
         $viewPath = __DIR__ . '/../Views/estudiantes/' . $viewFile . '.php';
 
         $viewToRender = file_exists($viewPath)
@@ -797,6 +831,58 @@ class PasantiaController
             : 'estudiantes/plan_de_aprendizaje';
 
         $this->renderStudent($viewToRender, $data, ['plan-aprendizaje.css'], []);
+    }
+
+    private function normalizeProgramText($text)
+    {
+        $text = mb_strtoupper(trim((string) $text), 'UTF-8');
+        $text = str_replace(
+            ['Á', 'É', 'Í', 'Ó', 'Ú', 'Ü', 'Ñ'],
+            ['A', 'E', 'I', 'O', 'U', 'U', 'N'],
+            $text
+        );
+        $text = preg_replace('/\s+/', ' ', $text);
+
+        return trim((string) $text);
+    }
+
+    private function resolvePlanViewByProgram($program)
+    {
+        $normalized = $this->normalizeProgramText($program);
+
+        if ($normalized === '') {
+            return 'plan_de_aprendizaje';
+        }
+
+        if (strpos($normalized, 'ADMINISTRACION') !== false) {
+            return 'plan_de_aprendizaje_administracion';
+        }
+
+        if (strpos($normalized, 'EDUCACION BASICA') !== false) {
+            return 'plan_de_aprendizaje_educacion_basica';
+        }
+
+        if (strpos($normalized, 'ENFERMERIA') !== false || strpos($normalized, 'VETERINARIA') !== false) {
+            return 'plan_de_aprendizaje_enfermeria';
+        }
+
+        if (strpos($normalized, 'MARKETING') !== false) {
+            return 'plan_de_aprendizaje_marketing';
+        }
+
+        if (strpos($normalized, 'PRODUCCION ANIMAL') !== false) {
+            return 'plan_de_aprendizaje_produccion_animal';
+        }
+
+        if (strpos($normalized, 'SEGURIDAD') !== false || strpos($normalized, 'PREVENCION') !== false) {
+            return 'plan_de_aprendizaje_seguridad_prevencion';
+        }
+
+        if (strpos($normalized, 'TOPOGRAFIA') !== false) {
+            return 'plan_de_aprendizaje_topografia';
+        }
+
+        return 'plan_de_aprendizaje';
     }
 
     public function generarPlanAprendizajePdf()

@@ -454,13 +454,33 @@
         </div>
     </div>
 
+    <?php
+    $activeTab = $_GET['tab'] ?? 'programa';
+    $allowedTabs = ['programa', 'actividades', 'calificaciones', 'manual'];
+    if (!in_array($activeTab, $allowedTabs, true)) {
+        $activeTab = 'programa';
+    }
+    ?>
+
     <div style="<?php
                 if (isset($data['infoPractica']) && isset($data['infoStatusPractica']['estado_fase_uno_completado']) && $data['infoStatusPractica']['estado_fase_uno_completado'] == 1) {
                     echo 'display:block;';
                 } else {
                     echo 'display:none;';
                 }
-                ?>" x-data="{ currentTab: 'programa' }">
+                ?>" x-data="{ 
+        currentTab: '<?php echo htmlspecialchars($activeTab, ENT_QUOTES, 'UTF-8'); ?>',
+        scrollToActividades() {
+            if (this.currentTab === 'actividades') {
+                this.$nextTick(() => {
+                    const section = document.getElementById('section-actividades-diarias');
+                    if (section) {
+                        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                });
+            }
+        }
+    }">
 
         <!-- Menú de pestañas -->
         <div class="flex border-b border-gray-200 overflow-x-auto">
@@ -470,7 +490,7 @@
                 <i class="fas fa-list-check mr-2"></i> Plan de Aprendizaje
             </button>
 
-            <button @click="currentTab = 'actividades'"
+            <button @click="currentTab = 'actividades'; scrollToActividades()"
                 :class="{ 'border-superarse-morado-oscuro text-superarse-morado-oscuro font-bold': currentTab === 'actividades' }"
                 class="flex-shrink-0 py-2 px-4 text-gray-600 border-b-2 border-transparent hover:border-superarse-morado-medio hover:text-superarse-morado-medio transition duration-150 rounded-t-lg">
                 <i class="fas fa-calendar-check mr-2"></i> Actividades Diarias
@@ -501,15 +521,17 @@
             </div>
 
 
-            <div x-show="currentTab === 'actividades'">
+            <div x-show="currentTab === 'actividades'" id="section-actividades-diarias">
                 <?php
                 // Preparar datos para actividades_diarias.php
                 $practicaId = $data['infoPractica']['id_practica'] ?? 0;
                 $actividadesDiarias = $data['actividadesDiarias'] ?? [];
                 $basePath = $data['basePath'] ?? '';
-                $totalRegistros = count($actividadesDiarias);
-                $offset = 0;
-                $limit = 10;
+                $totalRegistros = (int) ($data['totalActividadesDiarias'] ?? count($actividadesDiarias));
+                $activityPage = (int) ($data['activityPage'] ?? 1);
+                $totalPages = (int) ($data['totalActivityPages'] ?? 1);
+                $limit = (int) ($data['activityLimit'] ?? 10);
+                $offset = max(0, ($activityPage - 1) * $limit);
                 $search = '';
                 $mensaje = $_SESSION['mensaje'] ?? null;
                 unset($_SESSION['mensaje']);

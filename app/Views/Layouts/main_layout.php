@@ -5,6 +5,11 @@
 $basePath = $data['basePath'] ?? '/superarseconectadosv2/public';
 $moduleCss = $data['moduleCss'] ?? [];
 $moduleJs = $data['moduleJs'] ?? [];
+
+$buildAssetVersion = function ($relativePath) {
+    $fullPath = __DIR__ . '/../../../public/' . ltrim($relativePath, '/');
+    return file_exists($fullPath) ? (string) filemtime($fullPath) : '1';
+};
 ?>
 
 <head>
@@ -25,6 +30,7 @@ $moduleJs = $data['moduleJs'] ?? [];
 </head>
 
 <body
+    data-basepath="<?php echo htmlspecialchars($basePath, ENT_QUOTES, 'UTF-8'); ?>"
     class="bg-gradient-to-r from-superarse-morado-oscuro via-superarse-morado-medio to-superarse-rosa min-h-screen flex flex-col pt-20">
 
     <header class="bg-superarse-morado-oscuro shadow-lg fixed top-0 left-0 w-full z-10">
@@ -57,12 +63,12 @@ $moduleJs = $data['moduleJs'] ?? [];
     <script>
     const DATOS_ESTUDIANTE = <?php echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT); ?>;
     </script>
-    <script src="<?php echo $basePath; ?>/Assets/js/datos.js"></script>
+    <script src="<?php echo $basePath; ?>/Assets/js/datos.js?v=<?php echo $buildAssetVersion('Assets/js/datos.js'); ?>"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="<?php echo $basePath; ?>/Assets/js/transferencia.js"></script>
-    <script src="<?php echo $basePath; ?>/Assets/js/payphone.js"></script>
+    <script src="<?php echo $basePath; ?>/Assets/js/transferencia.js?v=<?php echo $buildAssetVersion('Assets/js/transferencia.js'); ?>"></script>
+    <script src="<?php echo $basePath; ?>/Assets/js/payphone.js?v=<?php echo $buildAssetVersion('Assets/js/payphone.js'); ?>"></script>
     <?php foreach ($moduleJs as $jsFile): ?>
-    <script src="<?php echo $basePath; ?>/Assets/js/<?php echo ltrim($jsFile, '/'); ?>"></script>
+    <script src="<?php echo $basePath; ?>/Assets/js/<?php echo ltrim($jsFile, '/'); ?>?v=<?php echo $buildAssetVersion('Assets/js/' . ltrim($jsFile, '/')); ?>"></script>
     <?php endforeach; ?>
 </body>
 

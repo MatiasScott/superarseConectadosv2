@@ -153,7 +153,13 @@ if (preg_match('/\d+/', $nivel, $matches)) {
                     </tr>
                     <tr>
                         <td>Tipo de entidad</td>
-                        <td><input type="text" name="tipo_entidad" required></td>
+                        <td>
+                            <select name="tipo_entidad" required>
+                                <option value="">Seleccione el tipo de entidad</option>
+                                <option value="Privada">Privada</option>
+                                <option value="Publica">Publica</option>
+                            </select>
+                        </td>
                     </tr>
                     <tr>
                         <td>Actividad económica principal</td>

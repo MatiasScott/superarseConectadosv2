@@ -456,6 +456,50 @@ class PasantiaModel extends Database
             return 0;
         }
     }
+
+    /**
+     * Cuenta actividades en una fecha específica (para validar duplicados)
+     */
+    public function countActividadesByDateAndPractica(int $practicaId, string $fecha, ?int $excluirId = null)
+    {
+        $sql = "SELECT COUNT(*) as cnt FROM actividades_diarias 
+                WHERE practica_id = :practica_id AND fecha_actividad = :fecha";
+        $params = [':practica_id' => $practicaId, ':fecha' => $fecha];
+
+        if ($excluirId !== null) {
+            $sql .= " AND id_actividad_diaria != :excluir_id";
+            $params[':excluir_id'] = $excluirId;
+        }
+
+        try {
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute($params);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            return (int)($row['cnt'] ?? 0);
+        } catch (PDOException $e) {
+            error_log("Error al contar actividades por fecha: " . $e->getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Calcula el total de horas invertidas para una práctica
+     */
+    public function getTotalHorasActividades(int $practicaId)
+    {
+        $sql = "SELECT SUM(horas_invertidas) as total FROM actividades_diarias 
+                WHERE practica_id = :practica_id";
+        try {
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([':practica_id' => $practicaId]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            return (float)($row['total'] ?? 0);
+        } catch (PDOException $e) {
+            error_log("Error al calcular total de horas: " . $e->getMessage());
+            return 0;
+        }
+    }
+
     public function getActividadDiaria(int $id, int $practicaId)
     {
         $query = "SELECT * FROM actividades_diarias WHERE id = :id AND practica_id = :practica_id";
@@ -614,25 +658,43 @@ class PasantiaModel extends Database
     public function getEntidadByRUC($ruc, $idPrograma)
     {
         try {
-            if ($ruc === '1702051704001') {
-                $stmt = $this->db->prepare("
-            SELECT * FROM entidades 
-            LEFT JOIN tutores_empresariales te ON entidades.id_tutor_empresarial = te.id_tutor_empresa
-            WHERE ruc = :ruc
-            LIMIT 1
-            ");
-                $stmt->execute([':ruc' => $ruc]);
-                $entidad = $stmt->fetch(PDO::FETCH_ASSOC);
-            } else {
-                $stmt = $this->db->prepare("
-            SELECT * FROM entidades 
-            LEFT JOIN tutores_empresariales te ON entidades.id_tutor_empresarial = te.id_tutor_empresa
-            WHERE ruc = :ruc AND entidades.id_programa = :idPrograma
-            LIMIT 1
-            ");
-                $stmt->execute([':ruc' => $ruc, ':idPrograma' => $idPrograma]);
-                $entidad = $stmt->fetch(PDO::FETCH_ASSOC);
+            $normalizedRuc = preg_replace('/\D+/', '', (string) $ruc);
+            $normalizedPrograma = is_numeric($idPrograma) ? (int) $idPrograma : null;
+
+            if ($normalizedRuc === '') {
+                return null;
             }
+
+            $entidad = null;
+
+            if ($normalizedPrograma !== null && $normalizedPrograma > 0) {
+                $stmt = $this->db->prepare(" 
+            SELECT entidades.*, te.*
+            FROM entidades
+            LEFT JOIN tutores_empresariales te ON entidades.id_tutor_empresarial = te.id_tutor_empresa
+            WHERE REPLACE(REPLACE(REPLACE(entidades.ruc, '-', ''), ' ', ''), '.', '') = :ruc
+              AND entidades.id_programa = :idPrograma
+            ORDER BY entidades.id_entidad DESC
+            LIMIT 1
+            ");
+                $stmt->execute([':ruc' => $normalizedRuc, ':idPrograma' => $normalizedPrograma]);
+                $entidad = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+            }
+
+            // Fallback: si no hay coincidencia por programa, buscar por RUC en general.
+            if (!$entidad) {
+                $stmt = $this->db->prepare(" 
+            SELECT entidades.*, te.*
+            FROM entidades
+            LEFT JOIN tutores_empresariales te ON entidades.id_tutor_empresarial = te.id_tutor_empresa
+            WHERE REPLACE(REPLACE(REPLACE(entidades.ruc, '-', ''), ' ', ''), '.', '') = :ruc
+            ORDER BY entidades.id_entidad DESC
+            LIMIT 1
+            ");
+                $stmt->execute([':ruc' => $normalizedRuc]);
+                $entidad = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+            }
+
             return $entidad ?: null;
         } catch (Exception $e) {
             error_log("Error al buscar entidad por RUC: " . $e->getMessage());
