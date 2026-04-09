@@ -57,6 +57,54 @@ if (preg_match('#^/admin#', $uri)) {
             $controller->checkLogin();
             break;
 
+        case $uri === '/admin/password/change' && $method === 'GET':
+            $controller->showChangePasswordForm();
+            break;
+
+        case $uri === '/admin/password/change' && $method === 'POST':
+            $controller->changePassword();
+            break;
+
+        case $uri === '/admin/accounts' && $method === 'GET':
+            $controller->adminAccounts();
+            break;
+
+        case $uri === '/admin/accounts/store' && $method === 'POST':
+            $controller->storeAdminAccount();
+            break;
+
+        case $uri === '/admin/accounts/toggle' && $method === 'POST':
+            $controller->toggleAdminAccount();
+            break;
+
+        case $uri === '/admin/student-accounts/provision' && $method === 'POST':
+            $controller->provisionStudentAccount();
+            break;
+
+        case $uri === '/admin/student-accounts/toggle' && $method === 'POST':
+            $controller->toggleStudentAccount();
+            break;
+
+        case $uri === '/admin/student-accounts/reset' && $method === 'POST':
+            $controller->resetStudentAccountPassword();
+            break;
+
+        case $uri === '/admin/reset-requests' && $method === 'GET':
+            $controller->passwordResetRequests();
+            break;
+
+        case $uri === '/admin/reset-requests/resolve' && $method === 'POST':
+            $controller->resolvePasswordReset();
+            break;
+
+        case $uri === '/admin/forgot-password' && $method === 'GET':
+            $controller->showForgotPasswordFormAdmin();
+            break;
+
+        case $uri === '/admin/forgot-password/submit' && $method === 'POST':
+            $controller->requestPasswordResetAdmin();
+            break;
+
         case $uri === '/admin/dashboard':
             $controller->dashboard();
             break;
@@ -327,6 +375,26 @@ switch ($uri) {
             (new LoginController())->check();
         } else {
             header("Location: $basePath/login");
+        }
+        break;
+
+    case '/password/change':
+        if ($method === 'POST') {
+            (new LoginController())->changePassword();
+        } else {
+            (new LoginController())->showChangePasswordForm();
+        }
+        break;
+
+    case '/forgot-password':
+        (new LoginController())->showForgotPasswordForm();
+        break;
+
+    case '/forgot-password/submit':
+        if ($method === 'POST') {
+            (new LoginController())->requestPasswordReset();
+        } else {
+            header("Location: $basePath/forgot-password");
         }
         break;
 

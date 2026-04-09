@@ -18,6 +18,12 @@ class PagoController
         if (session_status() == PHP_SESSION_NONE) {
             session_start();
         }
+
+        if (!empty($_SESSION['authenticated']) && !empty($_SESSION['must_change_password'])) {
+            header("Location: " . $this->basePath . "/password/change");
+            exit();
+        }
+
         $this->pagoModel = new PaymentModel();
     }
 

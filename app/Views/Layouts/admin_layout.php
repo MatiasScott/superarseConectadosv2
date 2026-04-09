@@ -87,6 +87,21 @@ $moduleBodyScripts = $moduleBodyScripts ?? [];
                     Convenios
                 </a>
 
+                <a href="<?php echo $basePath; ?>/admin/accounts"
+                    class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition">
+                    Cuentas
+                </a>
+
+                <a href="<?php echo $basePath; ?>/admin/reset-requests"
+                    class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition relative">
+                    Solicitudes
+                    <?php if (($pendingResetCount ?? 0) > 0): ?>
+                        <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                            <?= min((int)$pendingResetCount, 99) ?>
+                        </span>
+                    <?php endif; ?>
+                </a>
+
             </nav>
 
             <!-- USUARIO -->

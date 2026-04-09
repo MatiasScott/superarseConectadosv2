@@ -11,14 +11,17 @@ require_once __DIR__ . '/../Models/PoaModel.php';
 require_once __DIR__ . '/../Models/PoaActividadModel.php';
 require_once __DIR__ . '/../Models/ConvenioModel.php';
 require_once __DIR__ . '/../Models/AdminDashboardModel.php';
+require_once __DIR__ . '/../Models/AuthAccountModel.php';
+require_once __DIR__ . '/../Models/PasswordResetModel.php';
+require_once __DIR__ . '/../Helpers/AuthSecurity.php';
 
 class AdminController
 {
     private $basePath;
     private $pasantiaModel;
     private $userModel;
-    // Contraseña del administrador - En producción debería estar en una variable de entorno o base de datos encriptada
-    private $adminPassword = "Superarse.2025";
+    private $authAccountModel;
+    private $resetModel;
     private $proyectoModel;
     private $carreraModel;
     private $publicacionModel;
@@ -53,12 +56,21 @@ class AdminController
         $this->actividadModel = new PoaActividadModel();
         $this->convenioModel = new ConvenioModel();
         $this->dashboardModel = new AdminDashboardModel();
+        $this->authAccountModel = new AuthAccountModel();
+        $this->resetModel = new PasswordResetModel();
+
+        $this->enforcePasswordChangeRedirect();
     }
 
     public function loginForm()
     {
         // Si ya está autenticado como admin, redirigir al dashboard
         if (isset($_SESSION['is_admin']) && $_SESSION['is_admin'] === true) {
+            if (!empty($_SESSION['must_change_password'])) {
+                header("Location: " . $this->basePath . "/admin/password/change");
+                exit();
+            }
+
             header("Location: " . $this->basePath . "/admin/dashboard");
             exit();
         }
@@ -76,6 +88,7 @@ class AdminController
         $moduleCss = ['login.css'];
         $moduleHeadStyles = ['https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css'];
         $moduleBodyScripts = ['https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js'];
+        $csrfToken = AuthSecurity::generateCsrfToken('admin_login');
         $content = __DIR__ . '/../Views/admin/login.php';
 
         require __DIR__ . '/../Views/Layouts/auth_layout.php';
@@ -83,32 +96,126 @@ class AdminController
 
     public function checkLogin()
     {
-        if (!isset($_POST['admin_password']) || empty($_POST['admin_password'])) {
-            header("Location: " . $this->basePath . "/admin/login?error=empty_password");
+        if (!AuthSecurity::validateCsrfToken('admin_login', $_POST['csrf_token'] ?? '')) {
+            header("Location: " . $this->basePath . "/admin/login?error=invalid_request");
             exit();
         }
 
-        $password = $_POST['admin_password'];
-
-        if ($password === $this->adminPassword) {
-            // Limpiar cualquier sesión de estudiante previa
-            unset($_SESSION['authenticated']);
-            unset($_SESSION['logged_in']);
-            unset($_SESSION['identificacion']);
-
-            // Autenticación exitosa como admin
-            $_SESSION['is_admin'] = true;
-            $_SESSION['admin_logged_in'] = true;
-            $_SESSION['nombres_completos'] = 'Administrador';
-            $_SESSION['id_usuario'] = 0; // ID especial para admin
-
-            header("Location: " . $this->basePath . "/admin/dashboard");
-            exit();
-        } else {
-            // Contraseña incorrecta
-            header("Location: " . $this->basePath . "/admin/login?error=invalid_password");
+        if (
+            !isset($_POST['email'], $_POST['password'])
+            || empty($_POST['email'])
+            || empty($_POST['password'])
+        ) {
+            header("Location: " . $this->basePath . "/admin/login?error=campos_vacios");
             exit();
         }
+
+        $email = strtolower(trim($_POST['email']));
+        $password = (string) $_POST['password'];
+        $account = $this->authAccountModel->findAdminAccountByEmail($email);
+
+        if (!$account || empty($account['password_hash']) || !password_verify($password, $account['password_hash'])) {
+            header("Location: " . $this->basePath . "/admin/login?error=invalid_credentials");
+            exit();
+        }
+
+        $this->clearStudentSession();
+        session_regenerate_id(true);
+
+        $_SESSION['is_admin'] = true;
+        $_SESSION['admin_logged_in'] = true;
+        $_SESSION['nombres_completos'] = $account['display_name'];
+        $_SESSION['id_usuario'] = 0;
+        $_SESSION['auth_account_id'] = (int) $account['id'];
+        $_SESSION['auth_role'] = 'admin';
+        $_SESSION['admin_email'] = $account['email'];
+        $_SESSION['must_change_password'] = !empty($account['must_change_password']);
+
+        $this->authAccountModel->recordSuccessfulLogin((int) $account['id']);
+
+        if (!empty($_SESSION['must_change_password'])) {
+            header("Location: " . $this->basePath . "/admin/password/change");
+            exit();
+        }
+
+        header("Location: " . $this->basePath . "/admin/dashboard");
+        exit();
+    }
+
+    public function showChangePasswordForm()
+    {
+        if (empty($_SESSION['is_admin']) || ($_SESSION['auth_role'] ?? null) !== 'admin') {
+            header("Location: " . $this->basePath . "/admin/login?error=not_authenticated");
+            exit();
+        }
+
+        $basePath = $this->basePath;
+        $title = 'Cambiar Contraseña Administrador - Superarse Conectados';
+        $headerTitle = 'Superarse Conectados';
+        $headerSubtitle = 'Panel de Administración';
+        $moduleCss = ['login.css'];
+        $moduleHeadStyles = ['https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css'];
+        $moduleBodyScripts = ['https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js'];
+        $csrfToken = AuthSecurity::generateCsrfToken('admin_password_change');
+        $content = __DIR__ . '/../Views/admin/change_password.php';
+
+        require __DIR__ . '/../Views/Layouts/auth_layout.php';
+    }
+
+    public function changePassword()
+    {
+        if (empty($_SESSION['is_admin']) || ($_SESSION['auth_role'] ?? null) !== 'admin' || empty($_SESSION['auth_account_id'])) {
+            header("Location: " . $this->basePath . "/admin/login?error=not_authenticated");
+            exit();
+        }
+
+        if (!AuthSecurity::validateCsrfToken('admin_password_change', $_POST['csrf_token'] ?? '')) {
+            header("Location: " . $this->basePath . "/admin/password/change?error=invalid_request");
+            exit();
+        }
+
+        $currentPassword = $_POST['current_password'] ?? '';
+        $newPassword = $_POST['new_password'] ?? '';
+        $confirmPassword = $_POST['confirm_password'] ?? '';
+
+        if ($currentPassword === '' || $newPassword === '' || $confirmPassword === '') {
+            header("Location: " . $this->basePath . "/admin/password/change?error=campos_vacios");
+            exit();
+        }
+
+        $account = $this->authAccountModel->findById((int) $_SESSION['auth_account_id']);
+        if (!$account || !password_verify($currentPassword, $account['password_hash'])) {
+            header("Location: " . $this->basePath . "/admin/password/change?error=invalid_current_password");
+            exit();
+        }
+
+        if ($newPassword !== $confirmPassword) {
+            header("Location: " . $this->basePath . "/admin/password/change?error=password_mismatch");
+            exit();
+        }
+
+        if ($currentPassword === $newPassword) {
+            header("Location: " . $this->basePath . "/admin/password/change?error=same_password");
+            exit();
+        }
+
+        $policyError = AuthSecurity::validatePasswordPolicy($newPassword);
+        if ($policyError !== null) {
+            header("Location: " . $this->basePath . "/admin/password/change?error=policy_invalid&message=" . urlencode($policyError));
+            exit();
+        }
+
+        $updated = $this->authAccountModel->updatePasswordById((int) $account['id'], password_hash($newPassword, PASSWORD_DEFAULT));
+        if (!$updated) {
+            header("Location: " . $this->basePath . "/admin/password/change?error=password_update_failed");
+            exit();
+        }
+
+        $_SESSION['must_change_password'] = false;
+        session_regenerate_id(true);
+
+        header("Location: " . $this->basePath . "/admin/dashboard");
+        exit();
     }
 
     public function dashboard()
@@ -409,6 +516,10 @@ class AdminController
         // Limpiar variables de sesión de admin
         unset($_SESSION['is_admin']);
         unset($_SESSION['admin_logged_in']);
+        unset($_SESSION['admin_email']);
+        unset($_SESSION['auth_account_id']);
+        unset($_SESSION['auth_role']);
+        unset($_SESSION['must_change_password']);
         session_destroy();
 
         header("Location: " . $this->basePath . "/admin/login");
@@ -501,6 +612,13 @@ class AdminController
 
         $nombreCompleto = $_SESSION['nombres_completos'] ?? 'Administrador';
 
+        $pendingResetCount = 0;
+        try {
+            $pendingResetCount = $this->resetModel->countPending();
+        } catch (Throwable $e) {
+            // tabla aún no migrada
+        }
+
         $content = __DIR__ . '/../Views/' . $view . '.php';
 
         if (!file_exists($content)) {
@@ -510,7 +628,486 @@ class AdminController
         require __DIR__ . '/../Views/Layouts/admin_layout.php';
     }
 
+    private function sendResetPasswordEmail($toEmail, $displayName, $tempPassword)
+    {
+        try {
+            $mail = new PHPMailer\PHPMailer\PHPMailer(true);
+            $mail->isSMTP();
+            $mail->Host       = getenv('SMTP_HOST');
+            $mail->SMTPAuth   = true;
+            $mail->Username   = getenv('SMTP_USER');
+            $mail->Password   = getenv('SMTP_PASS');
+            $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+            $mail->Port       = 587;
+            $mail->CharSet    = 'UTF-8';
+            $mail->setFrom(getenv('SMTP_USER'), 'Superarse Conectados');
+            $mail->addAddress($toEmail, $displayName);
+            $mail->Subject = 'Tu contraseña ha sido restablecida - Superarse Conectados';
+            $mail->isHTML(true);
+            $mail->Body = "<p>Hola <strong>" . htmlspecialchars($displayName) . "</strong>,</p>"
+                . "<p>Un administrador ha restablecido tu contraseña de acceso al sistema.</p>"
+                . "<p>Tu contraseña temporal es: <strong style='font-size:16px;letter-spacing:2px;'>"
+                . htmlspecialchars($tempPassword) . "</strong></p>"
+                . "<p>Al ingresar, se te pedirá que la cambies por una nueva.</p>"
+                . "<p>Superarse Conectados</p>";
+            $mail->send();
+            return true;
+        } catch (Throwable $e) {
+            error_log('Error al enviar email de restablecimiento: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    private function clearStudentSession()
+    {
+        unset($_SESSION['authenticated']);
+        unset($_SESSION['logged_in']);
+        unset($_SESSION['identificacion']);
+    }
+
+    private function enforcePasswordChangeRedirect()
+    {
+        if (empty($_SESSION['is_admin']) || empty($_SESSION['must_change_password'])) {
+            return;
+        }
+
+        $currentPath = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?: '';
+        if ($this->basePath !== '' && strpos($currentPath, $this->basePath) === 0) {
+            $currentPath = substr($currentPath, strlen($this->basePath));
+        }
+
+        $normalizedPath = rtrim($currentPath, '/');
+        if ($normalizedPath === '') {
+            $normalizedPath = '/';
+        }
+
+        $allowedPaths = ['/admin/password/change', '/admin/logout', '/admin/forgot-password', '/admin/forgot-password/submit'];
+        if (!in_array($normalizedPath, $allowedPaths, true)) {
+            header("Location: " . $this->basePath . "/admin/password/change");
+            exit();
+        }
+    }
+
     /* Metodos para Guardar Nuevos Registros */
+
+    /* === GESTIÓN DE CUENTAS ADMIN === */
+
+    private function buildAccountsReturnQuery($rawQuery = '')
+    {
+        $rawQuery = is_string($rawQuery) ? ltrim($rawQuery, "? ") : '';
+        if ($rawQuery === '') {
+            return '';
+        }
+
+        parse_str($rawQuery, $parsed);
+        $allowed = ['admin_q', 'admin_page', 'student_q', 'student_program', 'student_page'];
+        $clean = [];
+
+        foreach ($allowed as $key) {
+            if (isset($parsed[$key])) {
+                $clean[$key] = is_string($parsed[$key]) ? trim($parsed[$key]) : $parsed[$key];
+            }
+        }
+
+        return http_build_query($clean);
+    }
+
+    private function redirectToAccounts($returnQuery = '')
+    {
+        $query = $this->buildAccountsReturnQuery($returnQuery);
+        $location = $this->basePath . '/admin/accounts';
+
+        if ($query !== '') {
+            $location .= '?' . $query;
+        }
+
+        header('Location: ' . $location);
+        exit();
+    }
+
+    public function adminAccounts()
+    {
+        if (empty($_SESSION['is_admin'])) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $perPage = 20;
+
+        $adminSearch = trim($_GET['admin_q'] ?? '');
+        $adminPage = max(1, (int) ($_GET['admin_page'] ?? 1));
+        $totalAdmins = $this->authAccountModel->countAdminAccounts($adminSearch);
+        $totalAdminPages = max(1, (int) ceil($totalAdmins / $perPage));
+        $adminPage = min($adminPage, $totalAdminPages);
+        $adminOffset = ($adminPage - 1) * $perPage;
+        $accounts = $this->authAccountModel->getAdminAccountsPaged($perPage, $adminOffset, $adminSearch);
+
+        $studentSearch = trim($_GET['student_q'] ?? '');
+        $studentProgram = trim($_GET['student_program'] ?? '');
+        $studentPage = max(1, (int) ($_GET['student_page'] ?? 1));
+        $programs = $this->userModel->getDistinctProgramasActivos();
+        $totalStudents = $this->userModel->countEstudiantesFiltered($studentSearch, $studentProgram);
+        $totalStudentPages = max(1, (int) ceil($totalStudents / $perPage));
+        $studentPage = min($studentPage, $totalStudentPages);
+        $studentOffset = ($studentPage - 1) * $perPage;
+        $students = $this->userModel->getEstudiantesPaged($perPage, $studentOffset, $studentSearch, $studentProgram);
+
+        $identifications = array_values(array_filter(array_map(function ($student) {
+            return trim($student['numero_identificacion'] ?? '');
+        }, $students)));
+
+        $studentAccountsIndex = $this->authAccountModel->getStudentAccountsByIdentifications($identifications);
+        $csrfTokenCreate      = AuthSecurity::generateCsrfToken('admin_account_create');
+        $csrfTokenToggle      = AuthSecurity::generateCsrfToken('admin_account_toggle');
+        $csrfTokenStudent     = AuthSecurity::generateCsrfToken('student_account_provision');
+        $csrfTokenStudentToggle = AuthSecurity::generateCsrfToken('student_account_toggle');
+        $csrfTokenStudentReset = AuthSecurity::generateCsrfToken('student_account_reset');
+        $currentQuery = $this->buildAccountsReturnQuery($_SERVER['QUERY_STRING'] ?? '');
+
+        $this->render('admin/accounts/index', [
+            'title'                => 'Gestión de Cuentas',
+            'accounts'             => $accounts,
+            'students'             => $students,
+            'programs'             => $programs,
+            'studentAccountsIndex' => $studentAccountsIndex,
+            'csrfTokenCreate'      => $csrfTokenCreate,
+            'csrfTokenToggle'      => $csrfTokenToggle,
+            'csrfTokenStudent'     => $csrfTokenStudent,
+            'csrfTokenStudentToggle' => $csrfTokenStudentToggle,
+            'csrfTokenStudentReset'  => $csrfTokenStudentReset,
+            'adminSearch'          => $adminSearch,
+            'adminPage'            => $adminPage,
+            'totalAdmins'          => $totalAdmins,
+            'totalAdminPages'      => $totalAdminPages,
+            'studentSearch'        => $studentSearch,
+            'studentProgram'       => $studentProgram,
+            'studentPage'          => $studentPage,
+            'totalStudents'        => $totalStudents,
+            'totalStudentPages'    => $totalStudentPages,
+            'currentQuery'         => $currentQuery,
+        ]);
+    }
+
+    public function storeAdminAccount()
+    {
+        if (empty($_SESSION['is_admin'])) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        if (!AuthSecurity::validateCsrfToken('admin_account_create', $_POST['csrf_token'] ?? '')) {
+            $_SESSION['error'] = 'Sesión del formulario expirada. Intente de nuevo.';
+            $this->redirectToAccounts($_POST['return_query'] ?? '');
+        }
+
+        $displayName    = trim($_POST['display_name'] ?? '');
+        $email          = trim($_POST['email'] ?? '');
+        $identification = trim($_POST['numero_identificacion'] ?? '');
+        $tempPassword   = $_POST['temp_password'] ?? '';
+
+        if ($displayName === '' || $email === '' || $tempPassword === '') {
+            $_SESSION['error'] = 'Nombre, correo y contraseña temporal son obligatorios.';
+            $this->redirectToAccounts($_POST['return_query'] ?? '');
+        }
+
+        $policyError = AuthSecurity::validatePasswordPolicy($tempPassword);
+        if ($policyError !== null) {
+            $_SESSION['error'] = 'Contraseña inválida: ' . $policyError;
+            $this->redirectToAccounts($_POST['return_query'] ?? '');
+        }
+
+        $result = $this->authAccountModel->createAdminAccount([
+            'display_name'          => $displayName,
+            'email'                 => $email,
+            'numero_identificacion' => $identification,
+            'password_hash'         => password_hash($tempPassword, PASSWORD_DEFAULT),
+            'must_change_password'  => 1,
+        ]);
+
+        if ($result['success']) {
+            $_SESSION['success'] = "Cuenta creada para {$displayName}. Contraseña temporal: {$tempPassword}";
+        } else {
+            $_SESSION['error'] = $result['message'] ?? 'No fue posible crear la cuenta.';
+        }
+
+        $this->redirectToAccounts($_POST['return_query'] ?? '');
+    }
+
+    public function toggleAdminAccount()
+    {
+        if (empty($_SESSION['is_admin'])) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        if (!AuthSecurity::validateCsrfToken('admin_account_toggle', $_POST['csrf_token'] ?? '')) {
+            $_SESSION['error'] = 'Sesión del formulario expirada. Intente de nuevo.';
+            $this->redirectToAccounts($_POST['return_query'] ?? '');
+        }
+
+        $accountId   = (int) ($_POST['account_id'] ?? 0);
+        $newStatus   = (int) ($_POST['new_status'] ?? 0);
+        $myAccountId = (int) ($_SESSION['auth_account_id'] ?? 0);
+
+        if ($accountId === 0 || $accountId === $myAccountId) {
+            $_SESSION['error'] = 'No puedes modificar tu propia cuenta.';
+            $this->redirectToAccounts($_POST['return_query'] ?? '');
+        }
+
+        $this->authAccountModel->setActiveStatus($accountId, $newStatus === 1);
+        $_SESSION['success'] = 'Estado de la cuenta actualizado correctamente.';
+        $this->redirectToAccounts($_POST['return_query'] ?? '');
+    }
+
+    public function provisionStudentAccount()
+    {
+        if (empty($_SESSION['is_admin'])) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        if (!AuthSecurity::validateCsrfToken('student_account_provision', $_POST['csrf_token'] ?? '')) {
+            $_SESSION['error'] = 'Sesión del formulario expirada. Intente de nuevo.';
+            $this->redirectToAccounts($_POST['return_query'] ?? '');
+        }
+
+        $userId = (int) ($_POST['user_id'] ?? 0);
+        if ($userId <= 0) {
+            $_SESSION['error'] = 'Estudiante no válido.';
+            $this->redirectToAccounts($_POST['return_query'] ?? '');
+        }
+
+        $student = $this->userModel->findActiveStudentById($userId);
+        if (!$student) {
+            $_SESSION['error'] = 'No se encontró un estudiante activo con ese identificador.';
+            $this->redirectToAccounts($_POST['return_query'] ?? '');
+        }
+
+        $existingAccount = $this->authAccountModel->findStudentAccountByIdentification(
+            trim($student['numero_identificacion'] ?? '')
+        );
+
+        if ($existingAccount) {
+            $_SESSION['error'] = 'Ese estudiante ya tiene una cuenta de acceso creada.';
+            $this->redirectToAccounts($_POST['return_query'] ?? '');
+        }
+
+        $account = $this->authAccountModel->ensureStudentAccount($student);
+        if (!$account) {
+            $_SESSION['error'] = 'No fue posible crear la cuenta del estudiante.';
+            $this->redirectToAccounts($_POST['return_query'] ?? '');
+        }
+
+        $_SESSION['success'] = 'Cuenta creada para el estudiante. La contraseña inicial es su número de identificación y deberá cambiarla al ingresar.';
+        $this->redirectToAccounts($_POST['return_query'] ?? '');
+    }
+
+    public function toggleStudentAccount()
+    {
+        if (empty($_SESSION['is_admin'])) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        if (!AuthSecurity::validateCsrfToken('student_account_toggle', $_POST['csrf_token'] ?? '')) {
+            $_SESSION['error'] = 'Sesión del formulario expirada. Intente de nuevo.';
+            $this->redirectToAccounts($_POST['return_query'] ?? '');
+        }
+
+        $accountId = (int) ($_POST['account_id'] ?? 0);
+        $newStatus = (int) ($_POST['new_status'] ?? 0);
+        $account = $this->authAccountModel->findById($accountId);
+
+        if (!$account || ($account['role'] ?? '') !== 'student') {
+            $_SESSION['error'] = 'Cuenta de estudiante no válida.';
+            $this->redirectToAccounts($_POST['return_query'] ?? '');
+        }
+
+        $updated = $this->authAccountModel->setStudentActiveStatus($accountId, $newStatus === 1);
+        $_SESSION[$updated ? 'success' : 'error'] = $updated
+            ? 'Estado de la cuenta del estudiante actualizado correctamente.'
+            : 'No se pudo actualizar el estado de la cuenta del estudiante.';
+
+        $this->redirectToAccounts($_POST['return_query'] ?? '');
+    }
+
+    public function resetStudentAccountPassword()
+    {
+        if (empty($_SESSION['is_admin'])) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        if (!AuthSecurity::validateCsrfToken('student_account_reset', $_POST['csrf_token'] ?? '')) {
+            $_SESSION['error'] = 'Sesión del formulario expirada. Intente de nuevo.';
+            $this->redirectToAccounts($_POST['return_query'] ?? '');
+        }
+
+        $accountId = (int) ($_POST['account_id'] ?? 0);
+        $account = $this->authAccountModel->findById($accountId);
+
+        if (!$account || ($account['role'] ?? '') !== 'student') {
+            $_SESSION['error'] = 'Cuenta de estudiante no válida.';
+            $this->redirectToAccounts($_POST['return_query'] ?? '');
+        }
+
+        $identification = trim($account['numero_identificacion'] ?? '');
+        if ($identification === '') {
+            $_SESSION['error'] = 'La cuenta no tiene número de identificación para restablecer contraseña.';
+            $this->redirectToAccounts($_POST['return_query'] ?? '');
+        }
+
+        $updated = $this->authAccountModel->resetToTemporaryPassword(
+            $accountId,
+            password_hash($identification, PASSWORD_DEFAULT)
+        );
+
+        $_SESSION[$updated ? 'success' : 'error'] = $updated
+            ? 'Contraseña restablecida. La clave temporal es la cédula del estudiante y deberá cambiarla al ingresar.'
+            : 'No se pudo restablecer la contraseña del estudiante.';
+
+        $this->redirectToAccounts($_POST['return_query'] ?? '');
+    }
+
+    /* === SOLICITUDES DE RESTABLECIMIENTO === */
+
+    public function passwordResetRequests()
+    {
+        if (empty($_SESSION['is_admin'])) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $requests          = $this->resetModel->getAllRequests(200);
+        $csrfTokensResolve = [];
+
+        foreach ($requests as $req) {
+            if ($req['status'] === 'pending' && !empty($req['account_id'])) {
+                $csrfTokensResolve[$req['id']] = AuthSecurity::generateCsrfToken(
+                    'admin_reset_resolve_' . $req['id']
+                );
+            }
+        }
+
+        $this->render('admin/reset_requests', [
+            'title'             => 'Solicitudes de Restablecimiento',
+            'requests'          => $requests,
+            'csrfTokensResolve' => $csrfTokensResolve,
+        ]);
+    }
+
+    public function resolvePasswordReset()
+    {
+        if (empty($_SESSION['is_admin'])) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $requestId = (int) ($_POST['request_id'] ?? 0);
+
+        if (!AuthSecurity::validateCsrfToken('admin_reset_resolve_' . $requestId, $_POST['csrf_token'] ?? '')) {
+            $_SESSION['error'] = 'Sesión del formulario expirada. Intente de nuevo.';
+            header("Location: " . $this->basePath . "/admin/reset-requests");
+            exit();
+        }
+
+        $resetRequest = $this->resetModel->findById($requestId);
+
+        if (!$resetRequest || $resetRequest['status'] !== 'pending' || empty($resetRequest['account_id'])) {
+            $_SESSION['error'] = 'Solicitud no válida o ya fue procesada.';
+            header("Location: " . $this->basePath . "/admin/reset-requests");
+            exit();
+        }
+
+        $tempPassword = AuthSecurity::generateTempPassword();
+        $updated = $this->authAccountModel->resetToTemporaryPassword(
+            (int) $resetRequest['account_id'],
+            password_hash($tempPassword, PASSWORD_DEFAULT)
+        );
+
+        if (!$updated) {
+            $_SESSION['error'] = 'No fue posible restablecer la contraseña. Intente de nuevo.';
+            header("Location: " . $this->basePath . "/admin/reset-requests");
+            exit();
+        }
+
+        $resolvedBy = $_SESSION['admin_email'] ?? 'admin';
+        $this->resetModel->resolveRequest($requestId, $resolvedBy);
+
+        $_SESSION['temp_password_revealed'] = $tempPassword;
+
+        $account = $this->authAccountModel->findById((int) $resetRequest['account_id']);
+        if ($account && !empty($account['email'])) {
+            $emailSent = $this->sendResetPasswordEmail(
+                $account['email'],
+                $account['display_name'],
+                $tempPassword
+            );
+            if ($emailSent) {
+                $_SESSION['temp_password_email_sent'] = true;
+            }
+        }
+
+        header("Location: " . $this->basePath . "/admin/reset-requests");
+        exit();
+    }
+
+    /* === OLVIDÉ MI CONTRASEÑA (admin) === */
+
+    public function showForgotPasswordFormAdmin()
+    {
+        if (!empty($_SESSION['is_admin'])) {
+            header("Location: " . $this->basePath . "/admin/dashboard");
+            exit();
+        }
+
+        $basePath          = $this->basePath;
+        $title             = 'Recuperar acceso administrativo';
+        $headerTitle       = 'Superarse Conectados';
+        $headerSubtitle    = '';
+        $moduleCss         = ['login.css'];
+        $moduleJs          = [];
+        $moduleHeadStyles  = [];
+        $moduleBodyScripts = [];
+        $csrfToken         = AuthSecurity::generateCsrfToken('admin_forgot_password');
+        $content           = __DIR__ . '/../Views/admin/forgot_password.php';
+
+        require __DIR__ . '/../Views/Layouts/auth_layout.php';
+    }
+
+    public function requestPasswordResetAdmin()
+    {
+        if (!AuthSecurity::validateCsrfToken('admin_forgot_password', $_POST['csrf_token'] ?? '')) {
+            header("Location: " . $this->basePath . "/admin/forgot-password?error=invalid_request");
+            exit();
+        }
+
+        $email = strtolower(trim($_POST['email'] ?? ''));
+
+        if ($email === '') {
+            header("Location: " . $this->basePath . "/admin/forgot-password?error=campos_vacios");
+            exit();
+        }
+
+        $account = $this->authAccountModel->findAdminAccountByEmail($email);
+
+        if ($account) {
+            $ipAddress = $_SERVER['REMOTE_ADDR'] ?? null;
+            $this->resetModel->createRequest(
+                (int) $account['id'],
+                'admin',
+                $account['display_name'],
+                $account['email'],
+                $ipAddress
+            );
+        }
+
+        // Siempre redirigir con éxito para no revelar si el correo existe
+        header("Location: " . $this->basePath . "/admin/forgot-password?success=1");
+        exit();
+    }
+
+    /* Metodos originales */
 
     public function guardarProyectoInvestigacion()
     {

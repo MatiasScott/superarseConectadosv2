@@ -33,6 +33,16 @@ class PasantiaController
         $isAdmin = isset($_SESSION['is_admin']) && $_SESSION['is_admin'] === true;
         $isStudent = isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true;
 
+        if ($isAdmin && !empty($_SESSION['must_change_password'])) {
+            header("Location: " . $this->basePath . "/admin/password/change");
+            exit();
+        }
+
+        if ($isStudent && !empty($_SESSION['must_change_password'])) {
+            header("Location: " . $this->basePath . "/password/change");
+            exit();
+        }
+
         if (!$isAdmin && !$isStudent) {
             header("Location: " . $this->basePath . "/login");
             exit();
