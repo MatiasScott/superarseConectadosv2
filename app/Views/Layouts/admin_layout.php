@@ -6,6 +6,15 @@ $moduleCss = $moduleCss ?? [];
 $moduleJs = $moduleJs ?? [];
 $moduleHeadScripts = $moduleHeadScripts ?? [];
 $moduleBodyScripts = $moduleBodyScripts ?? [];
+
+$adminPermissionState = $_SESSION['admin_permissions'] ?? ['enabled' => false, 'matrix' => []];
+$canAccessModule = function ($moduleKey) use ($adminPermissionState) {
+    if (empty($adminPermissionState['enabled'])) {
+        return true;
+    }
+
+    return !empty($adminPermissionState['matrix'][$moduleKey]['view']);
+};
 ?>
 
 <head>
@@ -57,21 +66,43 @@ $moduleBodyScripts = $moduleBodyScripts ?? [];
 
                 <!-- MENU DESKTOP -->
                 <nav class="hidden lg:flex items-center space-x-3 xl:space-x-6 text-white text-sm">
-                    <a href="<?php echo $basePath; ?>/admin/dashboard" class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition">Dashboard</a>
-                    <a href="<?php echo $basePath; ?>/admin/practicas" class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition">Prácticas</a>
-                    <a href="<?php echo $basePath; ?>/admin/vinculacion" class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition">Vinculación</a>
-                    <a href="<?php echo $basePath; ?>/admin/investigacion" class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition">Investigación</a>
-                    <a href="<?php echo $basePath; ?>/admin/plan-estrategico" class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition">Planificación</a>
-                    <a href="<?php echo $basePath; ?>/admin/convenio" class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition">Convenios</a>
-                    <a href="<?php echo $basePath; ?>/admin/accounts" class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition">Cuentas</a>
-                    <a href="<?php echo $basePath; ?>/admin/reset-requests" class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition relative">
-                        Solicitudes
-                        <?php if (($pendingResetCount ?? 0) > 0): ?>
-                            <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
-                                <?= min((int)$pendingResetCount, 99) ?>
-                            </span>
-                        <?php endif; ?>
-                    </a>
+                    <?php if ($canAccessModule('dashboard')): ?>
+                        <a href="<?php echo $basePath; ?>/admin/dashboard" class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition">Dashboard</a>
+                    <?php endif; ?>
+                    <?php if ($canAccessModule('practicas')): ?>
+                        <a href="<?php echo $basePath; ?>/admin/practicas" class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition">Prácticas</a>
+                    <?php endif; ?>
+                    <?php if ($canAccessModule('vinculacion')): ?>
+                        <a href="<?php echo $basePath; ?>/admin/vinculacion" class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition">Vinculación</a>
+                    <?php endif; ?>
+                    <?php if ($canAccessModule('investigacion')): ?>
+                        <a href="<?php echo $basePath; ?>/admin/investigacion" class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition">Investigación</a>
+                    <?php endif; ?>
+                    <?php if ($canAccessModule('plan_estrategico')): ?>
+                        <a href="<?php echo $basePath; ?>/admin/plan-estrategico" class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition">Planificación</a>
+                    <?php endif; ?>
+                    <?php if ($canAccessModule('convenios')): ?>
+                        <a href="<?php echo $basePath; ?>/admin/convenio" class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition">Convenios</a>
+                    <?php endif; ?>
+                    <?php if ($canAccessModule('auditoria')): ?>
+                        <a href="<?php echo $basePath; ?>/admin/auditoria-general" class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition">Auditoría</a>
+                    <?php endif; ?>
+                    <?php if ($canAccessModule('reportes')): ?>
+                        <a href="<?php echo $basePath; ?>/admin/reportes" class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition">Reportes</a>
+                    <?php endif; ?>
+                    <?php if ($canAccessModule('cuentas')): ?>
+                        <a href="<?php echo $basePath; ?>/admin/accounts" class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition">Cuentas</a>
+                    <?php endif; ?>
+                    <?php if ($canAccessModule('solicitudes')): ?>
+                        <a href="<?php echo $basePath; ?>/admin/reset-requests" class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition relative">
+                            Solicitudes
+                            <?php if (($pendingResetCount ?? 0) > 0): ?>
+                                <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                                    <?= min((int)$pendingResetCount, 99) ?>
+                                </span>
+                            <?php endif; ?>
+                        </a>
+                    <?php endif; ?>
                 </nav>
 
                 <!-- USUARIO DESKTOP -->
@@ -94,21 +125,43 @@ $moduleBodyScripts = $moduleBodyScripts ?? [];
 
             <!-- MENU MOBILE -->
             <nav class="lg:hidden mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-white text-xs sm:text-sm">
-                <a href="<?php echo $basePath; ?>/admin/dashboard" class="text-center bg-superarse-morado-medio/30 hover:bg-superarse-morado-medio px-2 py-2 rounded transition">Dashboard</a>
-                <a href="<?php echo $basePath; ?>/admin/practicas" class="text-center bg-superarse-morado-medio/30 hover:bg-superarse-morado-medio px-2 py-2 rounded transition">Prácticas</a>
-                <a href="<?php echo $basePath; ?>/admin/vinculacion" class="text-center bg-superarse-morado-medio/30 hover:bg-superarse-morado-medio px-2 py-2 rounded transition">Vinculación</a>
-                <a href="<?php echo $basePath; ?>/admin/investigacion" class="text-center bg-superarse-morado-medio/30 hover:bg-superarse-morado-medio px-2 py-2 rounded transition">Investigación</a>
-                <a href="<?php echo $basePath; ?>/admin/plan-estrategico" class="text-center bg-superarse-morado-medio/30 hover:bg-superarse-morado-medio px-2 py-2 rounded transition">Planificación</a>
-                <a href="<?php echo $basePath; ?>/admin/convenio" class="text-center bg-superarse-morado-medio/30 hover:bg-superarse-morado-medio px-2 py-2 rounded transition">Convenios</a>
-                <a href="<?php echo $basePath; ?>/admin/accounts" class="text-center bg-superarse-morado-medio/30 hover:bg-superarse-morado-medio px-2 py-2 rounded transition">Cuentas</a>
-                <a href="<?php echo $basePath; ?>/admin/reset-requests" class="text-center bg-superarse-morado-medio/30 hover:bg-superarse-morado-medio px-2 py-2 rounded transition relative">
-                    Solicitudes
-                    <?php if (($pendingResetCount ?? 0) > 0): ?>
-                        <span class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold">
-                            <?= min((int)$pendingResetCount, 99) ?>
-                        </span>
-                    <?php endif; ?>
-                </a>
+                <?php if ($canAccessModule('dashboard')): ?>
+                    <a href="<?php echo $basePath; ?>/admin/dashboard" class="text-center bg-superarse-morado-medio/30 hover:bg-superarse-morado-medio px-2 py-2 rounded transition">Dashboard</a>
+                <?php endif; ?>
+                <?php if ($canAccessModule('practicas')): ?>
+                    <a href="<?php echo $basePath; ?>/admin/practicas" class="text-center bg-superarse-morado-medio/30 hover:bg-superarse-morado-medio px-2 py-2 rounded transition">Prácticas</a>
+                <?php endif; ?>
+                <?php if ($canAccessModule('vinculacion')): ?>
+                    <a href="<?php echo $basePath; ?>/admin/vinculacion" class="text-center bg-superarse-morado-medio/30 hover:bg-superarse-morado-medio px-2 py-2 rounded transition">Vinculación</a>
+                <?php endif; ?>
+                <?php if ($canAccessModule('investigacion')): ?>
+                    <a href="<?php echo $basePath; ?>/admin/investigacion" class="text-center bg-superarse-morado-medio/30 hover:bg-superarse-morado-medio px-2 py-2 rounded transition">Investigación</a>
+                <?php endif; ?>
+                <?php if ($canAccessModule('plan_estrategico')): ?>
+                    <a href="<?php echo $basePath; ?>/admin/plan-estrategico" class="text-center bg-superarse-morado-medio/30 hover:bg-superarse-morado-medio px-2 py-2 rounded transition">Planificación</a>
+                <?php endif; ?>
+                <?php if ($canAccessModule('convenios')): ?>
+                    <a href="<?php echo $basePath; ?>/admin/convenio" class="text-center bg-superarse-morado-medio/30 hover:bg-superarse-morado-medio px-2 py-2 rounded transition">Convenios</a>
+                <?php endif; ?>
+                <?php if ($canAccessModule('auditoria')): ?>
+                    <a href="<?php echo $basePath; ?>/admin/auditoria-general" class="text-center bg-superarse-morado-medio/30 hover:bg-superarse-morado-medio px-2 py-2 rounded transition">Auditoría</a>
+                <?php endif; ?>
+                <?php if ($canAccessModule('reportes')): ?>
+                    <a href="<?php echo $basePath; ?>/admin/reportes" class="text-center bg-superarse-morado-medio/30 hover:bg-superarse-morado-medio px-2 py-2 rounded transition">Reportes</a>
+                <?php endif; ?>
+                <?php if ($canAccessModule('cuentas')): ?>
+                    <a href="<?php echo $basePath; ?>/admin/accounts" class="text-center bg-superarse-morado-medio/30 hover:bg-superarse-morado-medio px-2 py-2 rounded transition">Cuentas</a>
+                <?php endif; ?>
+                <?php if ($canAccessModule('solicitudes')): ?>
+                    <a href="<?php echo $basePath; ?>/admin/reset-requests" class="text-center bg-superarse-morado-medio/30 hover:bg-superarse-morado-medio px-2 py-2 rounded transition relative">
+                        Solicitudes
+                        <?php if (($pendingResetCount ?? 0) > 0): ?>
+                            <span class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold">
+                                <?= min((int)$pendingResetCount, 99) ?>
+                            </span>
+                        <?php endif; ?>
+                    </a>
+                <?php endif; ?>
             </nav>
 
             <p class="lg:hidden text-white/85 text-xs mt-2 truncate"><?= htmlspecialchars($nombreCompleto ?? '', ENT_QUOTES, 'UTF-8') ?></p>

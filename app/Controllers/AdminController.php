@@ -13,6 +13,9 @@ require_once __DIR__ . '/../Models/ConvenioModel.php';
 require_once __DIR__ . '/../Models/AdminDashboardModel.php';
 require_once __DIR__ . '/../Models/AuthAccountModel.php';
 require_once __DIR__ . '/../Models/PasswordResetModel.php';
+require_once __DIR__ . '/../Models/AdminPermissionModel.php';
+require_once __DIR__ . '/../Models/AuditLogModel.php';
+require_once __DIR__ . '/../Models/AdminReportesModel.php';
 require_once __DIR__ . '/../Helpers/AuthSecurity.php';
 
 class AdminController
@@ -31,6 +34,9 @@ class AdminController
     private $actividadModel;
     private $convenioModel;
     private $dashboardModel;
+    private $permissionModel;
+    private $auditLogModel;
+    private $reportesModel;
 
     public function __construct()
     {
@@ -58,8 +64,12 @@ class AdminController
         $this->dashboardModel = new AdminDashboardModel();
         $this->authAccountModel = new AuthAccountModel();
         $this->resetModel = new PasswordResetModel();
+        $this->permissionModel = new AdminPermissionModel();
+        $this->auditLogModel = new AuditLogModel();
+        $this->reportesModel = new AdminReportesModel();
 
         $this->enforcePasswordChangeRedirect();
+        $this->enforceRoutePermission();
     }
 
     public function loginForm()
@@ -130,6 +140,8 @@ class AdminController
         $_SESSION['auth_role'] = 'admin';
         $_SESSION['admin_email'] = $account['email'];
         $_SESSION['must_change_password'] = !empty($account['must_change_password']);
+
+        $this->loadAdminPermissionsToSession((int) $account['id']);
 
         $this->authAccountModel->recordSuccessfulLogin((int) $account['id']);
 
@@ -302,6 +314,775 @@ class AdminController
             'moduleCss' => ['auditoria.css', 'auditoria-custom.css'],
             'moduleJs' => ['auditoria-script.js']
         ]);
+    }
+
+    public function auditoriaGeneral()
+    {
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $search = trim($_GET['search'] ?? '');
+        $table = trim($_GET['table'] ?? '');
+        $module = trim($_GET['module'] ?? '');
+        $action = strtoupper(trim($_GET['action'] ?? ''));
+        if (!in_array($action, ['INSERT', 'UPDATE', 'DELETE'], true)) {
+            $action = '';
+        }
+
+        $moduleTableGroups = $this->getAuditModuleTableGroups();
+        $tableList = [];
+        if ($module !== '' && isset($moduleTableGroups[$module])) {
+            $tableList = $moduleTableGroups[$module]['tables'];
+        }
+
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+        $limit = 30;
+        $offset = ($page - 1) * $limit;
+
+        $logs = $this->auditLogModel->getLogs($limit, $offset, $search, $table, $action, $tableList);
+        $totalLogs = $this->auditLogModel->countLogs($search, $table, $action, $tableList);
+        $totalPages = max(1, (int) ceil($totalLogs / $limit));
+        $availableTables = $this->auditLogModel->getDistinctTables();
+
+        $this->render('admin/auditoria/auditoria_general', [
+            'title' => 'Auditoría General',
+            'logs' => $logs,
+            'totalLogs' => $totalLogs,
+            'totalPages' => $totalPages,
+            'page' => $page,
+            'search' => $search,
+            'module' => $module,
+            'table' => $table,
+            'action' => $action,
+            'availableTables' => $availableTables,
+            'moduleTableGroups' => $moduleTableGroups,
+        ]);
+    }
+
+    public function exportAuditoriaGeneralCsv()
+    {
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $search = trim($_GET['search'] ?? '');
+        $table = trim($_GET['table'] ?? '');
+        $module = trim($_GET['module'] ?? '');
+        $action = strtoupper(trim($_GET['action'] ?? ''));
+        if (!in_array($action, ['INSERT', 'UPDATE', 'DELETE'], true)) {
+            $action = '';
+        }
+
+        $moduleTableGroups = $this->getAuditModuleTableGroups();
+        $tableList = [];
+        if ($module !== '' && isset($moduleTableGroups[$module])) {
+            $tableList = $moduleTableGroups[$module]['tables'];
+        }
+
+        $rows = $this->auditLogModel->getLogsForExport($search, $table, $action, 50000, $tableList);
+        $filename = 'auditoria_general_' . date('Ymd_His') . '.csv';
+
+        header('Content-Type: text/csv; charset=UTF-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+
+        $out = fopen('php://output', 'w');
+        fwrite($out, "\xEF\xBB\xBF");
+
+        fputcsv($out, [
+            'fecha_hora',
+            'modulo',
+            'tabla',
+            'accion',
+            'record_pk',
+            'actor_tipo',
+            'actor_id_admin',
+            'actor_id_estudiante',
+            'actor_nombre',
+            'request_uri',
+            'request_method',
+            'ip',
+            'diff_campos',
+            'diff_valores_anteriores',
+            'diff_valores_nuevos',
+            'diff_resumen',
+            'before_data',
+            'after_data',
+        ]);
+
+        foreach ($rows as $row) {
+            $diff = $this->buildAuditDiff((string) ($row['action_type'] ?? ''), (string) ($row['before_data'] ?? ''), (string) ($row['after_data'] ?? ''));
+            $moduleName = $this->resolveAuditModuleName((string) ($row['table_name'] ?? ''));
+
+            fputcsv($out, [
+                $row['event_time'] ?? '',
+                $moduleName,
+                $row['table_name'] ?? '',
+                $row['action_type'] ?? '',
+                $row['record_pk'] ?? '',
+                $row['actor_type'] ?? '',
+                $row['actor_account_id'] ?? '',
+                $row['actor_student_id'] ?? '',
+                $row['actor_name'] ?? '',
+                $row['request_uri'] ?? '',
+                $row['request_method'] ?? '',
+                $row['ip_address'] ?? '',
+                implode(' | ', $diff['changed_fields']),
+                implode(' | ', $diff['old_values']),
+                implode(' | ', $diff['new_values']),
+                implode(' || ', $diff['summary_lines']),
+                $row['before_data'] ?? '',
+                $row['after_data'] ?? '',
+            ]);
+        }
+
+        fclose($out);
+        exit();
+    }
+
+    public function exportAuditoriaGeneralExcel()
+    {
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $search = trim($_GET['search'] ?? '');
+        $table = trim($_GET['table'] ?? '');
+        $module = trim($_GET['module'] ?? '');
+        $action = strtoupper(trim($_GET['action'] ?? ''));
+        if (!in_array($action, ['INSERT', 'UPDATE', 'DELETE'], true)) {
+            $action = '';
+        }
+
+        $moduleTableGroups = $this->getAuditModuleTableGroups();
+        $tableList = [];
+        if ($module !== '' && isset($moduleTableGroups[$module])) {
+            $tableList = $moduleTableGroups[$module]['tables'];
+        }
+
+        $rows = $this->auditLogModel->getLogsForExport($search, $table, $action, 50000, $tableList);
+        $filename = 'auditoria_general_' . date('Ymd_His') . '.xls';
+
+        header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+
+        echo "<table border='1'>";
+        echo "<tr>";
+        echo "<th>fecha_hora</th><th>modulo</th><th>tabla</th><th>accion</th><th>record_pk</th><th>actor_tipo</th><th>actor_id_admin</th><th>actor_id_estudiante</th><th>actor_nombre</th><th>request_uri</th><th>request_method</th><th>ip</th><th>diff_campos</th><th>diff_valores_anteriores</th><th>diff_valores_nuevos</th><th>diff_resumen</th><th>before_data</th><th>after_data</th>";
+        echo "</tr>";
+
+        foreach ($rows as $row) {
+            $diff = $this->buildAuditDiff((string) ($row['action_type'] ?? ''), (string) ($row['before_data'] ?? ''), (string) ($row['after_data'] ?? ''));
+            $moduleName = $this->resolveAuditModuleName((string) ($row['table_name'] ?? ''));
+
+            echo "<tr>";
+            echo "<td>" . htmlspecialchars((string) ($row['event_time'] ?? ''), ENT_QUOTES, 'UTF-8') . "</td>";
+            echo "<td>" . htmlspecialchars((string) $moduleName, ENT_QUOTES, 'UTF-8') . "</td>";
+            echo "<td>" . htmlspecialchars((string) ($row['table_name'] ?? ''), ENT_QUOTES, 'UTF-8') . "</td>";
+            echo "<td>" . htmlspecialchars((string) ($row['action_type'] ?? ''), ENT_QUOTES, 'UTF-8') . "</td>";
+            echo "<td>" . htmlspecialchars((string) ($row['record_pk'] ?? ''), ENT_QUOTES, 'UTF-8') . "</td>";
+            echo "<td>" . htmlspecialchars((string) ($row['actor_type'] ?? ''), ENT_QUOTES, 'UTF-8') . "</td>";
+            echo "<td>" . htmlspecialchars((string) ($row['actor_account_id'] ?? ''), ENT_QUOTES, 'UTF-8') . "</td>";
+            echo "<td>" . htmlspecialchars((string) ($row['actor_student_id'] ?? ''), ENT_QUOTES, 'UTF-8') . "</td>";
+            echo "<td>" . htmlspecialchars((string) ($row['actor_name'] ?? ''), ENT_QUOTES, 'UTF-8') . "</td>";
+            echo "<td>" . htmlspecialchars((string) ($row['request_uri'] ?? ''), ENT_QUOTES, 'UTF-8') . "</td>";
+            echo "<td>" . htmlspecialchars((string) ($row['request_method'] ?? ''), ENT_QUOTES, 'UTF-8') . "</td>";
+            echo "<td>" . htmlspecialchars((string) ($row['ip_address'] ?? ''), ENT_QUOTES, 'UTF-8') . "</td>";
+            echo "<td>" . htmlspecialchars(implode(' | ', $diff['changed_fields']), ENT_QUOTES, 'UTF-8') . "</td>";
+            echo "<td>" . htmlspecialchars(implode(' | ', $diff['old_values']), ENT_QUOTES, 'UTF-8') . "</td>";
+            echo "<td>" . htmlspecialchars(implode(' | ', $diff['new_values']), ENT_QUOTES, 'UTF-8') . "</td>";
+            echo "<td>" . htmlspecialchars(implode(' || ', $diff['summary_lines']), ENT_QUOTES, 'UTF-8') . "</td>";
+            echo "<td>" . htmlspecialchars((string) ($row['before_data'] ?? ''), ENT_QUOTES, 'UTF-8') . "</td>";
+            echo "<td>" . htmlspecialchars((string) ($row['after_data'] ?? ''), ENT_QUOTES, 'UTF-8') . "</td>";
+            echo "</tr>";
+        }
+
+        echo "</table>";
+        exit();
+    }
+
+    public function reportes()
+    {
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $this->render('admin/reportes/index', [
+            'title' => 'Reportes de Prácticas',
+        ]);
+    }
+
+    public function reportesVinculacion()
+    {
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $sections = [
+            [
+                'key' => 'vinculacion_proyectos',
+                'label' => 'Proyectos',
+                'description' => 'Reporte de proyectos de vinculación.',
+            ],
+            [
+                'key' => 'vinculacion_proyectos_carrera',
+                'label' => 'Proyectos por Carrera',
+                'description' => 'Relación de proyectos de vinculación y carreras.',
+            ],
+        ];
+
+        $this->render('admin/reportes/module_page', [
+            'title' => 'Reportes - Vinculación',
+            'moduleTitle' => 'Vinculación',
+            'sections' => $sections,
+        ]);
+    }
+
+    public function reportesInvestigacion()
+    {
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $sections = [
+            [
+                'key' => 'investigacion_proyectos',
+                'label' => 'Proyectos',
+                'description' => 'Reporte de proyectos de investigación.',
+            ],
+            [
+                'key' => 'investigacion_publicaciones',
+                'label' => 'Publicaciones',
+                'description' => 'Listado de publicaciones registradas.',
+            ],
+            [
+                'key' => 'investigacion_ponencias',
+                'label' => 'Ponencias',
+                'description' => 'Listado de ponencias registradas.',
+            ],
+            [
+                'key' => 'investigacion_proyectos_carrera',
+                'label' => 'Proyectos por Carrera',
+                'description' => 'Relación de proyectos de investigación y carreras.',
+            ],
+        ];
+
+        $this->render('admin/reportes/module_page', [
+            'title' => 'Reportes - Investigación',
+            'moduleTitle' => 'Investigación',
+            'sections' => $sections,
+        ]);
+    }
+
+    public function reportesPlanificacion()
+    {
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $sections = [
+            [
+                'key' => 'planificacion_pedi',
+                'label' => 'Plan Estratégico de Desarrollo Institucional',
+                'description' => 'Reporte del PEDI.',
+            ],
+            [
+                'key' => 'planificacion_poa',
+                'label' => 'Plan Operativo Anual',
+                'description' => 'Reporte del POA.',
+            ],
+            [
+                'key' => 'planificacion_poa_actividades',
+                'label' => 'Actividades de Plan Operativo',
+                'description' => 'Reporte de actividades del POA.',
+            ],
+        ];
+
+        $this->render('admin/reportes/module_page', [
+            'title' => 'Reportes - Planificación',
+            'moduleTitle' => 'Planificación',
+            'sections' => $sections,
+        ]);
+    }
+
+    public function exportReporteModulo()
+    {
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $module = strtolower(trim($_GET['module'] ?? 'practicas'));
+        $allowedModules = [
+            'practicas',
+            'convenios',
+            'vinculacion',
+            'vinculacion_proyectos',
+            'vinculacion_proyectos_carrera',
+            'investigacion',
+            'investigacion_proyectos',
+            'investigacion_publicaciones',
+            'investigacion_ponencias',
+            'investigacion_proyectos_carrera',
+            'planificacion',
+            'planificacion_pedi',
+            'planificacion_poa',
+            'planificacion_poa_actividades',
+        ];
+        if (!in_array($module, $allowedModules, true)) {
+            $module = 'practicas';
+        }
+
+        $format = $this->normalizeReportFormat($_GET['format'] ?? 'excel');
+        $exportData = $this->reportesModel->getDataForModuleExport($module);
+        $rows = $exportData['rows'] ?? [];
+        $label = $exportData['label'] ?? ucfirst($module);
+        $reportTitle = 'Reporte Administrativo';
+        $downloadedAt = date('d/m/Y H:i:s');
+
+        if ($format === 'pdf') {
+            $html = $this->buildStyledReportHtml($reportTitle, (string) $label, $downloadedAt, $rows, 'pdf');
+            $this->renderPdfDownload('reporte_' . $module . '_' . date('Ymd_His') . '.pdf', $html);
+        }
+
+        $filename = 'reporte_' . $module . '_' . date('Ymd_His') . '.xlsx';
+        header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+
+        echo $this->buildStyledReportHtml($reportTitle, (string) $label, $downloadedAt, $rows, 'excel');
+        exit();
+    }
+
+    private function buildStyledReportHtml($reportTitle, $moduleLabel, $downloadedAt, array $rows, $target = 'pdf')
+    {
+        $target = strtolower((string) $target);
+        $headers = !empty($rows) ? array_keys((array) $rows[0]) : [];
+
+        $isExcel = $target === 'excel';
+        $pagePadding = $isExcel ? '14px' : '12px';
+        $headerBg = $isExcel ? '#f3f4f6' : '#eef2ff';
+
+        $html = '<!DOCTYPE html><html><head><meta charset="utf-8">';
+        $html .= '<style>';
+        $html .= 'body{font-family:Arial,Helvetica,sans-serif;color:#111827;font-size:12px;padding:' . $pagePadding . ';}';
+        $html .= '.card{border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;}';
+        $html .= '.head{background:' . $headerBg . ';padding:12px 14px;border-bottom:1px solid #d1d5db;}';
+        $html .= '.title{font-size:18px;font-weight:700;margin:0;color:#1f2937;}';
+        $html .= '.meta{margin-top:6px;font-size:11px;color:#374151;}';
+        $html .= '.meta span{margin-right:14px;}';
+        $html .= 'table{width:100%;border-collapse:collapse;}';
+        $html .= 'th,td{border:1px solid #d1d5db;padding:7px 8px;vertical-align:top;}';
+        $html .= 'th{background:#111827;color:#ffffff;font-size:11px;text-transform:uppercase;}';
+        $html .= 'tr:nth-child(even) td{background:#f9fafb;}';
+        $html .= '.empty{padding:14px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;margin-top:10px;border-radius:6px;}';
+        $html .= '</style></head><body>';
+
+        $html .= '<div class="card">';
+        $html .= '<div class="head">';
+        $html .= '<p class="title">' . htmlspecialchars((string) $reportTitle, ENT_QUOTES, 'UTF-8') . '</p>';
+        $html .= '<div class="meta">';
+        $html .= '<span><strong>Modulo:</strong> ' . htmlspecialchars((string) $moduleLabel, ENT_QUOTES, 'UTF-8') . '</span>';
+        $html .= '<span><strong>Descargado:</strong> ' . htmlspecialchars((string) $downloadedAt, ENT_QUOTES, 'UTF-8') . '</span>';
+        $html .= '</div>';
+        $html .= '</div>';
+
+        if (empty($rows)) {
+            $html .= '<div class="empty">No hay datos para exportar.</div>';
+        } else {
+            $html .= '<table><thead><tr>';
+            foreach ($headers as $header) {
+                $html .= '<th>' . htmlspecialchars((string) $header, ENT_QUOTES, 'UTF-8') . '</th>';
+            }
+            $html .= '</tr></thead><tbody>';
+
+            foreach ($rows as $row) {
+                $html .= '<tr>';
+                foreach ($headers as $header) {
+                    $html .= '<td>' . htmlspecialchars((string) ($row[$header] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
+                }
+                $html .= '</tr>';
+            }
+
+            $html .= '</tbody></table>';
+        }
+
+        $html .= '</div></body></html>';
+
+        return $html;
+    }
+
+    public function exportReporteEmpresasEstudiantesCsv()
+    {
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $format = $this->normalizeReportFormat($_GET['format'] ?? 'excel');
+        $rows = $this->reportesModel->getEmpresasConEstudiantes();
+
+        if ($format === 'pdf') {
+            $html = '<h2>Reporte: Empresas con estudiantes</h2>';
+            $html .= '<table border="1" cellpadding="6" cellspacing="0" width="100%">';
+            $html .= '<tr><th>Empresa</th><th>RUC</th><th>Estudiante</th><th>Cédula</th><th>Carrera</th><th>Modalidad</th><th>Fase</th></tr>';
+            foreach ($rows as $row) {
+                $fase = ((int) ($row['estado_fase_uno_completado'] ?? 0) === 1) ? 'Fase 2' : 'Fase 1';
+                $html .= '<tr>';
+                $html .= '<td>' . htmlspecialchars((string) ($row['empresa'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
+                $html .= '<td>' . htmlspecialchars((string) ($row['ruc'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
+                $html .= '<td>' . htmlspecialchars(trim((string) ($row['estudiante'] ?? '')), ENT_QUOTES, 'UTF-8') . '</td>';
+                $html .= '<td>' . htmlspecialchars((string) ($row['identificacion'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
+                $html .= '<td>' . htmlspecialchars((string) ($row['carrera'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
+                $html .= '<td>' . htmlspecialchars((string) ($row['modalidad'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
+                $html .= '<td>' . $fase . '</td>';
+                $html .= '</tr>';
+            }
+            $html .= '</table>';
+
+            $this->renderPdfDownload('reporte_empresas_estudiantes_' . date('Ymd_His') . '.pdf', $html);
+        }
+
+        $filename = 'reporte_empresas_estudiantes_' . date('Ymd_His') . '.xlsx';
+        header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+
+        echo "<table border='1'>";
+        echo "<tr><th>empresa</th><th>ruc</th><th>id_practica</th><th>estudiante_id</th><th>identificacion</th><th>estudiante</th><th>carrera</th><th>modalidad</th><th>fase</th><th>fecha_registro</th></tr>";
+        foreach ($rows as $row) {
+            $fase = ((int) ($row['estado_fase_uno_completado'] ?? 0) === 1) ? 'Fase 2' : 'Fase 1';
+            echo '<tr>';
+            echo '<td>' . htmlspecialchars((string) ($row['empresa'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
+            echo '<td>' . htmlspecialchars((string) ($row['ruc'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
+            echo '<td>' . htmlspecialchars((string) ($row['id_practica'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
+            echo '<td>' . htmlspecialchars((string) ($row['estudiante_id'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
+            echo '<td>' . htmlspecialchars((string) ($row['identificacion'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
+            echo '<td>' . htmlspecialchars(trim((string) ($row['estudiante'] ?? '')), ENT_QUOTES, 'UTF-8') . '</td>';
+            echo '<td>' . htmlspecialchars((string) ($row['carrera'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
+            echo '<td>' . htmlspecialchars((string) ($row['modalidad'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
+            echo '<td>' . htmlspecialchars($fase, ENT_QUOTES, 'UTF-8') . '</td>';
+            echo '<td>' . htmlspecialchars((string) ($row['fecha_registro'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
+            echo '</tr>';
+        }
+        echo '</table>';
+        exit();
+    }
+
+    public function exportReporteModalidadCarreraExcel()
+    {
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $format = $this->normalizeReportFormat($_GET['format'] ?? 'excel');
+        $groups = $this->reportesModel->getDistribucionModalidadPorCarreraDetallada();
+
+        if ($format === 'pdf') {
+            $html = '<h2>Reporte: Distribución de modalidad por carrera</h2>';
+            if (empty($groups)) {
+                $html .= '<p>No hay datos para exportar.</p>';
+            } else {
+                foreach ($groups as $carrera => $rows) {
+                    $html .= '<h3>' . htmlspecialchars((string) $carrera, ENT_QUOTES, 'UTF-8') . '</h3>';
+                    $html .= '<table border="1" cellpadding="6" cellspacing="0" width="100%">';
+                    $html .= '<tr><th>Modalidad</th><th>Cédula</th><th>Estudiante</th></tr>';
+                    foreach ($rows as $row) {
+                        $html .= '<tr>';
+                        $html .= '<td>' . htmlspecialchars((string) ($row['modalidad'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
+                        $html .= '<td>' . htmlspecialchars((string) ($row['identificacion'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
+                        $html .= '<td>' . htmlspecialchars((string) ($row['estudiante'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
+                        $html .= '</tr>';
+                    }
+                    $html .= '</table><br>';
+                }
+            }
+
+            $this->renderPdfDownload('reporte_modalidad_por_carrera_' . date('Ymd_His') . '.pdf', $html);
+        }
+
+        $filename = 'reporte_modalidad_por_carrera_' . date('Ymd_His') . '.xlsx';
+
+        header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+
+        echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>";
+        echo "<Workbook xmlns=\"urn:schemas-microsoft-com:office:spreadsheet\"";
+        echo " xmlns:o=\"urn:schemas-microsoft-com:office:office\"";
+        echo " xmlns:x=\"urn:schemas-microsoft-com:office:excel\"";
+        echo " xmlns:ss=\"urn:schemas-microsoft-com:office:spreadsheet\"";
+        echo " xmlns:html=\"http://www.w3.org/TR/REC-html40\">";
+
+        echo "<Styles>";
+        echo "<Style ss:ID=\"header\"><Font ss:Bold=\"1\"/></Style>";
+        echo "</Styles>";
+
+        if (empty($groups)) {
+            echo "<Worksheet ss:Name=\"Sin datos\"><Table>";
+            echo "<Row><Cell><Data ss:Type=\"String\">No hay datos para exportar.</Data></Cell></Row>";
+            echo "</Table></Worksheet>";
+            echo "</Workbook>";
+            exit();
+        }
+
+        foreach ($groups as $carrera => $rows) {
+            $sheetName = $this->sanitizeExcelSheetName((string) $carrera);
+            echo '<Worksheet ss:Name="' . htmlspecialchars($sheetName, ENT_QUOTES, 'UTF-8') . '"><Table>';
+            echo '<Row>';
+            echo '<Cell ss:StyleID="header"><Data ss:Type="String">Carrera</Data></Cell>';
+            echo '<Cell ss:StyleID="header"><Data ss:Type="String">Modalidad</Data></Cell>';
+            echo '<Cell ss:StyleID="header"><Data ss:Type="String">Cédula</Data></Cell>';
+            echo '<Cell ss:StyleID="header"><Data ss:Type="String">Estudiante</Data></Cell>';
+            echo '</Row>';
+
+            foreach ($rows as $row) {
+                echo '<Row>';
+                echo '<Cell><Data ss:Type="String">' . htmlspecialchars((string) ($row['modalidad'] ?? ''), ENT_QUOTES, 'UTF-8') . '</Data></Cell>';
+                echo '<Cell><Data ss:Type="String">' . htmlspecialchars((string) ($row['identificacion'] ?? ''), ENT_QUOTES, 'UTF-8') . '</Data></Cell>';
+                echo '<Cell><Data ss:Type="String">' . htmlspecialchars((string) ($row['estudiante'] ?? ''), ENT_QUOTES, 'UTF-8') . '</Data></Cell>';
+                echo '</Row>';
+            }
+
+            echo '</Table></Worksheet>';
+        }
+
+        echo '</Workbook>';
+        exit();
+    }
+
+    public function exportReporteEstudiantesFaseCsv()
+    {
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $format = $this->normalizeReportFormat($_GET['format'] ?? 'excel');
+        $fase = strtolower(trim($_GET['fase'] ?? 'fase_uno'));
+        if (!in_array($fase, ['fase_uno', 'fase_dos'], true)) {
+            $fase = 'fase_uno';
+        }
+
+        $rows = $this->reportesModel->getEstudiantesByFase($fase);
+
+        if ($format === 'pdf') {
+            $html = '<h2>Reporte de estudiantes por fase</h2>';
+            $html .= '<p><strong>Filtro:</strong> ' . htmlspecialchars(strtoupper(str_replace('_', ' ', $fase)), ENT_QUOTES, 'UTF-8') . '</p>';
+            $html .= '<table border="1" cellpadding="6" cellspacing="0" width="100%">';
+            $html .= '<tr><th>Cédula</th><th>Estudiante</th><th>Email</th><th>Carrera</th><th>Empresa</th><th>Modalidad</th><th>Fase</th></tr>';
+            foreach ($rows as $row) {
+                $html .= '<tr>';
+                $html .= '<td>' . htmlspecialchars((string) ($row['identificacion'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
+                $html .= '<td>' . htmlspecialchars(trim((string) ($row['estudiante'] ?? '')), ENT_QUOTES, 'UTF-8') . '</td>';
+                $html .= '<td>' . htmlspecialchars((string) ($row['email'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
+                $html .= '<td>' . htmlspecialchars((string) ($row['carrera'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
+                $html .= '<td>' . htmlspecialchars((string) ($row['empresa'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
+                $html .= '<td>' . htmlspecialchars((string) ($row['modalidad'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
+                $html .= '<td>' . htmlspecialchars((string) ($row['fase'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
+                $html .= '</tr>';
+            }
+            $html .= '</table>';
+
+            $this->renderPdfDownload('reporte_estudiantes_' . $fase . '_' . date('Ymd_His') . '.pdf', $html);
+        }
+
+        $filename = 'reporte_estudiantes_' . $fase . '_' . date('Ymd_His') . '.xlsx';
+        header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+
+        echo "<table border='1'>";
+        echo "<tr><th>id_practica</th><th>identificacion</th><th>estudiante</th><th>email</th><th>carrera</th><th>empresa</th><th>ruc</th><th>modalidad</th><th>fase</th><th>fecha_registro</th></tr>";
+        foreach ($rows as $row) {
+            echo '<tr>';
+            echo '<td>' . htmlspecialchars((string) ($row['id_practica'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
+            echo '<td>' . htmlspecialchars((string) ($row['identificacion'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
+            echo '<td>' . htmlspecialchars(trim((string) ($row['estudiante'] ?? '')), ENT_QUOTES, 'UTF-8') . '</td>';
+            echo '<td>' . htmlspecialchars((string) ($row['email'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
+            echo '<td>' . htmlspecialchars((string) ($row['carrera'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
+            echo '<td>' . htmlspecialchars((string) ($row['empresa'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
+            echo '<td>' . htmlspecialchars((string) ($row['ruc'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
+            echo '<td>' . htmlspecialchars((string) ($row['modalidad'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
+            echo '<td>' . htmlspecialchars((string) ($row['fase'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
+            echo '<td>' . htmlspecialchars((string) ($row['fecha_registro'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
+            echo '</tr>';
+        }
+        echo '</table>';
+        exit();
+    }
+
+    private function normalizeReportFormat($format)
+    {
+        $value = strtolower(trim((string) $format));
+        return in_array($value, ['excel', 'pdf'], true) ? $value : 'excel';
+    }
+
+    private function renderPdfDownload($filename, $html)
+    {
+        $options = new \Dompdf\Options();
+        $options->set('defaultFont', 'Arial');
+        $options->set('isHtml5ParserEnabled', true);
+        $options->set('isRemoteEnabled', true);
+
+        $dompdf = new \Dompdf\Dompdf($options);
+        $dompdf->loadHtml('<meta charset="utf-8">' . (string) $html);
+        $dompdf->setPaper('A4', 'landscape');
+        $dompdf->render();
+
+        if (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+
+        $dompdf->stream($filename, ['Attachment' => true]);
+        exit();
+    }
+
+    private function sanitizeExcelSheetName($name)
+    {
+        $clean = preg_replace('/[\\\\\/\?\*\[\]:]/', ' ', (string) $name);
+        $clean = trim(preg_replace('/\s+/', ' ', $clean));
+        if ($clean === '') {
+            $clean = 'Hoja';
+        }
+
+        return mb_substr($clean, 0, 31, 'UTF-8');
+    }
+
+    private function getAuditModuleTableGroups()
+    {
+        return [
+            'practicas' => [
+                'label' => 'Prácticas (Admin + Estudiantes)',
+                'tables' => ['practicas_estudiantes', 'entidades', 'tutores_empresariales', 'programa_trabajo', 'actividades_diarias'],
+            ],
+            'investigacion_vinculacion' => [
+                'label' => 'Investigación y Vinculación',
+                'tables' => ['proyectos_administracion', 'proyecto_estudiantes_carrera', 'publicaciones', 'ponencias'],
+            ],
+            'planificacion' => [
+                'label' => 'Planificación Estratégica',
+                'tables' => ['pedi', 'poa', 'poa_actividades'],
+            ],
+            'convenios' => [
+                'label' => 'Convenios',
+                'tables' => ['convenios'],
+            ],
+            'pagos' => [
+                'label' => 'Pagos',
+                'tables' => ['payments'],
+            ],
+            'cuentas_permisos' => [
+                'label' => 'Cuentas y Permisos',
+                'tables' => ['access_accounts', 'access_account_permissions', 'password_reset_requests'],
+            ],
+        ];
+    }
+
+    private function resolveAuditModuleName($tableName)
+    {
+        foreach ($this->getAuditModuleTableGroups() as $group) {
+            if (in_array($tableName, $group['tables'], true)) {
+                return $group['label'];
+            }
+        }
+
+        return 'Otros';
+    }
+
+    private function buildAuditDiff($actionType, $beforeJson, $afterJson)
+    {
+        $before = $this->decodeAuditJson($beforeJson);
+        $after = $this->decodeAuditJson($afterJson);
+
+        $changedFields = [];
+        $oldValues = [];
+        $newValues = [];
+        $summaryLines = [];
+
+        if ($actionType === 'INSERT') {
+            foreach ($after as $field => $newValue) {
+                $changedFields[] = (string) $field;
+                $oldValues[] = '';
+                $newValues[] = $this->normalizeAuditValue($newValue);
+                $summaryLines[] = $field . ': ' . $this->normalizeAuditValue($newValue);
+            }
+
+            return [
+                'changed_fields' => $changedFields,
+                'old_values' => $oldValues,
+                'new_values' => $newValues,
+                'summary_lines' => $summaryLines,
+            ];
+        }
+
+        if ($actionType === 'DELETE') {
+            foreach ($before as $field => $oldValue) {
+                $changedFields[] = (string) $field;
+                $oldValues[] = $this->normalizeAuditValue($oldValue);
+                $newValues[] = '';
+                $summaryLines[] = $field . ': ' . $this->normalizeAuditValue($oldValue);
+            }
+
+            return [
+                'changed_fields' => $changedFields,
+                'old_values' => $oldValues,
+                'new_values' => $newValues,
+                'summary_lines' => $summaryLines,
+            ];
+        }
+
+        $allFields = array_unique(array_merge(array_keys($before), array_keys($after)));
+        foreach ($allFields as $field) {
+            $oldValue = array_key_exists($field, $before) ? $before[$field] : null;
+            $newValue = array_key_exists($field, $after) ? $after[$field] : null;
+
+            if ($oldValue !== $newValue) {
+                $changedFields[] = (string) $field;
+                $oldValues[] = $this->normalizeAuditValue($oldValue);
+                $newValues[] = $this->normalizeAuditValue($newValue);
+                $summaryLines[] = $field . ': ' . $this->normalizeAuditValue($oldValue) . ' -> ' . $this->normalizeAuditValue($newValue);
+            }
+        }
+
+        return [
+            'changed_fields' => $changedFields,
+            'old_values' => $oldValues,
+            'new_values' => $newValues,
+            'summary_lines' => $summaryLines,
+        ];
+    }
+
+    private function decodeAuditJson($jsonText)
+    {
+        if (!is_string($jsonText) || trim($jsonText) === '') {
+            return [];
+        }
+
+        $decoded = json_decode($jsonText, true);
+        return is_array($decoded) ? $decoded : [];
+    }
+
+    private function normalizeAuditValue($value)
+    {
+        if ($value === null) {
+            return 'NULL';
+        }
+
+        if (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+
+        if (is_scalar($value)) {
+            return (string) $value;
+        }
+
+        $json = json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        return is_string($json) ? $json : '';
     }
 
     public function editarRegistro()
@@ -520,6 +1301,7 @@ class AdminController
         unset($_SESSION['auth_account_id']);
         unset($_SESSION['auth_role']);
         unset($_SESSION['must_change_password']);
+        unset($_SESSION['admin_permissions']);
         session_destroy();
 
         header("Location: " . $this->basePath . "/admin/login");
@@ -688,6 +1470,238 @@ class AdminController
         }
     }
 
+    private function loadAdminPermissionsToSession($accountId)
+    {
+        $accountId = (int) $accountId;
+        if ($accountId <= 0) {
+            $_SESSION['admin_permissions'] = ['enabled' => false, 'matrix' => []];
+            return;
+        }
+
+        $_SESSION['admin_permissions'] = $this->permissionModel->getPermissionsByAccountId($accountId);
+    }
+
+    private function getPermissionModules()
+    {
+        return [
+            'dashboard' => 'Dashboard',
+            'practicas' => 'Prácticas',
+            'vinculacion' => 'Vinculación',
+            'investigacion' => 'Investigación',
+            'plan_estrategico' => 'Planificación Estratégica',
+            'convenios' => 'Convenios',
+            'auditoria' => 'Auditoría',
+            'reportes' => 'Reportes',
+            'cuentas' => 'Cuentas',
+            'solicitudes' => 'Solicitudes de Restablecimiento',
+        ];
+    }
+
+    private function hasPermission($moduleKey, $action)
+    {
+        $accountId = (int) ($_SESSION['auth_account_id'] ?? 0);
+        if ($accountId <= 0) {
+            return false;
+        }
+
+        if (!isset($_SESSION['admin_permissions']) || !is_array($_SESSION['admin_permissions'])) {
+            $this->loadAdminPermissionsToSession($accountId);
+        }
+
+        $permissionState = $_SESSION['admin_permissions'] ?? ['enabled' => false, 'matrix' => []];
+        if (empty($permissionState['enabled'])) {
+            // Modo compatibilidad: si aún no hay permisos configurados, mantiene acceso completo.
+            return true;
+        }
+
+        $matrix = $permissionState['matrix'] ?? [];
+        if (!isset($matrix[$moduleKey])) {
+            return false;
+        }
+
+        return !empty($matrix[$moduleKey][$action]);
+    }
+
+    private function denyPermission($moduleKey, $action)
+    {
+        $_SESSION['error'] = 'No tienes permiso para ' . $action . ' en el módulo ' . $moduleKey . '.';
+        http_response_code(403);
+
+        if (!headers_sent()) {
+            header('Location: ' . $this->basePath . '/admin/dashboard');
+            exit();
+        }
+
+        echo '403 - Acceso denegado';
+        exit();
+    }
+
+    private function resolvePermissionRequirement()
+    {
+        $uri = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?: '';
+        if ($this->basePath !== '' && strpos($uri, $this->basePath) === 0) {
+            $uri = substr($uri, strlen($this->basePath));
+        }
+
+        if ($uri === '') {
+            $uri = '/';
+        }
+
+        $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+
+        $publicAllowed = [
+            '/admin/login',
+            '/admin/login/check',
+            '/admin/logout',
+            '/admin/password/change',
+            '/admin/forgot-password',
+            '/admin/forgot-password/submit',
+        ];
+
+        if (in_array($uri, $publicAllowed, true)) {
+            return null;
+        }
+
+        if ($uri === '/admin/dashboard') {
+            return ['dashboard', 'view'];
+        }
+
+        if ($uri === '/admin/practicas') {
+            return ['practicas', 'view'];
+        }
+
+        if (preg_match('#^/admin/practicas/(editar|eliminar)/\d+$#', $uri)) {
+            return ['practicas', $method === 'POST' ? 'edit' : 'view'];
+        }
+
+        if ($uri === '/admin/vinculacion') {
+            return ['vinculacion', 'view'];
+        }
+        if (in_array($uri, ['/admin/proyecto/crear_vinculacion', '/admin/carrera/crearV', '/admin/guardar-proyecto-vinculacion', '/admin/guardar-carrera-proyectoV'], true)) {
+            return ['vinculacion', 'create'];
+        }
+        if (preg_match('#^/admin/vinculacion/editar/\d+$#', $uri) || $uri === '/admin/proyecto/actualizarVinculacion' || preg_match('#^/admin/carrera/editarV/\d+$#', $uri) || $uri === '/admin/carrera/actualizarV') {
+            return ['vinculacion', 'edit'];
+        }
+        if (preg_match('#^/admin/vinculacion/eliminar/\d+$#', $uri) || preg_match('#^/admin/carrera/eliminarV/\d+$#', $uri)) {
+            return ['vinculacion', 'delete'];
+        }
+
+        if ($uri === '/admin/investigacion') {
+            return ['investigacion', 'view'];
+        }
+        if (in_array($uri, ['/admin/proyecto/crear', '/admin/publicacion/crear', '/admin/ponencia/crear', '/admin/carrera/crear', '/admin/guardar-proyecto-investigacion', '/admin/guardar-publicacion', '/admin/guardar-ponencia', '/admin/guardar-carrera-proyecto'], true)) {
+            return ['investigacion', 'create'];
+        }
+        if (preg_match('#^/admin/proyecto/editar/\d+$#', $uri) || $uri === '/admin/proyecto/actualizar' || preg_match('#^/admin/publicacion/editar/\d+$#', $uri) || $uri === '/admin/publicacion/actualizar' || preg_match('#^/admin/ponencia/editar/\d+$#', $uri) || $uri === '/admin/ponencia/actualizar' || preg_match('#^/admin/carrera/editar/\d+$#', $uri) || $uri === '/admin/carrera/actualizar') {
+            return ['investigacion', 'edit'];
+        }
+        if (preg_match('#^/admin/proyecto/eliminar/\d+$#', $uri) || preg_match('#^/admin/publicacion/eliminar/\d+$#', $uri) || preg_match('#^/admin/ponencia/eliminar/\d+$#', $uri) || preg_match('#^/admin/carrera/eliminar/\d+$#', $uri)) {
+            return ['investigacion', 'delete'];
+        }
+
+        if ($uri === '/admin/plan-estrategico') {
+            return ['plan_estrategico', 'view'];
+        }
+        if (in_array($uri, ['/admin/pedi/create', '/admin/pedi/store', '/admin/poa/create', '/admin/poa/store', '/admin/actividad/create', '/admin/actividad/store'], true)) {
+            return ['plan_estrategico', 'create'];
+        }
+        if (preg_match('#^/admin/pedi/edit/\d+$#', $uri) || $uri === '/admin/pedi/update' || preg_match('#^/admin/poa/edit/\d+$#', $uri) || $uri === '/admin/poa/update' || preg_match('#^/admin/actividad/edit/\d+$#', $uri) || $uri === '/admin/actividad/update') {
+            return ['plan_estrategico', 'edit'];
+        }
+        if (preg_match('#^/admin/pedi/eliminar/\d+$#', $uri) || preg_match('#^/admin/poa/eliminar/\d+$#', $uri) || preg_match('#^/admin/actividad/eliminar/\d+$#', $uri)) {
+            return ['plan_estrategico', 'delete'];
+        }
+
+        if ($uri === '/admin/convenio') {
+            return ['convenios', 'view'];
+        }
+        if (in_array($uri, ['/admin/convenio/crear', '/admin/convenio/guardar'], true)) {
+            return ['convenios', 'create'];
+        }
+        if (preg_match('#^/admin/convenio/editar/\d+$#', $uri) || $uri === '/admin/convenio/actualizar') {
+            return ['convenios', 'edit'];
+        }
+        if (preg_match('#^/admin/convenio/eliminar/\d+$#', $uri)) {
+            return ['convenios', 'delete'];
+        }
+
+        if (
+            $uri === '/admin/auditoria-fase-dos'
+            || $uri === '/admin/auditoria-general'
+            || $uri === '/admin/auditoria-general/export/csv'
+            || $uri === '/admin/auditoria-general/export/excel'
+        ) {
+            return ['auditoria', 'view'];
+        }
+
+        if (
+            $uri === '/admin/reportes'
+            || $uri === '/admin/reportes/vinculacion'
+            || $uri === '/admin/reportes/investigacion'
+            || $uri === '/admin/reportes/planificacion'
+            || $uri === '/admin/reportes/export/modulo'
+            || $uri === '/admin/reportes/export/empresas-estudiantes'
+            || $uri === '/admin/reportes/export/modalidad-carrera'
+            || $uri === '/admin/reportes/export/estudiantes-fase'
+        ) {
+            return ['reportes', 'view'];
+        }
+
+        if (in_array($uri, ['/admin/accounts', '/admin/accounts/store', '/admin/accounts/toggle', '/admin/student-accounts/provision', '/admin/student-accounts/toggle', '/admin/student-accounts/reset'], true) || preg_match('#^/admin/accounts/permissions/\d+$#', $uri) || $uri === '/admin/accounts/permissions/update') {
+            return ['cuentas', 'edit'];
+        }
+
+        if (in_array($uri, ['/admin/reset-requests', '/admin/reset-requests/resolve'], true)) {
+            return ['solicitudes', 'edit'];
+        }
+
+        return null;
+    }
+
+    private function enforceRoutePermission()
+    {
+        if (empty($_SESSION['is_admin']) || ($_SESSION['auth_role'] ?? null) !== 'admin') {
+            return;
+        }
+
+        $requirement = $this->resolvePermissionRequirement();
+        if ($requirement === null) {
+            return;
+        }
+
+        [$moduleKey, $action] = $requirement;
+        if (!$this->hasPermission($moduleKey, $action)) {
+            $this->denyPermission($moduleKey, $action);
+        }
+    }
+
+    private function normalizePermissionInput(array $rawPermissions)
+    {
+        $actions = ['view', 'create', 'edit', 'delete'];
+        $normalized = [];
+
+        foreach ($this->getPermissionModules() as $moduleKey => $label) {
+            $moduleRaw = $rawPermissions[$moduleKey] ?? [];
+            $normalized[$moduleKey] = [
+                'view' => !empty($moduleRaw['view']),
+                'create' => !empty($moduleRaw['create']),
+                'edit' => !empty($moduleRaw['edit']),
+                'delete' => !empty($moduleRaw['delete']),
+            ];
+
+            if ($normalized[$moduleKey]['create'] || $normalized[$moduleKey]['edit'] || $normalized[$moduleKey]['delete']) {
+                $normalized[$moduleKey]['view'] = true;
+            }
+
+            foreach ($actions as $action) {
+                $normalized[$moduleKey][$action] = (bool) $normalized[$moduleKey][$action];
+            }
+        }
+
+        return $normalized;
+    }
+
     /* Metodos para Guardar Nuevos Registros */
 
     /* === GESTIÓN DE CUENTAS ADMIN === */
@@ -825,6 +1839,19 @@ class AdminController
         ]);
 
         if ($result['success']) {
+            $newAccountId = (int) ($result['account']['id'] ?? 0);
+            if ($newAccountId > 0) {
+                $fullPermissions = [];
+                foreach ($this->getPermissionModules() as $moduleKey => $label) {
+                    $fullPermissions[$moduleKey] = [
+                        'view' => true,
+                        'create' => true,
+                        'edit' => true,
+                        'delete' => true,
+                    ];
+                }
+                $this->permissionModel->setPermissions($newAccountId, $fullPermissions);
+            }
             $_SESSION['success'] = "Cuenta creada para {$displayName}. Contraseña temporal: {$tempPassword}";
         } else {
             $_SESSION['error'] = $result['message'] ?? 'No fue posible crear la cuenta.';
@@ -856,6 +1883,92 @@ class AdminController
 
         $this->authAccountModel->setActiveStatus($accountId, $newStatus === 1);
         $_SESSION['success'] = 'Estado de la cuenta actualizado correctamente.';
+        $this->redirectToAccounts($_POST['return_query'] ?? '');
+    }
+
+    public function editAdminPermissions($accountId)
+    {
+        if (empty($_SESSION['is_admin'])) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $accountId = (int) $accountId;
+        $account = $this->authAccountModel->findById($accountId);
+
+        if (!$account || ($account['role'] ?? '') !== 'admin') {
+            $_SESSION['error'] = 'Cuenta de administrador no encontrada.';
+            $this->redirectToAccounts($_GET['return_query'] ?? '');
+        }
+
+        $permissionState = $this->permissionModel->getPermissionsByAccountId($accountId);
+        $modules = $this->getPermissionModules();
+
+        if (empty($permissionState['enabled'])) {
+            $matrix = [];
+            foreach ($modules as $moduleKey => $label) {
+                $matrix[$moduleKey] = [
+                    'view' => true,
+                    'create' => true,
+                    'edit' => true,
+                    'delete' => true,
+                ];
+            }
+            $permissionState = ['enabled' => true, 'matrix' => $matrix];
+        }
+
+        $csrfTokenPermissions = AuthSecurity::generateCsrfToken('admin_permissions_update');
+        $returnQuery = $this->buildAccountsReturnQuery($_GET['return_query'] ?? '');
+
+        $this->render('admin/accounts/permissions', [
+            'title' => 'Permisos de Administrador',
+            'account' => $account,
+            'modules' => $modules,
+            'actions' => ['view', 'create', 'edit', 'delete'],
+            'permissionsMatrix' => $permissionState['matrix'],
+            'csrfTokenPermissions' => $csrfTokenPermissions,
+            'returnQuery' => $returnQuery,
+        ]);
+    }
+
+    public function updateAdminPermissions()
+    {
+        if (empty($_SESSION['is_admin'])) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        if (!AuthSecurity::validateCsrfToken('admin_permissions_update', $_POST['csrf_token'] ?? '')) {
+            $_SESSION['error'] = 'Sesión del formulario expirada. Intente de nuevo.';
+            $this->redirectToAccounts($_POST['return_query'] ?? '');
+        }
+
+        $accountId = (int) ($_POST['account_id'] ?? 0);
+        if ($accountId <= 0) {
+            $_SESSION['error'] = 'Cuenta de administrador inválida.';
+            $this->redirectToAccounts($_POST['return_query'] ?? '');
+        }
+
+        $account = $this->authAccountModel->findById($accountId);
+        if (!$account || ($account['role'] ?? '') !== 'admin') {
+            $_SESSION['error'] = 'Cuenta de administrador no encontrada.';
+            $this->redirectToAccounts($_POST['return_query'] ?? '');
+        }
+
+        $rawPermissions = $_POST['permissions'] ?? [];
+        $normalized = $this->normalizePermissionInput(is_array($rawPermissions) ? $rawPermissions : []);
+
+        $saved = $this->permissionModel->setPermissions($accountId, $normalized);
+        if (!$saved) {
+            $_SESSION['error'] = 'No se pudieron actualizar los permisos.';
+            $this->redirectToAccounts($_POST['return_query'] ?? '');
+        }
+
+        if ($accountId === (int) ($_SESSION['auth_account_id'] ?? 0)) {
+            $this->loadAdminPermissionsToSession($accountId);
+        }
+
+        $_SESSION['success'] = 'Permisos actualizados correctamente para ' . ($account['display_name'] ?? 'administrador') . '.';
         $this->redirectToAccounts($_POST['return_query'] ?? '');
     }
 

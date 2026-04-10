@@ -366,7 +366,7 @@ class PasantiaController
             exit();
         }
 
-        $horas_invertidas = (float) $_POST['horas_invertidas'];
+        $horas_invertidas = $this->calculateDurationHoursFromTime($_POST['hora_inicio'], $_POST['hora_fin']);
         if ($horas_invertidas <= 0 || $horas_invertidas > 12.00) {
             $_SESSION['mensaje'] = "Error: Las horas invertidas deben ser mayores a 0 y menores o iguales a 12.";
             $activityPage = max(1, (int) ($_POST['activity_page'] ?? 1));
@@ -521,11 +521,19 @@ class PasantiaController
             exit();
         }
 
+        $horas_invertidas = $this->calculateDurationHoursFromTime($_POST['hora_inicio'], $_POST['hora_fin']);
+        if ($horas_invertidas <= 0 || $horas_invertidas > 12.00) {
+            $_SESSION['mensaje'] = "Error: Las horas invertidas deben ser mayores a 0 y menores o iguales a 12.";
+            $activityPage = max(1, (int) ($_POST['activity_page'] ?? 1));
+            header("Location: {$this->basePath}/estudiante/informacion?module=pasantias&tab=actividades&activity_page={$activityPage}");
+            exit();
+        }
+
         $data = [
             'id'                 => $_POST['id'],
             'practica_id'        => $practica['id_practica'],
             'actividad_realizada' => trim($_POST['actividad_realizada']),
-            'horas_invertidas'   => (float) $_POST['horas_invertidas'],
+            'horas_invertidas'   => $horas_invertidas,
             'fecha_actividad'    => $_POST['fecha_actividad'],
             'hora_inicio'        => $_POST['hora_inicio'],
             'hora_fin'           => $_POST['hora_fin']
@@ -735,6 +743,13 @@ class PasantiaController
             exit();
         }
 
+        $permissionState = $_SESSION['admin_permissions'] ?? ['enabled' => false, 'matrix' => []];
+        if (!empty($permissionState['enabled']) && empty($permissionState['matrix']['practicas']['edit'])) {
+            $_SESSION['error'] = 'No tienes permisos para editar prácticas.';
+            header("Location: " . $this->basePath . "/admin/practicas");
+            exit();
+        }
+
         $basePath = $this->basePath;
         $practica = $this->pasantiaModel->getPracticaById($id_practica);
 
@@ -815,6 +830,13 @@ class PasantiaController
             error_log("❌ ACCESO DENEGADO: Usuario no es admin");
             $_SESSION['error'] = 'No autorizado para eliminar pasantías. Debes iniciar sesión como administrador.';
             header("Location: " . $this->basePath . "/admin/dashboard");
+            exit();
+        }
+
+        $permissionState = $_SESSION['admin_permissions'] ?? ['enabled' => false, 'matrix' => []];
+        if (!empty($permissionState['enabled']) && empty($permissionState['matrix']['practicas']['delete'])) {
+            $_SESSION['error'] = 'No tienes permisos para eliminar prácticas.';
+            header("Location: " . $this->basePath . "/admin/practicas");
             exit();
         }
 
@@ -1002,5 +1024,29 @@ class PasantiaController
         }
 
         require __DIR__ . '/../Views/Layouts/admin_layout.php';
+    }
+
+    private function calculateDurationHoursFromTime(string $horaInicio, string $horaFin): float
+    {
+        if (!preg_match('/^\d{2}:\d{2}$/', $horaInicio) || !preg_match('/^\d{2}:\d{2}$/', $horaFin)) {
+            return 0.0;
+        }
+
+        [$h1, $m1] = array_map('intval', explode(':', $horaInicio));
+        [$h2, $m2] = array_map('intval', explode(':', $horaFin));
+
+        if ($h1 > 23 || $h2 > 23 || $m1 > 59 || $m2 > 59) {
+            return 0.0;
+        }
+
+        $inicioMin = ($h1 * 60) + $m1;
+        $finMin = ($h2 * 60) + $m2;
+        $diffMin = $finMin - $inicioMin;
+
+        if ($diffMin < 0) {
+            $diffMin += 24 * 60;
+        }
+
+        return round($diffMin / 60, 4);
     }
 }

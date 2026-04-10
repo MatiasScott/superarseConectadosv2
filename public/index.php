@@ -75,6 +75,14 @@ if (preg_match('#^/admin#', $uri)) {
             $controller->adminAccounts();
             break;
 
+        case preg_match('/^\/admin\/accounts\/permissions\/(\d+)$/', $uri, $matches) && $method === 'GET':
+            $controller->editAdminPermissions((int)$matches[1]);
+            break;
+
+        case $uri === '/admin/accounts/permissions/update' && $method === 'POST':
+            $controller->updateAdminPermissions();
+            break;
+
         case $uri === '/admin/accounts/store' && $method === 'POST':
             $controller->storeAdminAccount();
             break;
@@ -249,6 +257,50 @@ if (preg_match('#^/admin#', $uri)) {
 
         case $uri === '/admin/auditoria-fase-dos':
             $controller->auditoriaPhasTwo();
+            break;
+
+        case $uri === '/admin/auditoria-general':
+            $controller->auditoriaGeneral();
+            break;
+
+        case $uri === '/admin/auditoria-general/export/csv':
+            $controller->exportAuditoriaGeneralCsv();
+            break;
+
+        case $uri === '/admin/auditoria-general/export/excel':
+            $controller->exportAuditoriaGeneralExcel();
+            break;
+
+        case $uri === '/admin/reportes':
+            $controller->reportes();
+            break;
+
+        case $uri === '/admin/reportes/vinculacion':
+            $controller->reportesVinculacion();
+            break;
+
+        case $uri === '/admin/reportes/investigacion':
+            $controller->reportesInvestigacion();
+            break;
+
+        case $uri === '/admin/reportes/planificacion':
+            $controller->reportesPlanificacion();
+            break;
+
+        case $uri === '/admin/reportes/export/modulo':
+            $controller->exportReporteModulo();
+            break;
+
+        case $uri === '/admin/reportes/export/empresas-estudiantes':
+            $controller->exportReporteEmpresasEstudiantesCsv();
+            break;
+
+        case $uri === '/admin/reportes/export/modalidad-carrera':
+            $controller->exportReporteModalidadCarreraExcel();
+            break;
+
+        case $uri === '/admin/reportes/export/estudiantes-fase':
+            $controller->exportReporteEstudiantesFaseCsv();
             break;
 
         case $uri === '/admin/plan-estrategico':

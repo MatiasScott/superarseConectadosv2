@@ -17,6 +17,16 @@ $mensaje = $mensaje ?? $data['mensaje'] ?? null;
 $activityPage = $activityPage ?? $data['activityPage'] ?? (int) floor(($offset / max(1, $limit)) + 1);
 $totalPages = $totalPages ?? $data['totalActivityPages'] ?? (int) max(1, ceil(($totalRegistros ?: 0) / max(1, $limit)));
 
+if (!function_exists('format_decimal_hours_hm')) {
+    function format_decimal_hours_hm($decimalHours): string
+    {
+        $totalMinutes = (int) round(((float) $decimalHours) * 60);
+        $hours = intdiv($totalMinutes, 60);
+        $minutes = $totalMinutes % 60;
+        return $hours . 'h ' . str_pad((string) $minutes, 2, '0', STR_PAD_LEFT) . 'm';
+    }
+}
+
 // Debug - comentar después de verificar
 // echo "<!-- DEBUG: practicaId = " . $practicaId . " -->";
 ?>
@@ -122,7 +132,7 @@ $totalPages = $totalPages ?? $data['totalActivityPages'] ?? (int) max(1, ceil(($
         // Mostrar formato legible sin redondear
         this.horasCalculadas = `${horas}h ${minutos}m`;
 
-        // Guardar valor decimal para el backend (ej: 5.05)
+        // Guardar valor decimal para el backend (ej: 5.83 = 5h 50m)
         const horasDecimal = (diffMin / 60);
         horasInput.value = horasDecimal;
     } else {
@@ -139,8 +149,8 @@ data-actividades-existentes="<?php echo htmlspecialchars(json_encode(array_map(f
                 <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-superarse-morado-claro text-superarse-morado-oscuro">
                     ⏱️ Total de horas: <strong class="ml-1"><?php 
                         $totalHoras = $totalHorasActividades ?? $data['totalHorasActividades'] ?? 0;
-                        echo number_format($totalHoras, 2, '.', '');
-                    ?> horas</strong>
+                        echo htmlspecialchars(format_decimal_hours_hm($totalHoras), ENT_QUOTES, 'UTF-8');
+                    ?></strong>
                 </span>
                 <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-700">
                     📝 Registradas: <strong class="ml-1"><?php 
@@ -308,7 +318,7 @@ data-actividades-existentes="<?php echo htmlspecialchars(json_encode(array_map(f
                                 </td>
                                 <td class="px-4 py-3 text-sm text-gray-700 whitespace-nowrap text-center">
                                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                        <?php echo number_format($actividad['horas_invertidas'], 2); ?>h
+                                        <?php echo htmlspecialchars(format_decimal_hours_hm($actividad['horas_invertidas']), ENT_QUOTES, 'UTF-8'); ?>
                                     </span>
                                 </td>
 

@@ -2,6 +2,7 @@
 // app/Models/Database.php
 
 require_once __DIR__ . '/../../vendor/autoload.php';
+require_once __DIR__ . '/../Helpers/AuditTrail.php';
 
 class Database
 {
@@ -33,6 +34,7 @@ class Database
             $this->conn = new PDO("mysql:host=" . $this->host . ";dbname=" . $this->db_name . ";charset=utf8", $this->username, $this->password);
             $this->conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             $this->conn->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+            AuditTrail::bootstrap($this->conn);
         } catch (PDOException $exception) {
             error_log("Error de conexión a base de datos: " . $exception->getMessage());
             http_response_code(500);

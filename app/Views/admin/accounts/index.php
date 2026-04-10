@@ -156,7 +156,7 @@ $buildQuery = function (array $overrides) use ($adminSearch, $adminPage, $studen
                 <th class="px-6 py-3 text-left font-semibold text-gray-600">Identificación</th>
                 <th class="px-6 py-3 text-left font-semibold text-gray-600">Último acceso</th>
                 <th class="px-6 py-3 text-left font-semibold text-gray-600">Estado</th>
-                <th class="px-6 py-3 text-left font-semibold text-gray-600">Acción</th>
+                <th class="px-6 py-3 text-left font-semibold text-gray-600">Acciones</th>
             </tr>
         </thead>
         <tbody>
@@ -185,6 +185,11 @@ $buildQuery = function (array $overrides) use ($adminSearch, $adminPage, $studen
                             <?php endif; ?>
                         </td>
                         <td class="px-6 py-4">
+                            <a href="<?= $basePath ?>/admin/accounts/permissions/<?= (int) ($acc['id'] ?? 0) ?>?return_query=<?= urlencode($currentQuery) ?>"
+                                class="inline-block mr-3 text-purple-700 hover:underline font-medium text-sm">
+                                Permisos
+                            </a>
+
                             <?php if ((int) ($acc['id'] ?? 0) !== $myAccountId): ?>
                                 <form method="POST" action="<?= $basePath ?>/admin/accounts/toggle"
                                     onsubmit="return confirm('¿Confirmar cambio de estado para <?= htmlspecialchars(addslashes($acc['display_name'])) ?>?');">

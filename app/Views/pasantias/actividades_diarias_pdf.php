@@ -11,6 +11,16 @@ if (!empty($logoSrc)) {
     $safeLogoSrc = htmlspecialchars($logoSrc, ENT_QUOTES, 'UTF-8');
     $logoHeaderHtml = '<img src="' . $safeLogoSrc . '" alt="Logo Superarse" style="max-height: 80px; margin-bottom: 5px;">';
 }
+
+if (!function_exists('format_decimal_hours_hm_pdf')) {
+    function format_decimal_hours_hm_pdf($decimalHours): string
+    {
+        $totalMinutes = (int) round(((float) $decimalHours) * 60);
+        $hours = intdiv($totalMinutes, 60);
+        $minutes = $totalMinutes % 60;
+        return $hours . 'h ' . str_pad((string) $minutes, 2, '0', STR_PAD_LEFT) . 'm';
+    }
+}
 ?>
 <!DOCTYPE html>
 <html>
@@ -91,14 +101,14 @@ if (!empty($logoSrc)) {
                             <td><?php echo htmlspecialchars($actividad['actividad_realizada']); ?></td>
                             <td><?php echo htmlspecialchars($actividad['hora_inicio']); ?></td>
                             <td><?php echo htmlspecialchars($actividad['hora_fin']); ?></td>
-                            <td style="text-align: center;"><?php echo number_format($actividad['horas_invertidas'], 2); ?>h</td>
+                            <td style="text-align: center;"><?php echo number_format($actividad['horas_invertidas'], 2); ?>h (<?php echo htmlspecialchars(format_decimal_hours_hm_pdf($actividad['horas_invertidas']), ENT_QUOTES, 'UTF-8'); ?>)</td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>
             </table>
 
             <div class="total-horas">
-                Total de horas esta semana: <?php echo number_format($semanaData['total_horas'], 2); ?> horas
+                Total de horas esta semana: <?php echo number_format($semanaData['total_horas'], 2); ?> horas (<?php echo htmlspecialchars(format_decimal_hours_hm_pdf($semanaData['total_horas']), ENT_QUOTES, 'UTF-8'); ?>)
             </div>
         </div>
         <?php $totalHorasGeneral += $semanaData['total_horas']; ?>
