@@ -18,6 +18,24 @@ ini_set('display_startup_errors', $appDebug ? '1' : '0');
 error_reporting($appDebug ? E_ALL : 0);
 
 if (session_status() == PHP_SESSION_NONE) {
+    $forwardedProto = strtolower((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''));
+    $isHttps = (
+        (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || (string) ($_SERVER['SERVER_PORT'] ?? '') === '443'
+        || $forwardedProto === 'https'
+    );
+
+    ini_set('session.use_strict_mode', '1');
+    ini_set('session.cookie_httponly', '1');
+    ini_set('session.cookie_secure', $isHttps ? '1' : '0');
+    ini_set('session.cookie_samesite', 'Lax');
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path' => '/',
+        'secure' => $isHttps,
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
     session_start();
 }
 

@@ -128,6 +128,7 @@ class EstudianteController
             $data['csrfTokenFaseOne'] = AuthSecurity::generateCsrfToken('student_fase_one');
             $data['csrfTokenActividadForm'] = AuthSecurity::generateCsrfToken('student_actividad_form');
             $data['csrfTokenActividadDelete'] = AuthSecurity::generateCsrfToken('student_actividad_delete');
+            $data['csrfTokenPagoUpload'] = AuthSecurity::generateCsrfToken('student_payment_upload');
 
             $vista_contenido = __DIR__ . '/../Views/dashboard/index.php';
             require_once __DIR__ . '/../Views/Layouts/main_layout.php';

@@ -1,6 +1,22 @@
 <?php
 $infoPagos = (isset($data['infoPagos']) && is_array($data['infoPagos'])) ? $data['infoPagos'] : [];
 $bancos = (isset($data['bancos']) && is_array($data['bancos'])) ? $data['bancos'] : [];
+$basePath = $data['basePath'] ?? '';
+$uploadFeedback = $_GET['success'] ?? $_GET['error'] ?? null;
+$uploadFeedbackType = isset($_GET['success']) ? 'success' : (isset($_GET['error']) ? 'error' : null);
+
+$uploadFeedbackMessages = [
+    'comprobante_enviado' => 'Comprobante enviado correctamente para revisión.',
+    'not_authenticated' => 'Tu sesión expiró. Inicia sesión nuevamente para enviar el comprobante.',
+    'invalid_request' => 'La solicitud no pasó la validación de seguridad. Intenta nuevamente.',
+    'missing_bank' => 'Selecciona un banco antes de enviar el comprobante.',
+    'no_file_or_user' => 'Adjunta un comprobante válido antes de continuar.',
+    'invalid_file_type' => 'Solo se permiten archivos PDF, JPG o PNG.',
+    'file_too_large' => 'El comprobante excede el tamaño máximo permitido de 5 MB.',
+    'upload_failed' => 'No fue posible guardar el comprobante. Intenta nuevamente.',
+    'mail_failed' => 'El comprobante se guardó, pero no fue posible enviar la notificación por correo.',
+    'storage_failed' => 'No fue posible preparar el almacenamiento del comprobante.',
+];
 
 $formatMontoResumen = static function ($valor): string {
     if ($valor === null || $valor === '' || !is_numeric($valor)) {
@@ -12,9 +28,13 @@ $formatMontoResumen = static function ($valor): string {
 ?>
 
 <div id="pagos" class="tab-pane hidden">
-    <div id="student-id-data" data-id="<?php echo htmlspecialchars($data['infoPersonal']['numero_identificacion'] ?? 'SIN_ID'); // USANDO $data 
-                                        ?>" style="display: none;">
-    </div>
+    <?php if ($uploadFeedback !== null && isset($uploadFeedbackMessages[$uploadFeedback])): ?>
+        <div class="mb-4 rounded-lg border px-4 py-3 text-sm <?php echo $uploadFeedbackType === 'success'
+            ? 'border-green-200 bg-green-50 text-green-800'
+            : 'border-red-200 bg-red-50 text-red-800'; ?>">
+            <?php echo htmlspecialchars($uploadFeedbackMessages[$uploadFeedback], ENT_QUOTES, 'UTF-8'); ?>
+        </div>
+    <?php endif; ?>
 
     <h3 class="text-xl font-semibold text-superarse-morado-oscuro mb-4">Resumen Financiero</h3>
     <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 mb-6">
@@ -112,16 +132,25 @@ $formatMontoResumen = static function ($valor): string {
 
     <div class="mt-4 p-3 bg-yellow-100 border border-yellow-400 text-yellow-800 rounded-lg mb-6">
         <i class="fas fa-exclamation-triangle mr-2"></i>
-        IMPORTANTE: Al hacer clic, se abrirá tu correo. **Debes adjuntar el comprobante
-        manualmente** y
-        verificar que tu ID y el banco seleccionado sean correctos antes de enviar.
+        Importante: adjunta tu comprobante en PDF, JPG o PNG. El archivo se almacenará de forma segura y se notificará automáticamente al área de matrículas.
     </div>
 
-    <form id="upload-form" onsubmit="return false;">
-        <a href="#" id="send-comprobante-btn"
-            class="inline-flex w-full sm:w-auto justify-center bg-superarse-rosa hover:bg-superarse-morado-medio text-white font-bold py-3 px-6 rounded-lg shadow-md transition duration-300 opacity-50 cursor-not-allowed">
-            Abrir Correo y Notificar Pago
-        </a>
+    <form id="upload-form" method="POST" action="<?php echo htmlspecialchars($basePath, ENT_QUOTES, 'UTF-8'); ?>/pagos/upload-comprobante" enctype="multipart/form-data" class="space-y-4">
+        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($data['csrfTokenPagoUpload'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+        <input type="hidden" name="banco_seleccionado" id="banco_seleccionado" value="">
+
+        <div>
+            <label for="comprobante" class="block text-sm font-medium text-gray-700 mb-2">Adjuntar comprobante</label>
+            <input type="file" id="comprobante" name="comprobante" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                class="block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-superarse-morado-oscuro focus:border-superarse-morado-oscuro bg-white"
+                required>
+            <p class="mt-2 text-sm text-gray-500">Máximo 5 MB. Formatos permitidos: PDF, JPG y PNG.</p>
+        </div>
+
+        <button type="submit" id="send-comprobante-btn" disabled
+            class="inline-flex w-full sm:w-auto justify-center bg-superarse-rosa text-white font-bold py-3 px-6 rounded-lg shadow-md transition duration-300 opacity-50 cursor-not-allowed">
+            Enviar Comprobante
+        </button>
     </form>
     <hr class="my-8 border-gray-300">
     <h3 class="text-xl font-semibold text-superarse-morado-oscuro mb-4 mt-6">Pago a través de

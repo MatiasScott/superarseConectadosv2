@@ -18,23 +18,26 @@ class Database
     {
         $this->loadEnvironment();
 
-        $this->host = $this->env('DB_HOST', 'localhost');
-        // Fallback compatible con la configuración histórica del proyecto.
-        $this->db_name = $this->env('DB_NAME', 'superar1_conectados');
-        $this->username = $this->env('DB_USER', 'root');
-        $this->password = $this->env('DB_PASS', 'Superarse.2025');
+        $this->host = $this->env('DB_HOST');
+        $this->db_name = $this->env('DB_NAME');
+        $this->username = $this->env('DB_USER');
+        $this->password = $this->env('DB_PASS');
     }
 
     public function getConnection()
     {
-        $this->ensureDatabaseConfig();
-
         $this->conn = null;
         try {
+            $this->ensureDatabaseConfig();
             $this->conn = new PDO("mysql:host=" . $this->host . ";dbname=" . $this->db_name . ";charset=utf8", $this->username, $this->password);
             $this->conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             $this->conn->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
             AuditTrail::bootstrap($this->conn);
+        } catch (RuntimeException $exception) {
+            error_log('Configuración de base de datos incompleta: ' . $exception->getMessage());
+            http_response_code(500);
+            echo 'Configuración interna incompleta.';
+            die();
         } catch (PDOException $exception) {
             error_log("Error de conexión a base de datos: " . $exception->getMessage());
             http_response_code(500);
@@ -63,21 +66,28 @@ class Database
 
     private function ensureDatabaseConfig(): void
     {
-        if (
-            !empty($this->host)
-            && !empty($this->db_name)
-            && $this->username !== null
-            && $this->password !== null
-        ) {
-            return;
-        }
-
         $this->loadEnvironment();
 
-        $this->host = $this->env('DB_HOST', 'localhost');
-        $this->db_name = $this->env('DB_NAME', 'superar1_conectados');
-        $this->username = $this->env('DB_USER', 'root');
-        $this->password = $this->env('DB_PASS', 'Superarse.2025');
+        $this->host = $this->env('DB_HOST');
+        $this->db_name = $this->env('DB_NAME');
+        $this->username = $this->env('DB_USER');
+        $this->password = $this->env('DB_PASS');
+
+        $missing = [];
+        foreach ([
+            'DB_HOST' => $this->host,
+            'DB_NAME' => $this->db_name,
+            'DB_USER' => $this->username,
+            'DB_PASS' => $this->password,
+        ] as $key => $value) {
+            if ($value === '') {
+                $missing[] = $key;
+            }
+        }
+
+        if (!empty($missing)) {
+            throw new RuntimeException('Faltan variables de entorno requeridas: ' . implode(', ', $missing));
+        }
     }
 
     private function env(string $key, string $default = ''): string
