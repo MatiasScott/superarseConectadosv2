@@ -80,16 +80,18 @@ class AdminPermissionModel
         $accountId = (int) $accountId;
 
         try {
+            $this->ensureTable();
             $this->conn->beginTransaction();
 
             $deleteSql = "DELETE FROM {$this->tableName} WHERE account_id = :account_id";
             $deleteStmt = $this->conn->prepare($deleteSql);
             $deleteStmt->execute([':account_id' => $accountId]);
 
+            // Compatible con instalaciones antiguas donde created_at/updated_at no existen.
             $insertSql = "INSERT INTO {$this->tableName}
-                (account_id, module_key, can_view, can_create, can_edit, can_delete, created_at, updated_at)
+                (account_id, module_key, can_view, can_create, can_edit, can_delete)
                 VALUES
-                (:account_id, :module_key, :can_view, :can_create, :can_edit, :can_delete, NOW(), NOW())";
+                (:account_id, :module_key, :can_view, :can_create, :can_edit, :can_delete)";
             $insertStmt = $this->conn->prepare($insertSql);
 
             foreach ($permissions as $moduleKey => $values) {
@@ -117,7 +119,7 @@ class AdminPermissionModel
 
     private function ensureTable()
     {
-        $sql = "CREATE TABLE IF NOT EXISTS {$this->tableName} (
+        $sqlWithForeignKey = "CREATE TABLE IF NOT EXISTS {$this->tableName} (
             id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
             account_id INT UNSIGNED NOT NULL,
             module_key VARCHAR(60) NOT NULL,
@@ -134,10 +136,30 @@ class AdminPermissionModel
                 ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
 
+        $sqlWithoutForeignKey = "CREATE TABLE IF NOT EXISTS {$this->tableName} (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            account_id INT UNSIGNED NOT NULL,
+            module_key VARCHAR(60) NOT NULL,
+            can_view TINYINT(1) NOT NULL DEFAULT 0,
+            can_create TINYINT(1) NOT NULL DEFAULT 0,
+            can_edit TINYINT(1) NOT NULL DEFAULT 0,
+            can_delete TINYINT(1) NOT NULL DEFAULT 0,
+            created_at DATETIME NULL,
+            updated_at DATETIME NULL,
+            UNIQUE KEY uq_account_module (account_id, module_key),
+            KEY idx_account_id (account_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+
         try {
-            $this->conn->exec($sql);
+            $this->conn->exec($sqlWithForeignKey);
         } catch (PDOException $e) {
-            error_log('Error creando tabla de permisos de admin: ' . $e->getMessage());
+            error_log('Error creando tabla de permisos con FK, se intentará sin FK: ' . $e->getMessage());
+
+            try {
+                $this->conn->exec($sqlWithoutForeignKey);
+            } catch (PDOException $innerException) {
+                error_log('Error creando tabla de permisos de admin sin FK: ' . $innerException->getMessage());
+            }
         }
     }
 }
