@@ -35,7 +35,9 @@ $buildAssetVersion = function ($relativePath) {
 
     <header class="bg-superarse-morado-oscuro shadow-lg fixed top-0 left-0 w-full z-10">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-            <h1 class="text-xl font-bold text-white">Superarse Conectados</h1>
+            <div class="flex items-center">
+                <h1 class="text-xl font-bold text-white whitespace-nowrap">Superarse Conectados</h1>
+            </div>
             <div class="flex items-center space-x-4">
                 <span class="text-white text-sm hidden sm:block">
                     Bienvenido(a), <?php echo htmlspecialchars($data['nombreCompleto'] ?? 'N/D'); ?>
@@ -48,7 +50,7 @@ $buildAssetVersion = function ($relativePath) {
         </div>
     </header>
 
-    <main class="flex-grow flex justify-center pt-4 w-full">
+    <main class="flex-grow pt-4 w-full lg:w-[90%] lg:mx-[5%]">
         <div class="w-full flex justify-center">
             <?php include $vista_contenido;?>
         </div>

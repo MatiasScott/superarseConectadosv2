@@ -15,6 +15,30 @@ $canAccessModule = function ($moduleKey) use ($adminPermissionState) {
 
     return !empty($adminPermissionState['matrix'][$moduleKey]['view']);
 };
+
+$adminMainNavItems = [
+    ['module' => 'dashboard', 'label' => 'Dashboard', 'path' => '/admin/dashboard'],
+    ['module' => 'practicas', 'label' => 'Prácticas', 'path' => '/admin/practicas'],
+    ['module' => 'vinculacion', 'label' => 'Vinculación', 'path' => '/admin/vinculacion'],
+    ['module' => 'investigacion', 'label' => 'Investigación', 'path' => '/admin/investigacion'],
+    ['module' => 'plan_estrategico', 'label' => 'Planificación', 'path' => '/admin/plan-estrategico'],
+    ['module' => 'convenios', 'label' => 'Convenios', 'path' => '/admin/convenio'],
+    ['module' => 'reportes', 'label' => 'Reportes', 'path' => '/admin/reportes'],
+];
+
+$adminManagementNavItems = [
+    ['module' => 'auditoria', 'label' => 'Auditoría', 'path' => '/admin/auditoria-general'],
+    ['module' => 'cuentas', 'label' => 'Cuentas', 'path' => '/admin/accounts'],
+    ['module' => 'solicitudes', 'label' => 'Solicitudes', 'path' => '/admin/reset-requests', 'badge' => true],
+];
+
+$canAccessAdministrationMenu = false;
+foreach ($adminManagementNavItems as $managementItem) {
+    if ($canAccessModule($managementItem['module'])) {
+        $canAccessAdministrationMenu = true;
+        break;
+    }
+}
 ?>
 
 <head>
@@ -60,48 +84,44 @@ $canAccessModule = function ($moduleKey) use ($adminPermissionState) {
 
             <div class="flex justify-between items-center gap-3">
                 <!-- LOGO -->
-                <h1 class="text-lg sm:text-xl font-bold text-white whitespace-nowrap">
-                    Superarse Admin
-                </h1>
+                <div class="flex items-center whitespace-nowrap shrink-0 pr-2">
+                    <h1 class="text-xl font-bold text-white whitespace-nowrap">Superarse Conectados Admin</h1>
+                </div>
 
                 <!-- MENU DESKTOP -->
                 <nav class="hidden lg:flex items-center space-x-3 xl:space-x-6 text-white text-sm">
-                    <?php if ($canAccessModule('dashboard')): ?>
-                        <a href="<?php echo $basePath; ?>/admin/dashboard" class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition">Dashboard</a>
-                    <?php endif; ?>
-                    <?php if ($canAccessModule('practicas')): ?>
-                        <a href="<?php echo $basePath; ?>/admin/practicas" class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition">Prácticas</a>
-                    <?php endif; ?>
-                    <?php if ($canAccessModule('vinculacion')): ?>
-                        <a href="<?php echo $basePath; ?>/admin/vinculacion" class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition">Vinculación</a>
-                    <?php endif; ?>
-                    <?php if ($canAccessModule('investigacion')): ?>
-                        <a href="<?php echo $basePath; ?>/admin/investigacion" class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition">Investigación</a>
-                    <?php endif; ?>
-                    <?php if ($canAccessModule('plan_estrategico')): ?>
-                        <a href="<?php echo $basePath; ?>/admin/plan-estrategico" class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition">Planificación</a>
-                    <?php endif; ?>
-                    <?php if ($canAccessModule('convenios')): ?>
-                        <a href="<?php echo $basePath; ?>/admin/convenio" class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition">Convenios</a>
-                    <?php endif; ?>
-                    <?php if ($canAccessModule('auditoria')): ?>
-                        <a href="<?php echo $basePath; ?>/admin/auditoria-general" class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition">Auditoría</a>
-                    <?php endif; ?>
-                    <?php if ($canAccessModule('reportes')): ?>
-                        <a href="<?php echo $basePath; ?>/admin/reportes" class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition">Reportes</a>
-                    <?php endif; ?>
-                    <?php if ($canAccessModule('cuentas')): ?>
-                        <a href="<?php echo $basePath; ?>/admin/accounts" class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition">Cuentas</a>
-                    <?php endif; ?>
-                    <?php if ($canAccessModule('solicitudes')): ?>
-                        <a href="<?php echo $basePath; ?>/admin/reset-requests" class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition relative">
-                            Solicitudes
-                            <?php if (($pendingResetCount ?? 0) > 0): ?>
+                    <?php foreach ($adminMainNavItems as $item): ?>
+                        <?php if (!$canAccessModule($item['module'])) continue; ?>
+                        <a href="<?php echo $basePath . $item['path']; ?>" class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition<?php echo !empty($item['badge']) ? ' relative' : ''; ?>">
+                            <?php echo htmlspecialchars($item['label'], ENT_QUOTES, 'UTF-8'); ?>
+                            <?php if (!empty($item['badge']) && ($pendingResetCount ?? 0) > 0): ?>
                                 <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
                                     <?= min((int)$pendingResetCount, 99) ?>
                                 </span>
                             <?php endif; ?>
                         </a>
+                    <?php endforeach; ?>
+
+                    <?php if ($canAccessAdministrationMenu): ?>
+                        <div class="relative group">
+                            <button type="button" class="hover:bg-superarse-morado-medio px-3 py-1 rounded transition flex items-center gap-1 focus:bg-superarse-morado-medio">
+                                Administración
+                                <span class="text-xs">▼</span>
+                            </button>
+                            <div class="absolute left-0 top-full pt-1 min-w-52 bg-white text-gray-800 rounded-md shadow-lg border border-gray-200 py-1 hidden group-hover:block group-focus-within:block z-50">
+                                <?php foreach ($adminManagementNavItems as $item): ?>
+                                    <?php if (!$canAccessModule($item['module'])) continue; ?>
+                                    <a href="<?php echo $basePath . $item['path']; ?>" class="px-3 py-2 hover:bg-gray-100 transition text-sm flex items-center justify-between">
+                                        <span><?php echo htmlspecialchars($item['label'], ENT_QUOTES, 'UTF-8'); ?></span>
+                                        <?php if (!empty($item['badge']) && ($pendingResetCount ?? 0) > 0): ?>
+                                            <span class="bg-red-500 text-white text-[10px] rounded-full min-w-5 h-5 px-1.5 inline-flex items-center justify-center font-bold">
+                                                <?= min((int)$pendingResetCount, 99) ?>
+                                            </span>
+                                        <?php endif; ?>
+                                    </a>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
                     <?php endif; ?>
                 </nav>
 
@@ -125,42 +145,35 @@ $canAccessModule = function ($moduleKey) use ($adminPermissionState) {
 
             <!-- MENU MOBILE -->
             <nav class="lg:hidden mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-white text-xs sm:text-sm">
-                <?php if ($canAccessModule('dashboard')): ?>
-                    <a href="<?php echo $basePath; ?>/admin/dashboard" class="text-center bg-superarse-morado-medio/30 hover:bg-superarse-morado-medio px-2 py-2 rounded transition">Dashboard</a>
-                <?php endif; ?>
-                <?php if ($canAccessModule('practicas')): ?>
-                    <a href="<?php echo $basePath; ?>/admin/practicas" class="text-center bg-superarse-morado-medio/30 hover:bg-superarse-morado-medio px-2 py-2 rounded transition">Prácticas</a>
-                <?php endif; ?>
-                <?php if ($canAccessModule('vinculacion')): ?>
-                    <a href="<?php echo $basePath; ?>/admin/vinculacion" class="text-center bg-superarse-morado-medio/30 hover:bg-superarse-morado-medio px-2 py-2 rounded transition">Vinculación</a>
-                <?php endif; ?>
-                <?php if ($canAccessModule('investigacion')): ?>
-                    <a href="<?php echo $basePath; ?>/admin/investigacion" class="text-center bg-superarse-morado-medio/30 hover:bg-superarse-morado-medio px-2 py-2 rounded transition">Investigación</a>
-                <?php endif; ?>
-                <?php if ($canAccessModule('plan_estrategico')): ?>
-                    <a href="<?php echo $basePath; ?>/admin/plan-estrategico" class="text-center bg-superarse-morado-medio/30 hover:bg-superarse-morado-medio px-2 py-2 rounded transition">Planificación</a>
-                <?php endif; ?>
-                <?php if ($canAccessModule('convenios')): ?>
-                    <a href="<?php echo $basePath; ?>/admin/convenio" class="text-center bg-superarse-morado-medio/30 hover:bg-superarse-morado-medio px-2 py-2 rounded transition">Convenios</a>
-                <?php endif; ?>
-                <?php if ($canAccessModule('auditoria')): ?>
-                    <a href="<?php echo $basePath; ?>/admin/auditoria-general" class="text-center bg-superarse-morado-medio/30 hover:bg-superarse-morado-medio px-2 py-2 rounded transition">Auditoría</a>
-                <?php endif; ?>
-                <?php if ($canAccessModule('reportes')): ?>
-                    <a href="<?php echo $basePath; ?>/admin/reportes" class="text-center bg-superarse-morado-medio/30 hover:bg-superarse-morado-medio px-2 py-2 rounded transition">Reportes</a>
-                <?php endif; ?>
-                <?php if ($canAccessModule('cuentas')): ?>
-                    <a href="<?php echo $basePath; ?>/admin/accounts" class="text-center bg-superarse-morado-medio/30 hover:bg-superarse-morado-medio px-2 py-2 rounded transition">Cuentas</a>
-                <?php endif; ?>
-                <?php if ($canAccessModule('solicitudes')): ?>
-                    <a href="<?php echo $basePath; ?>/admin/reset-requests" class="text-center bg-superarse-morado-medio/30 hover:bg-superarse-morado-medio px-2 py-2 rounded transition relative">
-                        Solicitudes
-                        <?php if (($pendingResetCount ?? 0) > 0): ?>
+                <?php foreach ($adminMainNavItems as $item): ?>
+                    <?php if (!$canAccessModule($item['module'])) continue; ?>
+                    <a href="<?php echo $basePath . $item['path']; ?>" class="text-center bg-superarse-morado-medio/30 hover:bg-superarse-morado-medio px-2 py-2 rounded transition<?php echo !empty($item['badge']) ? ' relative' : ''; ?>">
+                        <?php echo htmlspecialchars($item['label'], ENT_QUOTES, 'UTF-8'); ?>
+                        <?php if (!empty($item['badge']) && ($pendingResetCount ?? 0) > 0): ?>
                             <span class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold">
                                 <?= min((int)$pendingResetCount, 99) ?>
                             </span>
                         <?php endif; ?>
                     </a>
+                <?php endforeach; ?>
+
+                <?php if ($canAccessAdministrationMenu): ?>
+                    <div class="col-span-2 sm:col-span-4 bg-superarse-morado-medio/20 rounded p-2">
+                        <p class="font-semibold text-center mb-2">Administración</p>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                            <?php foreach ($adminManagementNavItems as $item): ?>
+                                <?php if (!$canAccessModule($item['module'])) continue; ?>
+                                <a href="<?php echo $basePath . $item['path']; ?>" class="text-center bg-superarse-morado-medio/30 hover:bg-superarse-morado-medio px-2 py-2 rounded transition relative">
+                                    <?php echo htmlspecialchars($item['label'], ENT_QUOTES, 'UTF-8'); ?>
+                                    <?php if (!empty($item['badge']) && ($pendingResetCount ?? 0) > 0): ?>
+                                        <span class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold">
+                                            <?= min((int)$pendingResetCount, 99) ?>
+                                        </span>
+                                    <?php endif; ?>
+                                </a>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
                 <?php endif; ?>
             </nav>
 
@@ -170,7 +183,7 @@ $canAccessModule = function ($moduleKey) use ($adminPermissionState) {
     </header>
 
     <!-- CONTENIDO -->
-    <main class="flex-grow p-4 sm:p-6 max-w-7xl mx-auto w-full">
+    <main class="flex-grow p-4 sm:p-6 w-full lg:w-[90%] lg:mx-[5%]">
 
         <h1 class="font-semibold text-xl mb-4">
             <?= $title ?? '' ?>
