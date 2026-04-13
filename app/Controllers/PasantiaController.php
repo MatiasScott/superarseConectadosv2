@@ -1028,6 +1028,9 @@ class PasantiaController
 
     private function calculateDurationHoursFromTime(string $horaInicio, string $horaFin): float
     {
+        $horaInicio = substr($horaInicio, 0, 5);
+        $horaFin    = substr($horaFin, 0, 5);
+
         if (!preg_match('/^\d{2}:\d{2}$/', $horaInicio) || !preg_match('/^\d{2}:\d{2}$/', $horaFin)) {
             return 0.0;
         }

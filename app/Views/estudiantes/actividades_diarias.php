@@ -81,8 +81,8 @@ if (!function_exists('format_decimal_hours_hm')) {
             document.getElementById('id_actividad').value = actividad.id_actividad_diaria;
             document.getElementById('actividad_realizada').value = actividad.actividad_realizada;
             document.getElementById('fecha_actividad').value = actividad.fecha_actividad;
-            document.getElementById('hora_inicio').value = actividad.hora_inicio;
-            document.getElementById('hora_fin').value = actividad.hora_fin;
+            document.getElementById('hora_inicio').value = (actividad.hora_inicio || '').substring(0, 5);
+            document.getElementById('hora_fin').value = (actividad.hora_fin || '').substring(0, 5);
             this.calcularHoras();
         });
     },
@@ -196,7 +196,7 @@ data-actividades-existentes="<?php echo htmlspecialchars(json_encode(array_map(f
             action="<?php echo $basePath; ?>/pasantias/addActividadDiaria"
             method="POST"
             class="space-y-4 bg-white p-4 sm:p-6 border border-gray-200 rounded-lg shadow-sm"
-            @submit="if (modoEdicion) { this.action = '<?php echo $basePath; ?>/pasantias/updateActividadDiaria'; }">
+            @submit="if (modoEdicion) { $event.target.action = '<?php echo $basePath; ?>/pasantias/updateActividadDiaria'; }">
 
             <div class="border-b pb-2 mb-4">
                 <h3 class="text-lg font-semibold text-gray-700"

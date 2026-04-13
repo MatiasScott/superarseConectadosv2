@@ -51,6 +51,27 @@ $credencialMoodle = $credenciales[0] ?? [];
                         target="_blank" class="text-blue-600 hover:underline break-all">Acceder Aquí</a>
                 </p>
             </div>
+
+            <div class="bg-gray-50 p-4 rounded-lg shadow-md border border-gray-200">
+                <h4 class="font-bold text-superarse-morado-oscuro mb-3 text-lg">
+                    Biblioteca Dra. Mery Navas</h4>
+                <p class="text-sm text-gray-700">
+                    <i class="fas fa-user-circle mr-2"></i> Usuario: <strong
+                        class="text-superarse-rosa"><?php echo htmlspecialchars($credencialBiblioteca['usuario_acceso_biblioteca'] ?? 'N/D'); ?></strong>
+                </p>
+                <p class="text-sm text-gray-700 mt-2">
+                    <i class="fas fa-key mr-2"></i> Contraseña: <strong
+                        class="text-red-600"><?php echo htmlspecialchars($credencialMoodle['clave_acceso_moodle'] ?? 'N/D'); ?></strong>
+                </p>
+                <p class="text-sm text-gray-700 mt-2">
+                    <i class="fas fa-file-alt mr-2"></i> Nivel: <strong
+                        class="text-red-600"><?php echo htmlspecialchars($credencialMoodle['nivel_acceso_moodle'] ?? 'N/D'); ?></strong>
+                </p>
+                <p class="text-sm text-gray-700 mt-2">
+                    <i class="fas fa-link mr-2"></i> Link: <a href="https://aulas.superarse.edu.ec/my/courses.php"
+                        target="_blank" class="text-blue-600 hover:underline break-all">Acceder Aquí</a>
+                </p>
+            </div>
         </div>
 
         <div class="mt-6 text-center">
