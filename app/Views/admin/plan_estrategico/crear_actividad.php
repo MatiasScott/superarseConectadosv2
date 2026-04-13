@@ -18,7 +18,10 @@
 
                 <?php foreach ($poa as $p): ?>
 
-                    <option value="<?= $p['id_poa'] ?>">
+                    <option
+                        value="<?= $p['id_poa'] ?>"
+                        data-presupuesto-total="<?= (float) ($p['presupuesto_anual'] ?? 0) ?>"
+                        data-presupuesto-usado="<?= (float) ($p['presupuesto_asignado'] ?? 0) ?>">
                         <?= $p['nombre_area'] ?>
                     </option>
 
@@ -47,8 +50,10 @@
             <input type="number"
                 step="0.01"
                 name="presupuesto_actividad"
+                id="presupuestoActividad"
                 class="w-full mt-1 border rounded-lg px-4 py-2"
                 required>
+            <p id="presupuestoInfo" class="mt-1 text-xs text-gray-500"></p>
         </div>
 
         <div class="grid grid-cols-2 gap-4">
@@ -136,3 +141,34 @@
     </form>
 
 </div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const selectPoa = document.querySelector('select[name="id_poa"]');
+        const presupuestoInput = document.getElementById("presupuestoActividad");
+        const presupuestoInfo = document.getElementById("presupuestoInfo");
+
+        if (!selectPoa || !presupuestoInput || !presupuestoInfo) {
+            return;
+        }
+
+        const actualizarLimitePresupuesto = () => {
+            const option = selectPoa.options[selectPoa.selectedIndex];
+            if (!option || !option.value) {
+                presupuestoInput.removeAttribute("max");
+                presupuestoInfo.textContent = "";
+                return;
+            }
+
+            const total = Number(option.dataset.presupuestoTotal || 0);
+            const usado = Number(option.dataset.presupuestoUsado || 0);
+            const disponible = Math.max(0, total - usado);
+
+            presupuestoInput.max = disponible.toFixed(2);
+            presupuestoInfo.textContent = `Disponible para esta actividad: $${disponible.toFixed(2)}`;
+        };
+
+        selectPoa.addEventListener("change", actualizarLimitePresupuesto);
+        actualizarLimitePresupuesto();
+    });
+</script>

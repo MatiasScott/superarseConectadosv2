@@ -1,5 +1,19 @@
 <h2 class="text-2xl font-bold mb-6">Planificación Estratégica</h2>
 
+<?php if (!empty($_SESSION['success'])): ?>
+    <div class="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-green-800">
+        <?= htmlspecialchars($_SESSION['success']) ?>
+    </div>
+    <?php unset($_SESSION['success']); ?>
+<?php endif; ?>
+
+<?php if (!empty($_SESSION['error'])): ?>
+    <div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-800">
+        <?= htmlspecialchars($_SESSION['error']) ?>
+    </div>
+    <?php unset($_SESSION['error']); ?>
+<?php endif; ?>
+
 <div class="bg-white shadow-lg rounded-2xl p-6 mb-8">
 
     <div class="flex justify-between items-center mb-4">
@@ -119,6 +133,8 @@
                     <th class="px-4 py-3">Estrategia</th>
                     <th class="px-4 py-3">Área</th>
                     <th class="px-4 py-3">Presupuesto</th>
+                    <th class="px-4 py-3">Asignado</th>
+                    <th class="px-4 py-3">Disponible</th>
                     <th class="px-4 py-3 text-center">Acciones</th>
                 </tr>
             </thead>
@@ -142,6 +158,14 @@
 
                             <td class="px-4 py-3">
                                 $<?= number_format($p['presupuesto_anual'], 2) ?>
+                            </td>
+
+                            <td class="px-4 py-3">
+                                $<?= number_format((float) ($p['presupuesto_asignado'] ?? 0), 2) ?>
+                            </td>
+
+                            <td class="px-4 py-3">
+                                $<?= number_format((float) ($p['presupuesto_disponible'] ?? 0), 2) ?>
                             </td>
 
                             <td class="px-4 py-3 text-center">

@@ -2783,6 +2783,7 @@ class AdminController
             'objetivo_estrategico' => $_POST['objetivo_estrategico'] ?? '',
             'objetivo_estrategia' => $_POST['objetivo_estrategia'] ?? '',
             'avance' => $_POST['avance'] ?? 0,
+            'avance_estrategia' => $_POST['avance_estrategia'] ?? 0,
             'estado' => $_POST['estado'] ?? 'ACTIVO'
         ];
 
@@ -2813,6 +2814,7 @@ class AdminController
             'objetivo_estrategico' => $_POST['objetivo_estrategico'],
             'objetivo_estrategia' => $_POST['objetivo_estrategia'],
             'avance' => $_POST['avance'],
+            'avance_estrategia' => $_POST['avance_estrategia'] ?? 0,
             'estado' => $_POST['estado']
         ];
 
@@ -2875,19 +2877,40 @@ class AdminController
     public function actualizarPoa()
     {
         $model = new PoaModel();
+        $actividadModel = new PoaActividadModel();
 
-        $id = $_POST['id_poa'];
+        $id = (int) ($_POST['id_poa'] ?? 0);
+        $poaActual = $model->obtenerPorId($id);
+
+        if (!$poaActual) {
+            $_SESSION['error'] = 'POA no encontrado.';
+            header("Location: " . $this->basePath . "/admin/plan-estrategico");
+            exit();
+        }
+
+        $presupuestoAnual = (float) ($_POST['presupuesto_anual'] ?? 0);
+        $presupuestoUsado = $actividadModel->obtenerPresupuestoUsadoPorPoa($id);
+        if ($presupuestoAnual < $presupuestoUsado) {
+            $_SESSION['error'] = 'El presupuesto anual del POA no puede ser menor al presupuesto ya asignado en actividades.';
+            header("Location: " . $this->basePath . "/admin/poa/edit/" . $id);
+            exit();
+        }
 
         $data = [
-            'id_pedi' => $_POST['id_pedi'],
-            'nombre_area' => $_POST['nombre_area'],
-            'presupuesto_anual' => $_POST['presupuesto_anual'],
-            'estado_actividad' => $_POST['estado_actividad'],
-            'observaciones' => $_POST['observaciones'],
-            'estado' => $_POST['estado']
+            'id_pedi' => (int) ($_POST['id_pedi'] ?? 0),
+            'nombre_area' => $_POST['nombre_area'] ?? '',
+            'presupuesto_anual' => $presupuestoAnual,
+            'estado_actividad' => $_POST['estado_actividad'] ?? 'no ejecutada',
+            'observaciones' => $_POST['observaciones'] ?? '',
+            'estado' => $_POST['estado'] ?? 'ACTIVO'
         ];
 
         $model->actualizar($id, $data);
+
+        $this->recalcularAvanceEstrategiaPedi((int) $data['id_pedi']);
+        if ((int) $poaActual['id_pedi'] !== (int) $data['id_pedi']) {
+            $this->recalcularAvanceEstrategiaPedi((int) $poaActual['id_pedi']);
+        }
 
         header("Location: " . $this->basePath . "/admin/plan-estrategico");
         exit();
@@ -2907,15 +2930,43 @@ class AdminController
     public function guardarActividad()
     {
         $model = new PoaActividadModel();
+        $poaModel = new PoaModel();
+
+        $idPoa = (int) ($_POST['id_poa'] ?? 0);
+        $presupuestoActividad = (float) ($_POST['presupuesto_actividad'] ?? 0);
+
+        $poa = $poaModel->obtenerPorId($idPoa);
+        if (!$poa) {
+            $_SESSION['error'] = 'Debe seleccionar un POA valido.';
+            header("Location: " . $this->basePath . "/admin/actividad/create");
+            exit();
+        }
+
+        $presupuestoUsado = $model->obtenerPresupuestoUsadoPorPoa($idPoa);
+        $presupuestoDisponible = (float) ($poa['presupuesto_anual'] ?? 0) - $presupuestoUsado;
+
+        if ($presupuestoActividad > $presupuestoDisponible) {
+            $_SESSION['error'] = 'El presupuesto de la actividad supera el disponible del POA seleccionado.';
+            header("Location: " . $this->basePath . "/admin/actividad/create");
+            exit();
+        }
 
         $data = [
-            'id_poa' => $_POST['id_poa'],
-            'nombre_actividad' => $_POST['nombre_actividad'],
-            'avance' => $_POST['avance'],
-            'estado' => $_POST['estado']
+            'id_poa' => $idPoa,
+            'nombre_actividad' => $_POST['nombre_actividad'] ?? '',
+            'presupuesto_actividad' => $presupuestoActividad,
+            'fecha_inicio' => $_POST['fecha_inicio'] ?? null,
+            'fecha_fin' => $_POST['fecha_fin'] ?? null,
+            'avance' => (float) ($_POST['avance'] ?? 0),
+            'observacion_actividad' => $_POST['observacion_actividad'] ?? '',
+            'estado' => $_POST['estado'] ?? 'ACTIVO'
         ];
 
-        $model->crear($data);
+        $creado = $model->crear($data);
+
+        if ($creado) {
+            $this->recalcularAvanceEstrategiaPedi((int) ($poa['id_pedi'] ?? 0));
+        }
 
         header("Location: " . $this->basePath . "/admin/plan-estrategico");
         exit();
@@ -2939,17 +2990,59 @@ class AdminController
     public function actualizarActividad()
     {
         $model = new PoaActividadModel();
+        $poaModel = new PoaModel();
 
-        $id = $_POST['id_actividad'];
+        $id = (int) ($_POST['id_actividad'] ?? 0);
+        $actividadAnterior = $model->obtenerPorId($id);
+
+        if (!$actividadAnterior) {
+            $_SESSION['error'] = 'Actividad no encontrada.';
+            header("Location: " . $this->basePath . "/admin/plan-estrategico");
+            exit();
+        }
+
+        $idPoaNuevo = (int) ($_POST['id_poa'] ?? 0);
+        $poaNuevo = $poaModel->obtenerPorId($idPoaNuevo);
+
+        if (!$poaNuevo) {
+            $_SESSION['error'] = 'Debe seleccionar un POA valido.';
+            header("Location: " . $this->basePath . "/admin/actividad/edit/" . $id);
+            exit();
+        }
+
+        $presupuestoActividad = (float) ($_POST['presupuesto_actividad'] ?? 0);
+        $presupuestoUsadoSinActual = $model->obtenerPresupuestoUsadoPorPoa($idPoaNuevo, $id);
+        $presupuestoDisponible = (float) ($poaNuevo['presupuesto_anual'] ?? 0) - $presupuestoUsadoSinActual;
+
+        if ($presupuestoActividad > $presupuestoDisponible) {
+            $_SESSION['error'] = 'El presupuesto de la actividad supera el disponible del POA seleccionado.';
+            header("Location: " . $this->basePath . "/admin/actividad/edit/" . $id);
+            exit();
+        }
 
         $data = [
-            'id_poa' => $_POST['id_poa'],
-            'nombre_actividad' => $_POST['nombre_actividad'],
-            'avance' => $_POST['avance'],
-            'estado' => $_POST['estado']
+            'id_poa' => $idPoaNuevo,
+            'nombre_actividad' => $_POST['nombre_actividad'] ?? '',
+            'presupuesto_actividad' => $presupuestoActividad,
+            'fecha_inicio' => $_POST['fecha_inicio'] ?? null,
+            'fecha_fin' => $_POST['fecha_fin'] ?? null,
+            'avance' => (float) ($_POST['avance'] ?? 0),
+            'observacion_actividad' => $_POST['observacion_actividad'] ?? '',
+            'estado' => $_POST['estado'] ?? 'ACTIVO'
         ];
 
-        $model->actualizar($id, $data);
+        $actualizado = $model->actualizar($id, $data);
+
+        if ($actualizado) {
+            $poaAnterior = $poaModel->obtenerPorId((int) ($actividadAnterior['id_poa'] ?? 0));
+            $idPediAnterior = (int) ($poaAnterior['id_pedi'] ?? 0);
+            $idPediNuevo = (int) ($poaNuevo['id_pedi'] ?? 0);
+
+            $this->recalcularAvanceEstrategiaPedi($idPediNuevo);
+            if ($idPediAnterior !== $idPediNuevo) {
+                $this->recalcularAvanceEstrategiaPedi($idPediAnterior);
+            }
+        }
 
         header("Location: " . $this->basePath . "/admin/plan-estrategico");
         exit();
@@ -3074,7 +3167,14 @@ class AdminController
             exit();
         }
 
+        $poa = $this->poaModel->obtenerPorId((int) $id);
+
         $eliminado = $this->poaModel->eliminar($id);
+
+        if ($eliminado && $poa) {
+            $this->recalcularAvanceEstrategiaPedi((int) ($poa['id_pedi'] ?? 0));
+        }
+
         $_SESSION[$eliminado ? 'success' : 'error'] = $eliminado
             ? 'POA eliminado correctamente'
             : 'No se pudo eliminar el POA';
@@ -3090,13 +3190,47 @@ class AdminController
             exit();
         }
 
+        $actividad = $this->actividadModel->obtenerPorId((int) $id);
+        $poa = null;
+        if ($actividad && !empty($actividad['id_poa'])) {
+            $poa = $this->poaModel->obtenerPorId((int) $actividad['id_poa']);
+        }
+
         $eliminado = $this->actividadModel->eliminar($id);
+
+        if ($eliminado && $poa) {
+            $this->recalcularAvanceEstrategiaPedi((int) ($poa['id_pedi'] ?? 0));
+        }
+
         $_SESSION[$eliminado ? 'success' : 'error'] = $eliminado
             ? 'Actividad eliminada correctamente'
             : 'No se pudo eliminar la actividad';
 
         header("Location: " . $this->basePath . "/admin/plan-estrategico");
         exit();
+    }
+
+    private function recalcularAvanceEstrategiaPedi($idPedi)
+    {
+        $idPedi = (int) $idPedi;
+        if ($idPedi <= 0) {
+            return;
+        }
+
+        $pedi = $this->pediModel->obtenerPorId($idPedi);
+        if (!$pedi) {
+            return;
+        }
+
+        $avanceCalculado = $this->actividadModel->calcularAvanceEstrategiaPorPedi($idPedi);
+
+        $this->pediModel->actualizar($idPedi, [
+            'objetivo_estrategico' => $pedi['objetivo_estrategico'] ?? '',
+            'avance' => $pedi['avance'] ?? 0,
+            'objetivo_estrategia' => $pedi['objetivo_estrategia'] ?? '',
+            'avance_estrategia' => $avanceCalculado,
+            'estado' => $pedi['estado'] ?? 'ACTIVO'
+        ]);
     }
 
     /* Convenios */

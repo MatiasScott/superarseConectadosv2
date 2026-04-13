@@ -9,9 +9,16 @@ class PoaModel extends Database
     {
         $db = $this->getConnection();
 
-        $query = "SELECT p.*, pe.objetivo_estrategico, pe.objetivo_estrategia
+        $query = "SELECT p.*, pe.objetivo_estrategico, pe.objetivo_estrategia,
+                    COALESCE(pa.presupuesto_asignado, 0) AS presupuesto_asignado,
+                    (COALESCE(p.presupuesto_anual, 0) - COALESCE(pa.presupuesto_asignado, 0)) AS presupuesto_disponible
                 FROM poa p
                 LEFT JOIN pedi pe ON p.id_pedi = pe.id_pedi
+                LEFT JOIN (
+                    SELECT id_poa, COALESCE(SUM(presupuesto_actividad), 0) AS presupuesto_asignado
+                    FROM poa_actividades
+                    GROUP BY id_poa
+                ) pa ON pa.id_poa = p.id_poa
                 ORDER BY p.id_poa DESC";
 
         $stmt = $db->prepare($query);
