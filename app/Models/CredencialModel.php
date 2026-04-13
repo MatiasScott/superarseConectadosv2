@@ -39,6 +39,9 @@ class CredencialModel extends Database
       // Si no existe, usamos un valor por defecto (ej: 'N/A')
       $plataformaContraseñaMoodle = $userInfoMoodle ? $userInfoMoodle['CLAVE'] : 'Clave no encontrada';
       $plataformaNivelMoodle = $userInfoMoodle ? $userInfoMoodle['NIVEL'] : 'Nivel no encontrado';
+
+      $plataformaUsuarioBiblioteca = $cedulaParaMoodle; // La cédula también es el usuario de la biblioteca
+      $plataformaContraseñaBiblioteca = $userInfoMoodle ? $userInfoMoodle['CLAVE'] : 'Clave no encontrada'; // Asumimos que la contraseña es
       
       // 3. Obtener credenciales de la plataforma general
       $plataformaQuery = "SELECT 
@@ -60,9 +63,11 @@ class CredencialModel extends Database
           'plataforma' => $p['plataforma'],
           'usuario_acceso' => $plataformaUsuario,
           'usuario_acceso_moodle' => $plataformaUsuarioMoodle,
+          'usuario_acceso_biblioteca' => $plataformaUsuarioBiblioteca,
           'clave_acceso' => $p['clave_acceso'],
           'clave_acceso_moodle' => $plataformaContraseñaMoodle,
           'nivel_acceso_moodle' => $plataformaNivelMoodle,
+          'clave_acceso_biblioteca' => $plataformaContraseñaBiblioteca,
           'link_acceso' => $p['link_acceso']
         ];
       }

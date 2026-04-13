@@ -1,6 +1,7 @@
 <?php
 $credenciales = (isset($data['infoCredenciales']) && is_array($data['infoCredenciales'])) ? $data['infoCredenciales'] : [];
 $credencialMoodle = $credenciales[0] ?? [];
+$credencialBiblioteca = $credenciales[0] ?? [];
 ?>
 
 <div id="credenciales" class="tab-pane hidden">
@@ -61,14 +62,10 @@ $credencialMoodle = $credenciales[0] ?? [];
                 </p>
                 <p class="text-sm text-gray-700 mt-2">
                     <i class="fas fa-key mr-2"></i> Contraseña: <strong
-                        class="text-red-600"><?php echo htmlspecialchars($credencialMoodle['clave_acceso_moodle'] ?? 'N/D'); ?></strong>
+                        class="text-red-600"><?php echo htmlspecialchars("ISTS" . ($credencialBiblioteca['usuario_acceso_biblioteca'] ?? 'N/D')); ?></strong>
                 </p>
                 <p class="text-sm text-gray-700 mt-2">
-                    <i class="fas fa-file-alt mr-2"></i> Nivel: <strong
-                        class="text-red-600"><?php echo htmlspecialchars($credencialMoodle['nivel_acceso_moodle'] ?? 'N/D'); ?></strong>
-                </p>
-                <p class="text-sm text-gray-700 mt-2">
-                    <i class="fas fa-link mr-2"></i> Link: <a href="https://aulas.superarse.edu.ec/my/courses.php"
+                    <i class="fas fa-link mr-2"></i> Link: <a href="https://biblioteca.superarse.ec/"
                         target="_blank" class="text-blue-600 hover:underline break-all">Acceder Aquí</a>
                 </p>
             </div>
