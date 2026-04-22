@@ -104,6 +104,45 @@ class PasswordResetModel
         }
     }
 
+    public function discardRequest($requestId, $resolvedBy)
+    {
+        $query = "UPDATE {$this->tableName}
+                  SET status = 'discarded',
+                      resolved_by = :resolved_by,
+                      resolved_at = NOW()
+                  WHERE id = :id AND status = 'pending'";
+
+        try {
+            $stmt = $this->conn->prepare($query);
+            $stmt->execute([
+                ':resolved_by' => $resolvedBy,
+                ':id'          => $requestId,
+            ]);
+            return $stmt->rowCount() > 0;
+        } catch (PDOException $e) {
+            // Compatibilidad: si la BD no soporta el estado "discarded" (por ejemplo, ENUM),
+            // se marca como resuelta con etiqueta para distinguirla en historial.
+            $fallbackQuery = "UPDATE {$this->tableName}
+                              SET status = 'resolved',
+                                  resolved_by = :resolved_by,
+                                  resolved_at = NOW()
+                              WHERE id = :id AND status = 'pending'";
+
+            try {
+                $fallbackStmt = $this->conn->prepare($fallbackQuery);
+                $fallbackStmt->execute([
+                    ':resolved_by' => '[DESCARTADA] ' . $resolvedBy,
+                    ':id'          => $requestId,
+                ]);
+                return $fallbackStmt->rowCount() > 0;
+            } catch (PDOException $fallbackException) {
+                error_log('Error al descartar solicitud de reset: ' . $e->getMessage());
+                error_log('Error en fallback de descarte: ' . $fallbackException->getMessage());
+                return false;
+            }
+        }
+    }
+
     public function findById($id)
     {
         $query = "SELECT * FROM {$this->tableName} WHERE id = :id LIMIT 1";

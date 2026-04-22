@@ -2093,11 +2093,17 @@ class AdminController
 
         $requests          = $this->resetModel->getAllRequests(200);
         $csrfTokensResolve = [];
+        $csrfTokensDiscard = [];
 
         foreach ($requests as $req) {
-            if ($req['status'] === 'pending' && !empty($req['account_id'])) {
-                $csrfTokensResolve[$req['id']] = AuthSecurity::generateCsrfToken(
-                    'admin_reset_resolve_' . $req['id']
+            if ($req['status'] === 'pending') {
+                if (!empty($req['account_id'])) {
+                    $csrfTokensResolve[$req['id']] = AuthSecurity::generateCsrfToken(
+                        'admin_reset_resolve_' . $req['id']
+                    );
+                }
+                $csrfTokensDiscard[$req['id']] = AuthSecurity::generateCsrfToken(
+                    'admin_reset_discard_' . $req['id']
                 );
             }
         }
@@ -2106,6 +2112,7 @@ class AdminController
             'title'             => 'Solicitudes de Restablecimiento',
             'requests'          => $requests,
             'csrfTokensResolve' => $csrfTokensResolve,
+            'csrfTokensDiscard' => $csrfTokensDiscard,
         ]);
     }
 
@@ -2160,6 +2167,40 @@ class AdminController
                 $_SESSION['temp_password_email_sent'] = true;
             }
         }
+
+        header("Location: " . $this->basePath . "/admin/reset-requests");
+        exit();
+    }
+
+    public function discardPasswordReset()
+    {
+        if (empty($_SESSION['is_admin'])) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $requestId = (int) ($_POST['request_id'] ?? 0);
+
+        if (!AuthSecurity::validateCsrfToken('admin_reset_discard_' . $requestId, $_POST['csrf_token'] ?? '')) {
+            $_SESSION['error'] = 'Sesión del formulario expirada. Intente de nuevo.';
+            header("Location: " . $this->basePath . "/admin/reset-requests");
+            exit();
+        }
+
+        $resetRequest = $this->resetModel->findById($requestId);
+
+        if (!$resetRequest || $resetRequest['status'] !== 'pending') {
+            $_SESSION['error'] = 'Solicitud no válida o ya fue procesada.';
+            header("Location: " . $this->basePath . "/admin/reset-requests");
+            exit();
+        }
+
+        $resolvedBy = $_SESSION['admin_email'] ?? 'admin';
+        $discarded = $this->resetModel->discardRequest($requestId, $resolvedBy);
+
+        $_SESSION[$discarded ? 'success' : 'error'] = $discarded
+            ? 'Solicitud descartada correctamente.'
+            : 'No fue posible descartar la solicitud. Intente de nuevo.';
 
         header("Location: " . $this->basePath . "/admin/reset-requests");
         exit();

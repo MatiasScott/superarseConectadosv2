@@ -1,7 +1,7 @@
 <?php
 $allRequests      = $requests ?? [];
 $pendingRequests  = array_filter($allRequests, fn($r) => $r['status'] === 'pending');
-$resolvedRequests = array_filter($allRequests, fn($r) => $r['status'] !== 'pending');
+$processedRequests = array_filter($allRequests, fn($r) => $r['status'] !== 'pending');
 ?>
 
 <!-- Header -->
@@ -48,6 +48,13 @@ $resolvedRequests = array_filter($allRequests, fn($r) => $r['status'] !== 'pendi
     <?php unset($_SESSION['error']); ?>
 <?php endif; ?>
 
+<?php if (isset($_SESSION['success'])): ?>
+    <div class="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg">
+        <?= htmlspecialchars($_SESSION['success']); ?>
+    </div>
+    <?php unset($_SESSION['success']); ?>
+<?php endif; ?>
+
 <!-- KPIs -->
 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
     <div class="bg-white shadow-md rounded-xl p-6 border-l-4 border-red-500">
@@ -55,8 +62,8 @@ $resolvedRequests = array_filter($allRequests, fn($r) => $r['status'] !== 'pendi
         <p class="text-3xl font-bold text-red-600 mt-2"><?= count($pendingRequests) ?></p>
     </div>
     <div class="bg-white shadow-md rounded-xl p-6 border-l-4 border-green-500">
-        <p class="text-sm text-gray-500">Resueltas (historial)</p>
-        <p class="text-3xl font-bold text-green-600 mt-2"><?= count($resolvedRequests) ?></p>
+        <p class="text-sm text-gray-500">Gestionadas (historial)</p>
+        <p class="text-3xl font-bold text-green-600 mt-2"><?= count($processedRequests) ?></p>
     </div>
 </div>
 
@@ -108,20 +115,35 @@ $resolvedRequests = array_filter($allRequests, fn($r) => $r['status'] !== 'pendi
                                 <?= htmlspecialchars($req['ip_address'] ?? '—') ?>
                             </td>
                             <td class="px-6 py-4">
-                                <?php if (!empty($req['account_id']) && isset($csrfTokensResolve[$req['id']])): ?>
-                                    <form method="POST" action="<?= $basePath ?>/admin/reset-requests/resolve">
-                                        <input type="hidden" name="csrf_token"
-                                            value="<?= htmlspecialchars($csrfTokensResolve[$req['id']]) ?>">
-                                        <input type="hidden" name="request_id" value="<?= (int) $req['id'] ?>">
-                                        <button type="submit"
-                                            class="bg-purple-700 hover:bg-purple-800 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition"
-                                            onclick="return confirm('¿Generar contraseña temporal para <?= htmlspecialchars(addslashes($req['display_name'])) ?>?');">
-                                            Restablecer y notificar
-                                        </button>
-                                    </form>
-                                <?php else: ?>
-                                    <span class="text-gray-400 text-xs italic">Sin cuenta vinculada</span>
-                                <?php endif; ?>
+                                <div class="flex flex-col gap-2 items-start">
+                                    <?php if (!empty($req['account_id']) && isset($csrfTokensResolve[$req['id']])): ?>
+                                        <form method="POST" action="<?= $basePath ?>/admin/reset-requests/resolve">
+                                            <input type="hidden" name="csrf_token"
+                                                value="<?= htmlspecialchars($csrfTokensResolve[$req['id']]) ?>">
+                                            <input type="hidden" name="request_id" value="<?= (int) $req['id'] ?>">
+                                            <button type="submit"
+                                                class="bg-purple-700 hover:bg-purple-800 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition"
+                                                onclick="return confirm('¿Generar contraseña temporal para <?= htmlspecialchars(addslashes($req['display_name'])) ?>?');">
+                                                Restablecer y notificar
+                                            </button>
+                                        </form>
+                                    <?php else: ?>
+                                        <span class="text-gray-400 text-xs italic">Sin cuenta vinculada</span>
+                                    <?php endif; ?>
+
+                                    <?php if (isset($csrfTokensDiscard[$req['id']])): ?>
+                                        <form method="POST" action="<?= $basePath ?>/admin/reset-requests/discard">
+                                            <input type="hidden" name="csrf_token"
+                                                value="<?= htmlspecialchars($csrfTokensDiscard[$req['id']]) ?>">
+                                            <input type="hidden" name="request_id" value="<?= (int) $req['id'] ?>">
+                                            <button type="submit"
+                                                class="bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-semibold px-3 py-1.5 rounded-lg transition"
+                                                onclick="return confirm('¿Descartar esta solicitud? Esta acción la moverá al historial.');">
+                                                Descartar
+                                            </button>
+                                        </form>
+                                    <?php endif; ?>
+                                </div>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -132,9 +154,9 @@ $resolvedRequests = array_filter($allRequests, fn($r) => $r['status'] !== 'pendi
 <?php endif; ?>
 
 <!-- History table -->
-<?php if (!empty($resolvedRequests)): ?>
+<?php if (!empty($processedRequests)): ?>
     <div>
-        <h3 class="text-base font-semibold text-gray-500 mb-3">Historial de solicitudes resueltas</h3>
+        <h3 class="text-base font-semibold text-gray-500 mb-3">Historial de solicitudes gestionadas</h3>
         <div class="bg-white shadow-md rounded-xl overflow-x-auto">
             <table class="min-w-full text-sm">
                 <thead class="bg-gray-50 border-b">
@@ -143,12 +165,19 @@ $resolvedRequests = array_filter($allRequests, fn($r) => $r['status'] !== 'pendi
                         <th class="px-6 py-3 text-left font-semibold text-gray-600">Nombre</th>
                         <th class="px-6 py-3 text-left font-semibold text-gray-600">Contacto</th>
                         <th class="px-6 py-3 text-left font-semibold text-gray-600">Solicitado</th>
-                        <th class="px-6 py-3 text-left font-semibold text-gray-600">Resuelto por</th>
+                        <th class="px-6 py-3 text-left font-semibold text-gray-600">Gestionado por</th>
                         <th class="px-6 py-3 text-left font-semibold text-gray-600">Estado</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($resolvedRequests as $req): ?>
+                    <?php foreach ($processedRequests as $req): ?>
+                        <?php
+                        $managedBy = (string) ($req['resolved_by'] ?? '—');
+                        $isDiscarded = $req['status'] === 'discarded' || strpos($managedBy, '[DESCARTADA] ') === 0;
+                        if (strpos($managedBy, '[DESCARTADA] ') === 0) {
+                            $managedBy = substr($managedBy, strlen('[DESCARTADA] '));
+                        }
+                        ?>
                         <tr class="border-b hover:bg-gray-50 opacity-70">
                             <td class="px-6 py-4">
                                 <?php if ($req['role'] === 'student'): ?>
@@ -163,10 +192,14 @@ $resolvedRequests = array_filter($allRequests, fn($r) => $r['status'] !== 'pendi
                                 <?= date('d/m/Y H:i', strtotime($req['requested_at'])) ?>
                             </td>
                             <td class="px-6 py-4 text-gray-500 text-xs">
-                                <?= htmlspecialchars($req['resolved_by'] ?? '—') ?>
+                                <?= htmlspecialchars($managedBy) ?>
                             </td>
                             <td class="px-6 py-4">
-                                <span class="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">Resuelta</span>
+                                <?php if ($isDiscarded): ?>
+                                    <span class="px-2 py-1 text-xs bg-amber-100 text-amber-700 rounded-full">Descartada</span>
+                                <?php else: ?>
+                                    <span class="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">Resuelta</span>
+                                <?php endif; ?>
                             </td>
                         </tr>
                     <?php endforeach; ?>

@@ -129,6 +129,10 @@ if (preg_match('#^/admin#', $uri)) {
             $controller->resolvePasswordReset();
             break;
 
+        case $uri === '/admin/reset-requests/discard' && $method === 'POST':
+            $controller->discardPasswordReset();
+            break;
+
         case $uri === '/admin/forgot-password' && $method === 'GET':
             $controller->showForgotPasswordFormAdmin();
             break;
