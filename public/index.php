@@ -133,6 +133,10 @@ if (preg_match('#^/admin#', $uri)) {
             $controller->discardPasswordReset();
             break;
 
+        case $uri === '/admin/tutores/buscar-por-cedula' && $method === 'GET':
+            (new PasantiaController())->buscarTutorEmpresarialPorCedula();
+            break;
+
         case $uri === '/admin/forgot-password' && $method === 'GET':
             $controller->showForgotPasswordFormAdmin();
             break;

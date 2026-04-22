@@ -89,6 +89,7 @@ class PasantiaModel extends Database
             p.carreras AS proyecto_carreras,
             p.lugar AS proyecto_lugar,
             u.codigo_matricula,
+            u.numero_identificacion,
             u.programa,
             CONCAT(u.primer_nombre, ' ', IFNULL(u.segundo_nombre, ''), ' ', u.primer_apellido, ' ', u.segundo_apellido) AS estudiante_nombre
         FROM
@@ -932,6 +933,17 @@ class PasantiaModel extends Database
         }
     }
 
+    public function buscarTutorPorCedula(string $cedula): ?array
+    {
+        $stmt = $this->db->prepare(
+            "SELECT id_tutor_empresa, cedula, nombre_completo, funcion, telefono, email, departamento
+             FROM tutores_empresariales WHERE cedula = :cedula LIMIT 1"
+        );
+        $stmt->execute([':cedula' => $cedula]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
     public function actualizarPasantia($id_practica, $datos)
     {
         try {
@@ -974,24 +986,78 @@ class PasantiaModel extends Database
                 ]);
             }
 
-            if (!empty($datos['tutor_empresarial_id'])) {
+            // ── Cambio de tutor empresarial (buscar/crear y reasignar) ──────────────
+            if (!empty($datos['cambiar_tutor'])) {
+                $cedulaNueva = trim((string) ($datos['tutor_emp_cedula'] ?? ''));
+                if ($cedulaNueva !== '') {
+                    $tutorExistente = $this->buscarTutorPorCedula($cedulaNueva);
+                    if ($tutorExistente) {
+                        $nuevoTutorId = (int) $tutorExistente['id_tutor_empresa'];
+                        $stmtTutorUpd = $this->db->prepare(
+                            "UPDATE tutores_empresariales SET
+                                nombre_completo = :nombre_completo,
+                                funcion         = :funcion,
+                                telefono        = :telefono,
+                                email           = :email,
+                                departamento    = :departamento
+                            WHERE id_tutor_empresa = :id_tutor_empresa"
+                        );
+                        $stmtTutorUpd->execute([
+                            ':nombre_completo' => trim((string) ($datos['tutor_emp_nombre_completo'] ?? '')),
+                            ':funcion'         => trim((string) ($datos['tutor_emp_funcion'] ?? '')),
+                            ':telefono'        => trim((string) ($datos['tutor_emp_telefono'] ?? '')),
+                            ':email'           => trim((string) ($datos['tutor_emp_email'] ?? '')),
+                            ':departamento'    => trim((string) ($datos['tutor_emp_departamento'] ?? '')),
+                            ':id_tutor_empresa' => $nuevoTutorId,
+                        ]);
+                    } else {
+                        $stmtTutorIns = $this->db->prepare(
+                            "INSERT INTO tutores_empresariales
+                                (cedula, nombre_completo, funcion, telefono, email, departamento)
+                             VALUES
+                                (:cedula, :nombre_completo, :funcion, :telefono, :email, :departamento)"
+                        );
+                        $stmtTutorIns->execute([
+                            ':cedula'          => $cedulaNueva,
+                            ':nombre_completo' => trim((string) ($datos['tutor_emp_nombre_completo'] ?? '')),
+                            ':funcion'         => trim((string) ($datos['tutor_emp_funcion'] ?? '')),
+                            ':telefono'        => trim((string) ($datos['tutor_emp_telefono'] ?? '')),
+                            ':email'           => trim((string) ($datos['tutor_emp_email'] ?? '')),
+                            ':departamento'    => trim((string) ($datos['tutor_emp_departamento'] ?? '')),
+                        ]);
+                        $nuevoTutorId = (int) $this->db->lastInsertId();
+                    }
+
+                    // Reasignar tutor en la práctica
+                    $stmtReasignar = $this->db->prepare(
+                        "UPDATE practicas_estudiantes
+                         SET tutor_empresarial_id = :tid
+                         WHERE id_practica = :id_practica"
+                    );
+                    $stmtReasignar->execute([
+                        ':tid'         => $nuevoTutorId,
+                        ':id_practica' => (int) $id_practica,
+                    ]);
+                }
+            } elseif (!empty($datos['tutor_empresarial_id'])) {
+                // Edición in-place del tutor actual (sin cambio de tutor)
                 $queryTutor = "UPDATE tutores_empresariales SET
                         nombre_completo = :nombre_completo,
-                        cedula = :cedula,
-                        funcion = :funcion,
-                        email = :email,
-                        telefono = :telefono,
-                        departamento = :departamento
+                        cedula          = :cedula,
+                        funcion         = :funcion,
+                        email           = :email,
+                        telefono        = :telefono,
+                        departamento    = :departamento
                     WHERE id_tutor_empresa = :id_tutor_empresa";
 
                 $stmtTutor = $this->db->prepare($queryTutor);
                 $stmtTutor->execute([
-                    ':nombre_completo' => trim((string) ($datos['tutor_emp_nombre_completo'] ?? '')),
-                    ':cedula' => trim((string) ($datos['tutor_emp_cedula'] ?? '')),
-                    ':funcion' => trim((string) ($datos['tutor_emp_funcion'] ?? '')),
-                    ':email' => trim((string) ($datos['tutor_emp_email'] ?? '')),
-                    ':telefono' => trim((string) ($datos['tutor_emp_telefono'] ?? '')),
-                    ':departamento' => trim((string) ($datos['tutor_emp_departamento'] ?? '')),
+                    ':nombre_completo'  => trim((string) ($datos['tutor_emp_nombre_completo'] ?? '')),
+                    ':cedula'           => trim((string) ($datos['tutor_emp_cedula'] ?? '')),
+                    ':funcion'          => trim((string) ($datos['tutor_emp_funcion'] ?? '')),
+                    ':email'            => trim((string) ($datos['tutor_emp_email'] ?? '')),
+                    ':telefono'         => trim((string) ($datos['tutor_emp_telefono'] ?? '')),
+                    ':departamento'     => trim((string) ($datos['tutor_emp_departamento'] ?? '')),
                     ':id_tutor_empresa' => (int) $datos['tutor_empresarial_id'],
                 ]);
             }

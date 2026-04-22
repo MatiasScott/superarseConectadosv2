@@ -394,6 +394,31 @@ class PasantiaController
         exit();
     }
 
+    public function buscarTutorEmpresarialPorCedula()
+    {
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            http_response_code(403);
+            echo json_encode(['error' => 'No autorizado']);
+            exit();
+        }
+
+        header('Content-Type: application/json');
+
+        $cedula = trim($_GET['cedula'] ?? '');
+        if ($cedula === '') {
+            echo json_encode(['found' => false]);
+            exit();
+        }
+
+        $tutor = $this->pasantiaModel->buscarTutorPorCedula($cedula);
+        if ($tutor) {
+            echo json_encode(['found' => true, 'tutor' => $tutor]);
+        } else {
+            echo json_encode(['found' => false]);
+        }
+        exit();
+    }
+
     public function buscarEntidadPorRUC()
     {
         header('Content-Type: application/json');
@@ -692,8 +717,25 @@ class PasantiaController
         // Ordenar por semana
         ksort($actividadesPorSemana);
 
-        // Obtener información del estudiante
-        $estudiante = $this->userModel->getUserInfoByIdentificacion($_SESSION['identificacion']);
+        // Obtener información del estudiante (compatible para estudiante y admin)
+        $estudiante = null;
+        $identificacionSesion = $_SESSION['identificacion'] ?? null;
+        if (!empty($identificacionSesion)) {
+            $estudiante = $this->userModel->getUserInfoByIdentificacion($identificacionSesion);
+        }
+
+        if (!$estudiante) {
+            $nombreCompleto = trim((string) ($practica['estudiante_nombre'] ?? ''));
+            $estudiante = [
+                'primer_nombre' => $nombreCompleto,
+                'segundo_nombre' => '',
+                'primer_apellido' => '',
+                'segundo_apellido' => '',
+                'numero_identificacion' => $practica['numero_identificacion'] ?? 'N/A',
+                'programa' => $practica['programa'] ?? 'N/A',
+                'codigo_matricula' => $practica['codigo_matricula'] ?? $id_practica,
+            ];
+        }
 
         // Obtener información del tutor académico
         $tutorAcademico = null;
@@ -724,7 +766,7 @@ class PasantiaController
         $dompdf->render();
 
         // Descargar PDF
-        $codigo = $estudiante['codigo_matricula'] ?? $id_practica;
+        $codigo = $estudiante['codigo_matricula'] ?? ($practica['codigo_matricula'] ?? $id_practica);
         $filename = 'Actividades_Diarias_' . $codigo . '_' . date('Y-m-d') . '.pdf';
 
         if (ob_get_level() > 0) {
@@ -758,6 +800,24 @@ class PasantiaController
             header("Location: " . $basePath . "/admin/dashboard");
             exit();
         }
+
+        $activeTab = (($_GET['tab'] ?? 'datos') === 'actividades') ? 'actividades' : 'datos';
+        $activityPage = max(1, (int) ($_GET['activity_page'] ?? 1));
+        $activityLimit = 10;
+        $activityOffset = ($activityPage - 1) * $activityLimit;
+
+        $totalActividadesDiarias = $this->pasantiaModel->countActividadesDiarias((int) $id_practica);
+        $totalHorasActividades = $this->pasantiaModel->getTotalHorasActividades((int) $id_practica);
+        $totalActivityPages = max(1, (int) ceil($totalActividadesDiarias / $activityLimit));
+        $activityPage = min($activityPage, $totalActivityPages);
+        $activityOffset = ($activityPage - 1) * $activityLimit;
+        $actividadesDiarias = $this->pasantiaModel->getActividadesDiariasPaginated(
+            practicaId: (int) $id_practica,
+            offset: $activityOffset,
+            limit: $activityLimit,
+            sortBy: 'fecha_actividad',
+            sortDir: 'DESC'
+        );
 
         // Si es POST, actualizar los datos
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -795,6 +855,7 @@ class PasantiaController
                 'tutor_emp_email' => $esHomologableLaboral ? ($practica['tutor_emp_email'] ?? null) : ($_POST['tutor_emp_email'] ?? $practica['tutor_emp_email']),
                 'tutor_emp_telefono' => $esHomologableLaboral ? ($practica['tutor_emp_telefono'] ?? null) : ($_POST['tutor_emp_telefono'] ?? $practica['tutor_emp_telefono']),
                 'tutor_emp_departamento' => $esHomologableLaboral ? ($practica['tutor_emp_departamento'] ?? null) : ($_POST['tutor_emp_departamento'] ?? $practica['tutor_emp_departamento']),
+                'cambiar_tutor' => (!$esHomologableLaboral && !empty($_POST['cambiar_tutor'])),
             ];
 
             $resultado = $this->pasantiaModel->actualizarPasantia($id_practica, $datos);
@@ -813,7 +874,14 @@ class PasantiaController
         //require_once __DIR__ . '/../Views/admin/practicas/editar_pasantia.php';
         $this->renderAdmin('admin/practicas/editar_pasantia', [
             'title' => 'Editar Pasantía',
-            'practica' => $practica
+            'practica' => $practica,
+            'activeTab' => $activeTab,
+            'actividadesDiarias' => $actividadesDiarias,
+            'totalActividadesDiarias' => $totalActividadesDiarias,
+            'totalHorasActividades' => $totalHorasActividades,
+            'activityPage' => $activityPage,
+            'activityLimit' => $activityLimit,
+            'totalActivityPages' => $totalActivityPages,
         ]);
     }
 
