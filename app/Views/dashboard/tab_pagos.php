@@ -30,8 +30,8 @@ $formatMontoResumen = static function ($valor): string {
 <div id="pagos" class="tab-pane hidden">
     <?php if ($uploadFeedback !== null && isset($uploadFeedbackMessages[$uploadFeedback])): ?>
         <div class="mb-4 rounded-lg border px-4 py-3 text-sm <?php echo $uploadFeedbackType === 'success'
-            ? 'border-green-200 bg-green-50 text-green-800'
-            : 'border-red-200 bg-red-50 text-red-800'; ?>">
+                                                                    ? 'border-green-200 bg-green-50 text-green-800'
+                                                                    : 'border-red-200 bg-red-50 text-red-800'; ?>">
             <?php echo htmlspecialchars($uploadFeedbackMessages[$uploadFeedback], ENT_QUOTES, 'UTF-8'); ?>
         </div>
     <?php endif; ?>

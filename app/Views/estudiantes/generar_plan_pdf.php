@@ -416,7 +416,8 @@ $carreras = [
     'TOPOGRAFIA' => ['TOPOGRAFIA', 'TOPOGRAFÍA']
 ];
 
-function carrera_es($carreraNormalizada, $palabras) {
+function carrera_es($carreraNormalizada, $palabras)
+{
     foreach ($palabras as $palabra) {
         if (strpos($carreraNormalizada, $palabra) !== false) return true;
     }

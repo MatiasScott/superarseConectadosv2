@@ -221,9 +221,9 @@ $cumplimientoClass = $cumplimiento >= 80 ? 'ok' : ($cumplimiento >= 50 ? 'warn' 
 </section>
 
 <script>
-window.ADMIN_DASHBOARD_DATA = {
-    porMes: <?= json_encode($porMes, JSON_UNESCAPED_UNICODE); ?>,
-    topEmpresas: <?= json_encode($topEmpresas, JSON_UNESCAPED_UNICODE); ?>,
-    porCarrera: <?= json_encode($porCarrera, JSON_UNESCAPED_UNICODE); ?>
-};
+    window.ADMIN_DASHBOARD_DATA = {
+        porMes: <?= json_encode($porMes, JSON_UNESCAPED_UNICODE); ?>,
+        topEmpresas: <?= json_encode($topEmpresas, JSON_UNESCAPED_UNICODE); ?>,
+        porCarrera: <?= json_encode($porCarrera, JSON_UNESCAPED_UNICODE); ?>
+    };
 </script>

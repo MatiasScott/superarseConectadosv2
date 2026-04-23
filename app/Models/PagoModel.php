@@ -33,7 +33,7 @@ class PagoModel extends Database
                     'observacion' => null,
                 ];
             }
-            
+
             // Retorna los datos mapeados a las nuevas columnas de la DB
             return [
                 'cuotas' => [], // Campo placeholder para cuotas individuales si las manejaras aparte

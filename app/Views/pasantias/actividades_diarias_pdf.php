@@ -24,16 +24,18 @@ if (!function_exists('format_decimal_hours_hm_pdf')) {
 ?>
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta charset="utf-8">
     <title>Reporte de Actividades Diarias</title>
-    
+
     <?php
     // NOTA: Los estilos son generados por PHP para mantener el código limpio
     // Se inyectan inline porque DomPDF requiere estilos embebidos en el HTML
     include __DIR__ . '/pdf-styles-actividades.php';
     ?>
 </head>
+
 <body>
     <div class="header">
         <table class="header-table">
@@ -55,21 +57,21 @@ if (!function_exists('format_decimal_hours_hm_pdf')) {
     </div>
 
     <div class="info-estudiante">
-        <p><strong>Estudiante:</strong> <?php 
-            $nombreCompleto = trim(
-                ($estudiante['primer_nombre'] ?? '') . ' ' . 
-                ($estudiante['segundo_nombre'] ?? '') . ' ' . 
-                ($estudiante['primer_apellido'] ?? '') . ' ' . 
-                ($estudiante['segundo_apellido'] ?? '')
-            );
-            echo htmlspecialchars($nombreCompleto ?: 'N/A');
-        ?></p>
+        <p><strong>Estudiante:</strong> <?php
+                                        $nombreCompleto = trim(
+                                            ($estudiante['primer_nombre'] ?? '') . ' ' .
+                                                ($estudiante['segundo_nombre'] ?? '') . ' ' .
+                                                ($estudiante['primer_apellido'] ?? '') . ' ' .
+                                                ($estudiante['segundo_apellido'] ?? '')
+                                        );
+                                        echo htmlspecialchars($nombreCompleto ?: 'N/A');
+                                        ?></p>
         <p><strong>Cédula:</strong> <?php echo htmlspecialchars($estudiante['numero_identificacion'] ?? 'N/A'); ?></p>
         <p><strong>Programa:</strong> <?php echo htmlspecialchars($estudiante['programa'] ?? 'N/A'); ?></p>
         <p><strong>Entidad:</strong> <?php echo htmlspecialchars($practica['entidad_nombre_empresa'] ?? 'N/A'); ?></p>
     </div>
 
-    <?php 
+    <?php
     $totalHorasGeneral = 0;
     $totalSemanas = count($actividadesPorSemana);
     ?>
@@ -79,7 +81,7 @@ if (!function_exists('format_decimal_hours_hm_pdf')) {
             <div class="semana-header">
                 <h3>Semana <?php echo $semanaData['semana']; ?> - <?php echo $semanaData['anio']; ?></h3>
                 <p>
-                    Del <?php echo date('d/m/Y', strtotime($semanaData['fecha_inicio'])); ?> 
+                    Del <?php echo date('d/m/Y', strtotime($semanaData['fecha_inicio'])); ?>
                     al <?php echo date('d/m/Y', strtotime($semanaData['fecha_fin'])); ?>
                 </p>
             </div>
@@ -122,7 +124,7 @@ if (!function_exists('format_decimal_hours_hm_pdf')) {
 
     <div class="firmas-container">
         <h3 style="text-align: center; color: #1E40AF; margin-bottom: 30px;">APROBADO POR</h3>
-        
+
         <div class="firmas-grid">
             <div class="firma-box">
                 <div class="firma-line"></div>
@@ -156,4 +158,5 @@ if (!function_exists('format_decimal_hours_hm_pdf')) {
         <p style="margin: 3px 0;"><strong>Web:</strong> www.superarse.edu.ec</p>
     </div>
 </body>
+
 </html>

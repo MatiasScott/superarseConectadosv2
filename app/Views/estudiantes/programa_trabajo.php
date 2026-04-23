@@ -7,12 +7,13 @@
 
     <?php
     // Función para normalizar texto (eliminar tildes y convertir a mayúsculas)
-    function normalizarTexto($texto) {
+    function normalizarTexto($texto)
+    {
         $texto = strtoupper($texto);
         $tildes = ['Á' => 'A', 'É' => 'E', 'Í' => 'I', 'Ó' => 'O', 'Ú' => 'U', 'Ñ' => 'N'];
         return strtr($texto, $tildes);
     }
-    
+
     // Mapeo de programas a archivos (una sola vez, sin duplicados)
     $programaFileMap = [
         'ADMINISTRACION' => 'plan_de_aprendizaje_administracion',
@@ -56,14 +57,14 @@
                         d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                 </svg>
             </a>
-    <?php
+            <?php
         } else {
             // Es un PDF
             $filePath = __DIR__ . '/../../../public/Assets/files/' . $fileName . '.pdf';
 
             if (file_exists($filePath)) {
                 $fileUrl = $basePath . '/Assets/files/' . $fileName . '.pdf';
-    ?>
+            ?>
                 <a href="<?= $fileUrl ?>" target="_blank"
                     class="inline-flex items-center gap-2 px-8 py-3 bg-pink-600 text-white font-semibold rounded-lg hover:bg-pink-700 transition text-base"
                     style="font-size: 80%;">

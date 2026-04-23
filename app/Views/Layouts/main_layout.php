@@ -25,7 +25,7 @@ $buildAssetVersion = function ($relativePath) {
     <link rel="stylesheet" href="<?php echo $basePath; ?>/Assets/css/variables.css">
     <link rel="stylesheet" href="<?php echo $basePath; ?>/Assets/css/layout.css">
     <?php foreach ($moduleCss as $cssFile): ?>
-    <link rel="stylesheet" href="<?php echo $basePath; ?>/Assets/css/<?php echo ltrim($cssFile, '/'); ?>">
+        <link rel="stylesheet" href="<?php echo $basePath; ?>/Assets/css/<?php echo ltrim($cssFile, '/'); ?>">
     <?php endforeach; ?>
 </head>
 
@@ -52,7 +52,7 @@ $buildAssetVersion = function ($relativePath) {
 
     <main class="flex-grow pt-4 w-full lg:w-[90%] lg:mx-[5%]">
         <div class="w-full flex justify-center">
-            <?php include $vista_contenido;?>
+            <?php include $vista_contenido; ?>
         </div>
     </main>
 
@@ -63,14 +63,14 @@ $buildAssetVersion = function ($relativePath) {
     </footer>
 
     <script>
-    const DATOS_ESTUDIANTE = <?php echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT); ?>;
+        const DATOS_ESTUDIANTE = <?php echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT); ?>;
     </script>
     <script src="<?php echo $basePath; ?>/Assets/js/datos.js?v=<?php echo $buildAssetVersion('Assets/js/datos.js'); ?>"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="<?php echo $basePath; ?>/Assets/js/transferencia.js?v=<?php echo $buildAssetVersion('Assets/js/transferencia.js'); ?>"></script>
     <script src="<?php echo $basePath; ?>/Assets/js/payphone.js?v=<?php echo $buildAssetVersion('Assets/js/payphone.js'); ?>"></script>
     <?php foreach ($moduleJs as $jsFile): ?>
-    <script src="<?php echo $basePath; ?>/Assets/js/<?php echo ltrim($jsFile, '/'); ?>?v=<?php echo $buildAssetVersion('Assets/js/' . ltrim($jsFile, '/')); ?>"></script>
+        <script src="<?php echo $basePath; ?>/Assets/js/<?php echo ltrim($jsFile, '/'); ?>?v=<?php echo $buildAssetVersion('Assets/js/' . ltrim($jsFile, '/')); ?>"></script>
     <?php endforeach; ?>
 </body>
 

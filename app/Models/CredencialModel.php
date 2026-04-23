@@ -23,7 +23,7 @@ class CredencialModel extends Database
 
       // El ID de usuario para Moodle debe ser el numero_identificacion (CEDULA)
       $cedulaParaMoodle = $userInfo['numero_identificacion'];
-      
+
       // 2. Obtener la CLAVE de Moodle usando el numero_identificacion (CEDULA)
       $userQueryMoodle = "SELECT CLAVE, NIVEL FROM usersMoodle WHERE CEDULA = :cedula LIMIT 1";
       $userStmtMoodle = $db->prepare($userQueryMoodle);
@@ -34,7 +34,7 @@ class CredencialModel extends Database
       // --- Asignación de variables ---
       $plataformaUsuario = $userInfo['usuario']; // Usuario principal (ej: email o nombre de usuario)
       $plataformaUsuarioMoodle = $cedulaParaMoodle; // La cédula es el usuario de Moodle
-      
+
       // Corregido: Verificamos si la clave existe y accedemos a 'CLAVE', no a 'usuario'
       // Si no existe, usamos un valor por defecto (ej: 'N/A')
       $plataformaContraseñaMoodle = $userInfoMoodle ? $userInfoMoodle['CLAVE'] : 'Clave no encontrada';
@@ -42,7 +42,7 @@ class CredencialModel extends Database
 
       $plataformaUsuarioBiblioteca = $cedulaParaMoodle; // La cédula también es el usuario de la biblioteca
       $plataformaContraseñaBiblioteca = $userInfoMoodle ? $userInfoMoodle['CLAVE'] : 'Clave no encontrada'; // Asumimos que la contraseña es
-      
+
       // 3. Obtener credenciales de la plataforma general
       $plataformaQuery = "SELECT 
                               plataforma, 
@@ -56,7 +56,7 @@ class CredencialModel extends Database
       $plataformaStmt = $db->prepare($plataformaQuery);
       $plataformaStmt->execute();
       $plataformas = $plataformaStmt->fetchAll(PDO::FETCH_ASSOC);
-      
+
       $credencialesFinal = [];
       foreach ($plataformas as $p) {
         $credencialesFinal[] = [

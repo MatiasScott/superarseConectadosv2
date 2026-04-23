@@ -15,7 +15,7 @@ class UserModel
     }
     public function findByCedula($cedula)
     {
-                $query = "SELECT * FROM " . $this->table_name . "
+        $query = "SELECT * FROM " . $this->table_name . "
                                     WHERE numero_identificacion = :cedula
                                         AND UPPER(TRIM(estado)) = 'ACTIVO'
                                         AND UPPER(TRIM(programa)) NOT IN ('AUTO EVALUACION', 'AUTO EVALUCION', 'SEGUIMIENTO DOCENTE', 'EJEMPLO 1', 'EJEMPLO')
@@ -37,7 +37,7 @@ class UserModel
 
     public function getUserInfoByIdentificacion($identificacion)
     {
-                $query = "SELECT * FROM " . $this->table_name . "
+        $query = "SELECT * FROM " . $this->table_name . "
                                     WHERE numero_identificacion = :identificacion
                                         AND UPPER(TRIM(estado)) = 'ACTIVO'
                                         AND UPPER(TRIM(programa)) NOT IN ('AUTO EVALUACION', 'AUTO EVALUCION', 'SEGUIMIENTO DOCENTE', 'EJEMPLO 1', 'EJEMPLO')
@@ -58,7 +58,7 @@ class UserModel
 
     public function getProgramaInfoByIdentificacion($identificacion)
     {
-                $query = "SELECT programas.*
+        $query = "SELECT programas.*
                                     FROM programas
                                     INNER JOIN users ON users.programa = programas.programa
                                     WHERE users.numero_identificacion = :identificacion

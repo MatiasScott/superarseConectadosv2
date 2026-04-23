@@ -74,12 +74,14 @@ class Database
         $this->password = $this->env('DB_PASS');
 
         $missing = [];
-        foreach ([
-            'DB_HOST' => $this->host,
-            'DB_NAME' => $this->db_name,
-            'DB_USER' => $this->username,
-            'DB_PASS' => $this->password,
-        ] as $key => $value) {
+        foreach (
+            [
+                'DB_HOST' => $this->host,
+                'DB_NAME' => $this->db_name,
+                'DB_USER' => $this->username,
+                'DB_PASS' => $this->password,
+            ] as $key => $value
+        ) {
             if ($value === '') {
                 $missing[] = $key;
             }

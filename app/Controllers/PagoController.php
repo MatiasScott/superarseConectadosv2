@@ -16,7 +16,7 @@ class PagoController
         } else {
             $this->basePath = '/superarseconectadosv2/public';
         }
-        
+
         if (session_status() == PHP_SESSION_NONE) {
             session_start();
         }

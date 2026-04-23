@@ -1,4 +1,5 @@
 <?php
+
 /**
  * pdf-styles-actividades.php
  * 

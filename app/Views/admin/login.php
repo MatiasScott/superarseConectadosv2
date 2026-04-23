@@ -6,7 +6,7 @@
 
             <?php if (isset($_GET['error'])): ?>
                 <div class="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-                    <?php 
+                    <?php
                     if ($_GET['error'] == 'invalid_credentials') {
                         echo "Correo o contraseña incorrectos";
                     } elseif ($_GET['error'] == 'campos_vacios') {

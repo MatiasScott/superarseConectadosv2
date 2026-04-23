@@ -21,7 +21,7 @@ class LoginController
         } else {
             $this->basePath = '/superarseconectadosv2/public';
         }
-        
+
         $this->userModel = new UserModel();
         $this->authAccountModel = new AuthAccountModel();
         $this->resetModel = new PasswordResetModel();
@@ -29,7 +29,7 @@ class LoginController
             session_start();
         }
     }
-    
+
     public function index()
     {
         if (isset($_SESSION['authenticated']) && $_SESSION['authenticated'] === true && !empty($_SESSION['must_change_password'])) {
@@ -42,7 +42,7 @@ class LoginController
             header("Location: " . $this->basePath . "/estudiante/informacion");
             exit();
         }
-        
+
         // Si está autenticado como admin, no permitir acceso al login de estudiante
         if (isset($_SESSION['is_admin']) && $_SESSION['is_admin'] === true) {
             if (!empty($_SESSION['must_change_password'])) {
@@ -209,7 +209,7 @@ class LoginController
         unset($_SESSION['auth_account_id']);
         unset($_SESSION['auth_role']);
         unset($_SESSION['must_change_password']);
-        
+
         session_destroy();
         header("Location: " . $this->basePath . "/login");
         exit();

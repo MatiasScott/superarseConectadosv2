@@ -373,9 +373,9 @@ $buildFieldDiff = static function ($actionType, array $before, array $after) use
                     changeClass = 'text-red-700 bg-red-100 border-red-200';
                 }
 
-                const wrapperClass = isSensitive
-                    ? 'p-2 rounded border border-yellow-300 bg-yellow-50'
-                    : 'p-2 rounded border border-gray-200 bg-white';
+                const wrapperClass = isSensitive ?
+                    'p-2 rounded border border-yellow-300 bg-yellow-50' :
+                    'p-2 rounded border border-gray-200 bg-white';
 
                 return `
                     <div class="${wrapperClass}">

@@ -237,7 +237,7 @@
 <div class="bg-white shadow-lg rounded-2xl p-6 mb-8">
 
     <div class="flex justify-between items-center mb-4">
-        <h2 class="text-xl font-bold text-gray-800">Proyectos  de Investigación  e Innovacion por Carrera</h2>
+        <h2 class="text-xl font-bold text-gray-800">Proyectos de Investigación e Innovacion por Carrera</h2>
 
         <a href="<?= $basePath ?>/admin/carrera/crear"
             class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">

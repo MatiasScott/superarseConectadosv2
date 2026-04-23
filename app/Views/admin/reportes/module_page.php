@@ -32,8 +32,7 @@ $sections = $sections ?? [];
                             </select>
                             <button
                                 type="submit"
-                                class="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-superarse-morado-medio hover:bg-superarse-morado-oscuro text-white font-semibold text-sm transition"
-                            >
+                                class="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-superarse-morado-medio hover:bg-superarse-morado-oscuro text-white font-semibold text-sm transition">
                                 Descargar
                             </button>
                         </form>

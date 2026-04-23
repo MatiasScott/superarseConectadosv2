@@ -25,20 +25,20 @@ $headerSubtitle = $headerSubtitle ?? '';
     <script src="<?= $basePath ?>/Assets/js/tailwind-config.js"></script>
 
     <?php foreach ($moduleHeadStyles as $styleHref): ?>
-    <link rel="stylesheet" href="<?= htmlspecialchars($styleHref) ?>">
+        <link rel="stylesheet" href="<?= htmlspecialchars($styleHref) ?>">
     <?php endforeach; ?>
 
     <?php foreach ($moduleHeadScripts as $scriptSrc): ?>
-    <script src="<?= htmlspecialchars($scriptSrc) ?>"></script>
+        <script src="<?= htmlspecialchars($scriptSrc) ?>"></script>
     <?php endforeach; ?>
 
     <?php foreach ($moduleHeadRaw as $rawHeadTag): ?>
-    <?= $rawHeadTag ?>
+        <?= $rawHeadTag ?>
     <?php endforeach; ?>
 
     <link rel="stylesheet" href="<?= $basePath ?>/Assets/css/variables.css">
     <?php foreach ($moduleCss as $cssFile): ?>
-    <link rel="stylesheet" href="<?= $basePath ?>/Assets/css/<?= ltrim($cssFile, '/') ?>">
+        <link rel="stylesheet" href="<?= $basePath ?>/Assets/css/<?= ltrim($cssFile, '/') ?>">
     <?php endforeach; ?>
 </head>
 
@@ -51,7 +51,7 @@ $headerSubtitle = $headerSubtitle ?? '';
 
             <p class="text-xl font-light m-0 font-semibold"><?= htmlspecialchars($headerTitle) ?></p>
             <?php if (!empty($headerSubtitle)): ?>
-            <p class="text-sm font-light m-0"><?= htmlspecialchars($headerSubtitle) ?></p>
+                <p class="text-sm font-light m-0"><?= htmlspecialchars($headerSubtitle) ?></p>
             <?php endif; ?>
         </div>
     </header>
@@ -65,15 +65,15 @@ $headerSubtitle = $headerSubtitle ?? '';
     </footer>
 
     <?php foreach ($moduleBodyScripts as $scriptSrc): ?>
-    <script src="<?= htmlspecialchars($scriptSrc) ?>"></script>
+        <script src="<?= htmlspecialchars($scriptSrc) ?>"></script>
     <?php endforeach; ?>
 
     <?php foreach ($moduleBodyRaw as $rawBodyTag): ?>
-    <?= $rawBodyTag ?>
+        <?= $rawBodyTag ?>
     <?php endforeach; ?>
 
     <?php foreach ($moduleJs as $jsFile): ?>
-    <script src="<?= $basePath ?>/Assets/js/<?= ltrim($jsFile, '/') ?>"></script>
+        <script src="<?= $basePath ?>/Assets/js/<?= ltrim($jsFile, '/') ?>"></script>
     <?php endforeach; ?>
 </body>
 

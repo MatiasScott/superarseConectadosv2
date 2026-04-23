@@ -74,5 +74,4 @@ class VinculacionController
 
         require 'views/investigacion/editar.php';
     }
-
 }

@@ -44,16 +44,16 @@ class Ponencia extends Database
         ]);
     }
 
-        public function obtenerPorId($id)
-        {
-            $db = $this->getConnection();
-    
-            $sql = "SELECT * FROM {$this->table_name} WHERE id_ponencia = ?";
-            $stmt = $db->prepare($sql);
-            $stmt->execute([$id]);
-    
-            return $stmt->fetch(PDO::FETCH_ASSOC);
-        }
+    public function obtenerPorId($id)
+    {
+        $db = $this->getConnection();
+
+        $sql = "SELECT * FROM {$this->table_name} WHERE id_ponencia = ?";
+        $stmt = $db->prepare($sql);
+        $stmt->execute([$id]);
+
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
 
     public function actualizar($id, $data)
     {

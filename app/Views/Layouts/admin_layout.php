@@ -50,7 +50,7 @@ foreach ($adminManagementNavItems as $managementItem) {
     <link rel="stylesheet" href="<?php echo $basePath; ?>/Assets/css/variables.css">
     <link rel="stylesheet" href="<?php echo $basePath; ?>/Assets/css/layout.css">
     <?php foreach ($moduleCss as $cssFile): ?>
-    <link rel="stylesheet" href="<?php echo $basePath; ?>/Assets/css/<?php echo ltrim($cssFile, '/'); ?>">
+        <link rel="stylesheet" href="<?php echo $basePath; ?>/Assets/css/<?php echo ltrim($cssFile, '/'); ?>">
     <?php endforeach; ?>
 
     <script src="https://cdn.tailwindcss.com"></script>
@@ -70,7 +70,7 @@ foreach ($adminManagementNavItems as $managementItem) {
     </script>
 
     <?php foreach ($moduleHeadScripts as $scriptSrc): ?>
-    <script src="<?php echo htmlspecialchars($scriptSrc, ENT_QUOTES, 'UTF-8'); ?>"></script>
+        <script src="<?php echo htmlspecialchars($scriptSrc, ENT_QUOTES, 'UTF-8'); ?>"></script>
     <?php endforeach; ?>
 
 </head>
@@ -194,10 +194,10 @@ foreach ($adminManagementNavItems as $managementItem) {
     </main>
 
     <?php foreach ($moduleBodyScripts as $scriptSrc): ?>
-    <script src="<?php echo htmlspecialchars($scriptSrc, ENT_QUOTES, 'UTF-8'); ?>"></script>
+        <script src="<?php echo htmlspecialchars($scriptSrc, ENT_QUOTES, 'UTF-8'); ?>"></script>
     <?php endforeach; ?>
     <?php foreach ($moduleJs as $jsFile): ?>
-    <script src="<?php echo $basePath; ?>/Assets/js/<?php echo ltrim($jsFile, '/'); ?>"></script>
+        <script src="<?php echo $basePath; ?>/Assets/js/<?php echo ltrim($jsFile, '/'); ?>"></script>
     <?php endforeach; ?>
 
 </body>

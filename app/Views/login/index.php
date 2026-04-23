@@ -58,21 +58,20 @@
     </div>
 </main>
 
-    <div class="modal fade" id="errorModal" tabindex="-1" aria-labelledby="errorModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header bg-superarse-rosa text-white">
-                    <h5 class="modal-title" id="errorModalLabel">Error de Acceso</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
-                        aria-label="Close"></button>
-                </div>
-                <div class="modal-body text-center text-gray-700" id="errorMessage">
-                </div>
-                <div class="modal-footer justify-content-center">
-                    <button type="button" class="btn bg-superarse-morado-medio text-white"
-                        data-bs-dismiss="modal">Aceptar</button>
-                </div>
+<div class="modal fade" id="errorModal" tabindex="-1" aria-labelledby="errorModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-superarse-rosa text-white">
+                <h5 class="modal-title" id="errorModalLabel">Error de Acceso</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center text-gray-700" id="errorMessage">
+            </div>
+            <div class="modal-footer justify-content-center">
+                <button type="button" class="btn bg-superarse-morado-medio text-white"
+                    data-bs-dismiss="modal">Aceptar</button>
             </div>
         </div>
     </div>
-
+</div>

@@ -17,7 +17,7 @@ if (!empty($logoSrc)) {
 <head>
     <meta charset="utf-8">
     <title>Registro de Práctica Pre-Profesional (Fase 1)</title>
-    
+
     <?php
     // NOTA: Los estilos son generados por PHP para mantener el código limpio
     // Se inyectan inline porque DomPDF requiere estilos embebidos en el HTML
@@ -189,7 +189,7 @@ if (!empty($logoSrc)) {
 
     <div class="signature-area">
         <p style="margin-bottom: 50px;">Registro Aprobado y Formalizado</p>
-        
+
         <table class="signature-table">
             <tr>
                 <td style="border-top: 1px solid #000; padding-top: 5px;">

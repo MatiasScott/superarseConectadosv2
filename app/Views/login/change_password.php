@@ -44,27 +44,27 @@ $messages = [
                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-superarse-morado-medio"
                         placeholder="Crea una contraseña segura">
                 </div>
-                
-                    <div class="mb-6 rounded-lg border border-superarse-morado-medio/20 bg-superarse-morado-medio/5 p-4 text-sm text-gray-700">
-                        <p class="font-semibold mb-2">La contraseña debe cumplir:</p>
-                        <ul class="space-y-1">
-                            <li id="length" class="text-gray-500">• 8 a 12 caracteres</li>
-                            <li id="uppercase" class="text-gray-500">• Al menos una mayúscula</li>
-                            <li id="lowercase" class="text-gray-500">• Al menos una minúscula</li>
-                            <li id="number" class="text-gray-500">• Al menos un número</li>
-                            <li id="special" class="text-gray-500">• Un signo especial</li>
-                        </ul>
-                    </div>
+
+                <div class="mb-6 rounded-lg border border-superarse-morado-medio/20 bg-superarse-morado-medio/5 p-4 text-sm text-gray-700">
+                    <p class="font-semibold mb-2">La contraseña debe cumplir:</p>
+                    <ul class="space-y-1">
+                        <li id="length" class="text-gray-500">• 8 a 12 caracteres</li>
+                        <li id="uppercase" class="text-gray-500">• Al menos una mayúscula</li>
+                        <li id="lowercase" class="text-gray-500">• Al menos una minúscula</li>
+                        <li id="number" class="text-gray-500">• Al menos un número</li>
+                        <li id="special" class="text-gray-500">• Un signo especial</li>
+                    </ul>
+                </div>
 
                 <div>
                     <label for="confirm_password" class="block text-gray-700 text-sm font-semibold mb-2">Confirmar nueva contraseña</label>
                     <input type="password" id="confirm_password" name="confirm_password" required maxlength="12" autocomplete="new-password"
                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-superarse-morado-medio"
                         placeholder="Repite la nueva contraseña">
-                        
-                        <div id="match_message" class="text-sm mt-1 text-gray-500">
-                            • Las contraseñas deben coincidir
-                        </div>
+
+                    <div id="match_message" class="text-sm mt-1 text-gray-500">
+                        • Las contraseñas deben coincidir
+                    </div>
                 </div>
 
                 <button type="submit"
@@ -83,88 +83,88 @@ $messages = [
 </main>
 
 <script>
-const passwordInput = document.getElementById('new_password');
-const confirmInput = document.getElementById('confirm_password');
-const matchMessage = document.getElementById('match_message');
-const form = document.querySelector('form');
+    const passwordInput = document.getElementById('new_password');
+    const confirmInput = document.getElementById('confirm_password');
+    const matchMessage = document.getElementById('match_message');
+    const form = document.querySelector('form');
 
-const rules = {
-    length: document.getElementById('length'),
-    uppercase: document.getElementById('uppercase'),
-    lowercase: document.getElementById('lowercase'),
-    number: document.getElementById('number'),
-    special: document.getElementById('special'),
-};
-
-// Validación de reglas
-passwordInput.addEventListener('input', () => {
-    const value = passwordInput.value;
-
-    const validations = {
-        length: value.length >= 8 && value.length <= 12,
-        uppercase: /[A-Z]/.test(value),
-        lowercase: /[a-z]/.test(value),
-        number: /[0-9]/.test(value),
-        special: /[\W_]/.test(value)
+    const rules = {
+        length: document.getElementById('length'),
+        uppercase: document.getElementById('uppercase'),
+        lowercase: document.getElementById('lowercase'),
+        number: document.getElementById('number'),
+        special: document.getElementById('special'),
     };
 
-    Object.keys(validations).forEach(rule => {
-        if (validations[rule]) {
-            rules[rule].classList.remove('text-gray-500');
-            rules[rule].classList.add('text-green-600');
-            rules[rule].textContent = '✔ ' + rules[rule].textContent.replace(/^✔ |^• /, '');
-        } else {
-            rules[rule].classList.remove('text-green-600');
-            rules[rule].classList.add('text-gray-500');
-            rules[rule].textContent = '• ' + rules[rule].textContent.replace(/^✔ |^• /, '');
-        }
+    // Validación de reglas
+    passwordInput.addEventListener('input', () => {
+        const value = passwordInput.value;
+
+        const validations = {
+            length: value.length >= 8 && value.length <= 12,
+            uppercase: /[A-Z]/.test(value),
+            lowercase: /[a-z]/.test(value),
+            number: /[0-9]/.test(value),
+            special: /[\W_]/.test(value)
+        };
+
+        Object.keys(validations).forEach(rule => {
+            if (validations[rule]) {
+                rules[rule].classList.remove('text-gray-500');
+                rules[rule].classList.add('text-green-600');
+                rules[rule].textContent = '✔ ' + rules[rule].textContent.replace(/^✔ |^• /, '');
+            } else {
+                rules[rule].classList.remove('text-green-600');
+                rules[rule].classList.add('text-gray-500');
+                rules[rule].textContent = '• ' + rules[rule].textContent.replace(/^✔ |^• /, '');
+            }
+        });
+
+        checkPasswordMatch();
     });
 
-    checkPasswordMatch();
-});
+    // Validación de coincidencia
+    function checkPasswordMatch() {
+        const password = passwordInput.value;
+        const confirm = confirmInput.value;
 
-// Validación de coincidencia
-function checkPasswordMatch() {
-    const password = passwordInput.value;
-    const confirm = confirmInput.value;
+        if (confirm.length === 0) {
+            matchMessage.textContent = '• Las contraseñas deben coincidir';
+            matchMessage.classList.remove('text-green-600', 'text-red-600');
+            matchMessage.classList.add('text-gray-500');
+            return;
+        }
 
-    if (confirm.length === 0) {
-        matchMessage.textContent = '• Las contraseñas deben coincidir';
-        matchMessage.classList.remove('text-green-600', 'text-red-600');
-        matchMessage.classList.add('text-gray-500');
-        return;
+        if (password === confirm) {
+            matchMessage.textContent = '✔ Las contraseñas coinciden';
+            matchMessage.classList.remove('text-gray-500', 'text-red-600');
+            matchMessage.classList.add('text-green-600');
+        } else {
+            matchMessage.textContent = '✖ Las contraseñas no coinciden';
+            matchMessage.classList.remove('text-gray-500', 'text-green-600');
+            matchMessage.classList.add('text-red-600');
+        }
     }
 
-    if (password === confirm) {
-        matchMessage.textContent = '✔ Las contraseñas coinciden';
-        matchMessage.classList.remove('text-gray-500', 'text-red-600');
-        matchMessage.classList.add('text-green-600');
-    } else {
-        matchMessage.textContent = '✖ Las contraseñas no coinciden';
-        matchMessage.classList.remove('text-gray-500', 'text-green-600');
-        matchMessage.classList.add('text-red-600');
-    }
-}
+    confirmInput.addEventListener('input', checkPasswordMatch);
 
-confirmInput.addEventListener('input', checkPasswordMatch);
+    // Validación al enviar
+    form.addEventListener('submit', function(e) {
+        const value = passwordInput.value;
+        const confirm = confirmInput.value;
 
-// Validación al enviar
-form.addEventListener('submit', function(e) {
-    const value = passwordInput.value;
-    const confirm = confirmInput.value;
+        const isValid =
+            value.length >= 8 &&
+            value.length <= 12 &&
+            /[A-Z]/.test(value) &&
+            /[a-z]/.test(value) &&
+            /[0-9]/.test(value) &&
+            /[\W_]/.test(value) &&
+            value === confirm;
 
-    const isValid =
-        value.length >= 8 &&
-        value.length <= 12 &&
-        /[A-Z]/.test(value) &&
-        /[a-z]/.test(value) &&
-        /[0-9]/.test(value) &&
-        /[\W_]/.test(value) &&
-        value === confirm;
-
-    if (!isValid) {
-        e.preventDefault();
-        alert('La contraseña no cumple con los requisitos o no coincide.');
-    }
-});
+        if (!isValid) {
+            e.preventDefault();
+            alert('La contraseña no cumple con los requisitos o no coincide.');
+        }
+    });
 </script>

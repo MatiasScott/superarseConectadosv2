@@ -140,28 +140,30 @@ if (!function_exists('format_decimal_hours_hm')) {
         this.horasCalculadas = '';
     }
 }
-}" 
-data-actividades-existentes="<?php echo htmlspecialchars(json_encode(array_map(function($a) { return $a['fecha_actividad']; }, $actividadesDiarias)), ENT_QUOTES, 'UTF-8'); ?>">
+}"
+    data-actividades-existentes="<?php echo htmlspecialchars(json_encode(array_map(function ($a) {
+                                        return $a['fecha_actividad'];
+                                    }, $actividadesDiarias)), ENT_QUOTES, 'UTF-8'); ?>">
     <div class="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center mb-4">
         <div>
             <h2 class="text-lg font-semibold text-gray-700">🗓️ Actividades Diarias</h2>
             <div class="mt-2 flex gap-2">
                 <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-superarse-morado-claro text-superarse-morado-oscuro">
-                    ⏱️ Total de horas: <strong class="ml-1"><?php 
-                        $totalHoras = $totalHorasActividades ?? $data['totalHorasActividades'] ?? 0;
-                        echo htmlspecialchars(format_decimal_hours_hm($totalHoras), ENT_QUOTES, 'UTF-8');
-                    ?></strong>
+                    ⏱️ Total de horas: <strong class="ml-1"><?php
+                                                            $totalHoras = $totalHorasActividades ?? $data['totalHorasActividades'] ?? 0;
+                                                            echo htmlspecialchars(format_decimal_hours_hm($totalHoras), ENT_QUOTES, 'UTF-8');
+                                                            ?></strong>
                 </span>
                 <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-700">
-                    📝 Registradas: <strong class="ml-1"><?php 
-                        $totalRegistradas = $totalRegistros ?? $data['totalActividadesDiarias'] ?? 0;
-                        echo $totalRegistradas;
-                    ?></strong>
+                    📝 Registradas: <strong class="ml-1"><?php
+                                                            $totalRegistradas = $totalRegistros ?? $data['totalActividadesDiarias'] ?? 0;
+                                                            echo $totalRegistradas;
+                                                            ?></strong>
                 </span>
             </div>
         </div>
         <div class="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-            <a href="<?php echo $basePath; ?>/pasantias/generateActividadesPdf/<?php echo $practicaId; ?>" 
+            <a href="<?php echo $basePath; ?>/pasantias/generateActividadesPdf/<?php echo $practicaId; ?>"
                 target="_blank"
                 class="bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700 transition duration-150 flex items-center justify-center gap-2">
                 📄 Descargar PDF
@@ -349,8 +351,8 @@ data-actividades-existentes="<?php echo htmlspecialchars(json_encode(array_map(f
                                                 title="Eliminar actividad">
                                                 🗑️ Eliminar
                                             </button>
-                                                <input type="hidden" name="tab" value="actividades">
-                                                <input type="hidden" name="activity_page" value="<?php echo (int) $activityPage; ?>">
+                                            <input type="hidden" name="tab" value="actividades">
+                                            <input type="hidden" name="activity_page" value="<?php echo (int) $activityPage; ?>">
                                         </form>
 
                                     </div>
