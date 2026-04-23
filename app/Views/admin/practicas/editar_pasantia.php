@@ -336,17 +336,58 @@
 
             <!-- ESTADO EDITABLE -->
             <section class="border border-gray-200 rounded-xl p-4 sm:p-5">
-                <label for="estado_fase_uno_completado" class="block text-base font-semibold text-gray-900 mb-3">
-                    Fase
-                </label>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                    <div>
+                        <label for="estado_fase_uno_completado" class="block text-base font-semibold text-gray-900 mb-3">
+                            Fase
+                        </label>
 
-                <select id="estado_fase_uno_completado"
-                    name="estado_fase_uno_completado"
-                    required
-                    class="block w-full md:w-80 px-4 py-3 text-base border-2 border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition">
-                    <option value="0" <?php echo ((int)$practica['estado_fase_uno_completado'] === 0) ? 'selected' : ''; ?>>Fase 1</option>
-                    <option value="1" <?php echo ((int)$practica['estado_fase_uno_completado'] === 1) ? 'selected' : ''; ?>>Fase 2</option>
-                </select>
+                        <select id="estado_fase_uno_completado"
+                            name="estado_fase_uno_completado"
+                            required
+                            class="block w-full px-4 py-3 text-base border-2 border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition">
+                            <option value="0" <?php echo ((int)$practica['estado_fase_uno_completado'] === 0) ? 'selected' : ''; ?>>Fase 1</option>
+                            <option value="1" <?php echo ((int)$practica['estado_fase_uno_completado'] === 1) ? 'selected' : ''; ?>>Fase 2</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="estado" class="block text-base font-semibold text-gray-900 mb-3">
+                            Estado de práctica
+                        </label>
+                        <select id="estado" name="estado"
+                            class="block w-full px-4 py-3 text-base border-2 border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition">
+                            <option value="ACTIVA" <?php echo (($practica['estado'] ?? 'ACTIVA') === 'ACTIVA') ? 'selected' : ''; ?>>ACTIVA</option>
+                            <option value="FINALIZADA" <?php echo (($practica['estado'] ?? '') === 'FINALIZADA') ? 'selected' : ''; ?>>FINALIZADA</option>
+                            <option value="CANCELADA" <?php echo (($practica['estado'] ?? '') === 'CANCELADA') ? 'selected' : ''; ?>>CANCELADA</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="fecha_fin_visual" class="block text-base font-semibold text-gray-900 mb-3">
+                            Fecha fin
+                        </label>
+                        <input type="text" id="fecha_fin_visual"
+                            value="<?php echo !empty($practica['fecha_fin']) ? htmlspecialchars(date('d/m/Y', strtotime($practica['fecha_fin']))) : 'No definida'; ?>"
+                            readonly
+                            class="block w-full px-4 py-3 text-base border-2 border-gray-200 bg-gray-100 rounded-xl text-gray-700">
+                    </div>
+                </div>
+
+                <div class="mt-5">
+                    <label for="observacion" class="block text-base font-semibold text-gray-900 mb-2">
+                        Observación
+                    </label>
+                    <textarea
+                        id="observacion"
+                        name="observacion"
+                        rows="4"
+                        placeholder="Escribe el motivo de cancelación/finalización o comentarios adicionales"
+                        class="block w-full px-4 py-3 text-base border-2 border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"><?php echo htmlspecialchars((string) ($practica['observacion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></textarea>
+                    <p class="mt-2 text-xs text-gray-500">
+                        Puedes usar este campo para explicar por qué se finaliza o cancela la práctica, o para dejar notas de seguimiento.
+                    </p>
+                </div>
             </section>
 
             <!-- Botones -->

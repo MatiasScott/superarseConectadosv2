@@ -3,11 +3,28 @@ require_once __DIR__ . '/Database.php';
 class PasantiaModel extends Database
 {
     private $db;
+    private ?bool $hasObservacionColumn = null;
 
     public function __construct()
     {
         $this->db = $this->getConnection();
         $this->db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    }
+
+    private function practicaTieneObservacionColumn(): bool
+    {
+        if ($this->hasObservacionColumn !== null) {
+            return $this->hasObservacionColumn;
+        }
+
+        try {
+            $stmt = $this->db->query("SHOW COLUMNS FROM practicas_estudiantes LIKE 'observacion'");
+            $this->hasObservacionColumn = (bool) $stmt->fetch(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            $this->hasObservacionColumn = false;
+        }
+
+        return $this->hasObservacionColumn;
     }
     public function getActiveDocentes()
     {
@@ -56,6 +73,10 @@ class PasantiaModel extends Database
 
     public function getPracticaById(int $practicaId)
     {
+        $selectObservacion = $this->practicaTieneObservacionColumn()
+            ? "pe.observacion,"
+            : "'' AS observacion,";
+
         $query = "SELECT
             pe.id_practica,
             pe.modalidad,
@@ -66,6 +87,9 @@ class PasantiaModel extends Database
             pe.entidad_id,
             pe.tutor_empresarial_id,
             pe.fecha_registro,
+            pe.estado,
+            pe.fecha_fin,
+            {$selectObservacion}
             ent.ruc,
             ent.nombre_empresa,
             ent.id_entidad,
@@ -949,16 +973,43 @@ class PasantiaModel extends Database
         try {
             $this->db->beginTransaction();
 
+            $estadoActual = strtoupper(trim((string) ($datos['estado_actual'] ?? 'ACTIVA')));
+            $nuevoEstado = strtoupper(trim((string) ($datos['estado'] ?? 'ACTIVA')));
+            $estadosPermitidos = ['ACTIVA', 'FINALIZADA', 'CANCELADA'];
+            if (!in_array($nuevoEstado, $estadosPermitidos, true)) {
+                $nuevoEstado = 'ACTIVA';
+            }
+
+            $fechaFin = $datos['fecha_fin_actual'] ?? null;
+            if ($nuevoEstado === 'ACTIVA') {
+                $fechaFin = null;
+            } elseif ($nuevoEstado !== $estadoActual) {
+                // Si cambió a FINALIZADA/CANCELADA, registrar fecha fin del día del cambio.
+                $fechaFin = date('Y-m-d');
+            }
+
+            $setObservacion = $this->practicaTieneObservacionColumn() ? ",\n                    observacion = :observacion" : "";
+
             $queryPractica = "UPDATE practicas_estudiantes SET 
                     estado_fase_uno_completado = :estado_fase_uno_completado,
-                    afiliacion_iess = :afiliacion_iess
+                    afiliacion_iess = :afiliacion_iess,
+                    estado = :estado,
+                    fecha_fin = :fecha_fin{$setObservacion}
                     WHERE id_practica = :id_practica";
             $stmtPractica = $this->db->prepare($queryPractica);
-            $stmtPractica->execute([
+            $paramsPractica = [
                 ':estado_fase_uno_completado' => (int) ($datos['estado_fase_uno_completado'] ?? 0),
                 ':afiliacion_iess' => trim((string) ($datos['afiliacion_iess'] ?? '')),
+                ':estado' => $nuevoEstado,
+                ':fecha_fin' => $fechaFin,
                 ':id_practica' => (int) $id_practica,
-            ]);
+            ];
+
+            if ($this->practicaTieneObservacionColumn()) {
+                $paramsPractica[':observacion'] = trim((string) ($datos['observacion'] ?? ''));
+            }
+
+            $stmtPractica->execute($paramsPractica);
 
             if (!empty($datos['entidad_id'])) {
                 $queryEntidad = "UPDATE entidades SET
@@ -1789,17 +1840,31 @@ class PasantiaModel extends Database
         }
     }
 
-    public function contarPorEstado($estado)
+    public function contarPorEstado($estado, $estadoPractica = 'ACTIVA')
     {
         $sql = "SELECT COUNT(*) FROM practicas_estudiantes 
             WHERE estado_fase_uno_completado = :estado";
 
+        $params = ['estado' => $estado];
+        if ($estadoPractica !== '' && strtoupper($estadoPractica) !== 'TODOS') {
+            $sql .= " AND estado = :estado_practica";
+            $params['estado_practica'] = strtoupper($estadoPractica);
+        }
+
         $stmt = $this->db->prepare($sql);
-        $stmt->execute(['estado' => $estado]);
+        $stmt->execute($params);
         return $stmt->fetchColumn();
     }
 
-    public function contarPracticas($buscar = '', $estado = '')
+    public function contarPorEstadoPractica($estadoPractica)
+    {
+        $sql = "SELECT COUNT(*) FROM practicas_estudiantes WHERE estado = :estado_practica";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(['estado_practica' => strtoupper((string) $estadoPractica)]);
+        return (int) $stmt->fetchColumn();
+    }
+
+    public function contarPracticas($buscar = '', $estado = '', $estadoPractica = 'ACTIVA')
     {
         $sql = "SELECT COUNT(*) FROM practicas_estudiantes pe
             INNER JOIN users u ON u.id = pe.user_id
@@ -1807,6 +1872,11 @@ class PasantiaModel extends Database
             WHERE 1=1";
 
         $params = [];
+
+        if ($estadoPractica !== '' && strtoupper($estadoPractica) !== 'TODOS') {
+            $sql .= " AND pe.estado = :estado_practica";
+            $params['estado_practica'] = strtoupper($estadoPractica);
+        }
 
         if ($buscar) {
             $sql .= " AND (CONCAT(u.primer_nombre,' ',u.primer_apellido) LIKE :buscar 
@@ -1824,7 +1894,7 @@ class PasantiaModel extends Database
         return $stmt->fetchColumn();
     }
 
-    public function getPracticasPaginadas($buscar, $estado, $limite, $offset)
+    public function getPracticasPaginadas($buscar, $estado, $limite, $offset, $estadoPractica = 'ACTIVA')
     {
         $sql = "SELECT pe.*, 
             e.nombre_empresa,
@@ -1835,6 +1905,11 @@ class PasantiaModel extends Database
             WHERE 1=1";
 
         $params = [];
+
+        if ($estadoPractica !== '' && strtoupper($estadoPractica) !== 'TODOS') {
+            $sql .= " AND pe.estado = :estado_practica";
+            $params['estado_practica'] = strtoupper($estadoPractica);
+        }
 
         if ($buscar) {
             $sql .= " AND (CONCAT(u.primer_nombre,' ',u.primer_apellido) LIKE :buscar 

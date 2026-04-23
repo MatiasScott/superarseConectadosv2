@@ -1316,20 +1316,24 @@ class AdminController
         }
 
         $buscar = $_GET['buscar'] ?? '';
-        $estado = $_GET['estado'] ?? '';
+        $fase = $_GET['fase'] ?? ($_GET['estado'] ?? '');
+        $estadoPractica = strtoupper(trim((string) ($_GET['estado_practica'] ?? 'TODOS')));
+        if (!in_array($estadoPractica, ['ACTIVA', 'FINALIZADA', 'CANCELADA', 'TODOS'], true)) {
+            $estadoPractica = 'TODOS';
+        }
         $pagina = isset($_GET['page']) ? (int)$_GET['page'] : 1;
         $limite = 15;
         $offset = ($pagina - 1) * $limite;
 
         // Obtener total general (para contador)
-        $totalRegistros = $this->pasantiaModel->contarPracticas($buscar, $estado);
+        $totalRegistros = $this->pasantiaModel->contarPracticas($buscar, $fase, $estadoPractica);
 
         // Obtener registros paginados
-        $pasantias = $this->pasantiaModel->getPracticasPaginadas($buscar, $estado, $limite, $offset);
+        $pasantias = $this->pasantiaModel->getPracticasPaginadas($buscar, $fase, $limite, $offset, $estadoPractica);
 
         // Contadores KPI
-        $totalCompletadas = $this->pasantiaModel->contarPorEstado(1);
-        $totalPendientes = $this->pasantiaModel->contarPorEstado(0);
+        $totalCompletadas = $this->pasantiaModel->contarPorEstado(1, $estadoPractica);
+        $totalPendientes = $this->pasantiaModel->contarPorEstado(0, $estadoPractica);
 
         $totalPaginas = ceil($totalRegistros / $limite);
 
@@ -1341,7 +1345,8 @@ class AdminController
             'totalPendientes' => $totalPendientes,
             'paginaActual' => $pagina,
             'totalPaginas' => $totalPaginas,
-            'estado' => $estado,
+            'estado' => $fase,
+            'estadoPractica' => $estadoPractica,
             'buscar' => $buscar
         ]);
     }

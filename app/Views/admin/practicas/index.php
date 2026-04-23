@@ -3,7 +3,7 @@
     <div>
         <h1 class="text-2xl font-bold text-gray-800">Gestión de Prácticas</h1>
         <p class="text-sm text-gray-500">
-            Total de registros: <span class="font-semibold"><?= $totalRegistros ?></span>
+            Total de registros (según filtro): <span class="font-semibold\"><?= $totalRegistros ?></span>
         </p>
     </div>
 </div>
@@ -28,7 +28,6 @@
     </div>
 
 </div>
-
 
 <!-- 🔷 MENSAJES -->
 <?php if (isset($_SESSION['success'])): ?>
@@ -58,12 +57,22 @@
             placeholder="Buscar por estudiante o empresa..."
             class="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-purple-600 focus:outline-none">
 
-        <select name="estado"
+        <select name="fase"
             class="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-purple-600 focus:outline-none">
 
-            <option value="">Todos los estados</option>
+            <option value="">Todas las fases</option>
             <option value="0" <?= ($estado === "0") ? 'selected' : '' ?>>Fase 1</option>
             <option value="1" <?= ($estado === "1") ? 'selected' : '' ?>>Fase 2</option>
+
+        </select>
+
+        <select name="estado_practica"
+            class="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-purple-600 focus:outline-none">
+
+            <option value="TODOS" <?= (($estadoPractica ?? 'TODOS') === 'TODOS') ? 'selected' : '' ?>>TODOS</option>
+            <option value="ACTIVA" <?= (($estadoPractica ?? '') === 'ACTIVA') ? 'selected' : '' ?>>ACTIVA</option>
+            <option value="FINALIZADA" <?= (($estadoPractica ?? '') === 'FINALIZADA') ? 'selected' : '' ?>>FINALIZADA</option>
+            <option value="CANCELADA" <?= (($estadoPractica ?? '') === 'CANCELADA') ? 'selected' : '' ?>>CANCELADA</option>
 
         </select>
 
@@ -92,7 +101,8 @@
                 <th class="px-6 py-3 text-left font-semibold text-gray-600">ID</th>
                 <th class="px-6 py-3 text-left font-semibold text-gray-600">Estudiante</th>
                 <th class="px-6 py-3 text-left font-semibold text-gray-600">Empresa</th>
-                <th class="px-6 py-3 text-left font-semibold text-gray-600">Estado</th>
+                <th class="px-6 py-3 text-left font-semibold text-gray-600">Fase</th>
+                <th class="px-6 py-3 text-left font-semibold text-gray-600">Estado Práctica</th>
                 <th class="px-6 py-3 text-left font-semibold text-gray-600">Acciones</th>
             </tr>
         </thead>
@@ -126,6 +136,16 @@
                             <?php endif; ?>
                         </td>
 
+                        <td class="px-6 py-4">
+                            <?php if (($p['estado'] ?? 'ACTIVA') === 'ACTIVA'): ?>
+                                <span class="px-3 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-700">ACTIVA</span>
+                            <?php elseif (($p['estado'] ?? '') === 'FINALIZADA'): ?>
+                                <span class="px-3 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-700">FINALIZADA</span>
+                            <?php else: ?>
+                                <span class="px-3 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-700">CANCELADA</span>
+                            <?php endif; ?>
+                        </td>
+
                         <td class="px-6 py-4 text-center space-x-3">
 
                             <a href="<?= $basePath ?>/admin/practicas/editar/<?= $p['id_practica'] ?>"
@@ -153,7 +173,7 @@
             <?php else: ?>
 
                 <tr>
-                    <td colspan="5" class="text-center py-10 text-gray-500">
+                    <td colspan="6" class="text-center py-10 text-gray-500">
                         No hay registros disponibles.
                     </td>
                 </tr>
@@ -178,7 +198,7 @@
         <div class="flex gap-2">
 
             <?php for ($i = 1; $i <= $totalPaginas; $i++): ?>
-                <a href="<?= $basePath ?>/admin/practicas?page=<?= $i ?>&estado=<?= $estado ?>&buscar=<?= urlencode($buscar) ?>"
+                <a href="<?= $basePath ?>/admin/practicas?page=<?= $i ?>&fase=<?= $estado ?>&estado_practica=<?= urlencode($estadoPractica ?? 'TODOS') ?>&buscar=<?= urlencode($buscar) ?>"
                     class="px-4 py-2 rounded-lg border text-sm
                         <?= ($i == $paginaActual)
                             ? 'bg-purple-700 text-white border-purple-700'
