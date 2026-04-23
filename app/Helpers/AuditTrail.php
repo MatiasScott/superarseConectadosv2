@@ -8,6 +8,10 @@ class AuditTrail
         'practicas_estudiantes',
         'entidades',
         'tutores_empresariales',
+        'users',
+        'docentes',
+        'programas',
+        'proyectos',
         'programa_trabajo',
         'actividades_diarias',
         'proyectos_administracion',
@@ -106,7 +110,11 @@ class AuditTrail
         $triggerName = self::buildTriggerName($tableName, $action);
 
         if (self::triggerExists($conn, $triggerName)) {
-            return;
+            if (!self::triggerNeedsRefresh($conn, $triggerName, $columns, $action)) {
+                return;
+            }
+
+            self::dropTrigger($conn, $triggerName);
         }
 
         $recordPkExpr = self::buildRecordPkExpression($pkColumns, $action);
@@ -153,6 +161,50 @@ class AuditTrail
             $conn->exec($sql);
         } catch (Throwable $e) {
             error_log('No se pudo crear trigger de auditoría ' . $triggerName . ': ' . $e->getMessage());
+        }
+    }
+
+    private static function triggerNeedsRefresh(PDO $conn, string $triggerName, array $columns, string $action): bool
+    {
+        $actionStatement = self::getTriggerActionStatement($conn, $triggerName);
+        if ($actionStatement === '') {
+            return true;
+        }
+
+        $alias = ($action === 'DELETE') ? 'OLD' : 'NEW';
+        foreach ($columns as $column) {
+            if (strpos($actionStatement, $alias . '.`' . $column . '`') === false) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static function getTriggerActionStatement(PDO $conn, string $triggerName): string
+    {
+        $sql = "SELECT ACTION_STATEMENT
+                FROM INFORMATION_SCHEMA.TRIGGERS
+                WHERE TRIGGER_SCHEMA = DATABASE()
+                  AND TRIGGER_NAME = :trigger_name
+                LIMIT 1";
+
+        $stmt = $conn->prepare($sql);
+
+        try {
+            $stmt->execute([':trigger_name' => $triggerName]);
+            return (string) $stmt->fetchColumn();
+        } catch (Throwable $e) {
+            return '';
+        }
+    }
+
+    private static function dropTrigger(PDO $conn, string $triggerName): void
+    {
+        try {
+            $conn->exec("DROP TRIGGER IF EXISTS `{$triggerName}`");
+        } catch (Throwable $e) {
+            error_log('No se pudo eliminar trigger de auditoría ' . $triggerName . ': ' . $e->getMessage());
         }
     }
 
