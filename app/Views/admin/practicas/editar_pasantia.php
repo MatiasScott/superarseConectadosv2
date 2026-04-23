@@ -49,6 +49,41 @@
             Puedes modificar entidad y estado. Los datos bloqueados se muestran solo para consulta.
         </p>
 
+        <section class="mb-6 rounded-xl border border-gray-200 bg-gray-50 p-4">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h3 class="text-base font-semibold text-gray-800">Documento Fase 1</h3>
+                    <p class="text-sm text-gray-600">Puedes revisar los datos mostrados en esta pantalla y descargar el PDF de Fase 1.</p>
+                </div>
+
+                <?php if (!empty($practica['ruc'])): ?>
+                    <a href="<?php echo $basePath; ?>/pasantias/generatePdf/<?php echo (int) ($practica['id_practica'] ?? 0); ?>"
+                        target="_blank"
+                        class="inline-flex items-center justify-center gap-2 rounded-lg bg-superarse-morado-oscuro px-4 py-2 text-sm font-semibold text-white transition hover:bg-superarse-rosa">
+                        Descargar Fase 1 (PDF)
+                    </a>
+                <?php else: ?>
+                    <span class="inline-flex items-center rounded-lg bg-amber-100 px-3 py-2 text-sm font-medium text-amber-800">
+                        Aún no hay datos completos de Fase 1 para descargar.
+                    </span>
+                <?php endif; ?>
+            </div>
+
+            <div class="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                <?php if (!empty($tienePlanAprendizaje)): ?>
+                    <a href="<?php echo $basePath; ?>/admin/practicas/plan-aprendizaje/pdf/<?php echo (int) ($practica['id_practica'] ?? 0); ?>"
+                        target="_blank"
+                        class="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700">
+                        Descargar Plan de Aprendizaje (PDF)
+                    </a>
+                <?php else: ?>
+                    <span class="inline-flex items-center rounded-lg bg-amber-100 px-3 py-2 text-sm font-medium text-amber-800">
+                        Esta pasantía todavía no tiene registros guardados del plan de aprendizaje.
+                    </span>
+                <?php endif; ?>
+            </div>
+        </section>
+
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
             <aside class="lg:col-span-1">
                 <div class="border border-gray-200 rounded-xl overflow-hidden bg-gray-50">

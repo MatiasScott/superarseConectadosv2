@@ -444,6 +444,9 @@ if (preg_match('/\d+/', $nivel, $matches)) {
             
             // Scroll al inicio para ver el mensaje
             window.scrollTo({ top: 0, behavior: 'smooth' });
+
+            // Disparar de inmediato la generación/descarga para persistir en servidor
+            descargarPDF();
             
             return false;
         });

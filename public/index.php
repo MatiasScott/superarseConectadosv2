@@ -402,6 +402,11 @@ if (preg_match('#^/admin#', $uri)) {
             $pasantiaController->editarPasantia((int)$matches[1]);
             break;
 
+        case preg_match('/^\/admin\/practicas\/plan-aprendizaje\/pdf\/(\d+)$/', $uri, $matches):
+            $pasantiaController = new PasantiaController();
+            $pasantiaController->generateProgramaTrabajoPdf((int)$matches[1]);
+            break;
+
         case preg_match('/^\/admin\/practicas\/eliminar\/(\d+)$/', $uri, $matches):
             if ($method !== 'POST') {
                 $_SESSION['error'] = 'La eliminación debe hacerse mediante POST';

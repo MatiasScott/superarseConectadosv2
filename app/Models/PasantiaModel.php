@@ -334,6 +334,198 @@ class PasantiaModel extends Database
         }
     }
 
+    public function upsertPlanAprendizajeResumen(int $practicaId, array $data): bool
+    {
+        $actividadPlanificada = trim((string) ($data['actividad_planificada'] ?? ''));
+        $departamentoArea = trim((string) ($data['departamento_area'] ?? ''));
+        $funcionAsignada = trim((string) ($data['funcion_asignada'] ?? ''));
+        $fechaPlanificada = trim((string) ($data['fecha_planificada'] ?? ''));
+
+        if ($actividadPlanificada === '' || $fechaPlanificada === '') {
+            return false;
+        }
+
+        try {
+            $queryFind = "SELECT id_programa
+                          FROM programa_trabajo
+                          WHERE practica_id = :practica_id
+                            AND actividad_planificada LIKE :marker
+                          ORDER BY id_programa DESC
+                          LIMIT 1";
+
+            $stmtFind = $this->db->prepare($queryFind);
+            $stmtFind->execute([
+                ':practica_id' => $practicaId,
+                ':marker' => 'PLAN APRENDIZAJE:%'
+            ]);
+
+            $existingId = $stmtFind->fetchColumn();
+
+            if ($existingId) {
+                $queryUpdate = "UPDATE programa_trabajo
+                                SET actividad_planificada = :actividad_planificada,
+                                    departamento_area = :departamento_area,
+                                    funcion_asignada = :funcion_asignada,
+                                    fecha_planificada = :fecha_planificada
+                                WHERE id_programa = :id_programa";
+
+                $stmtUpdate = $this->db->prepare($queryUpdate);
+                return $stmtUpdate->execute([
+                    ':actividad_planificada' => $actividadPlanificada,
+                    ':departamento_area' => $departamentoArea !== '' ? $departamentoArea : null,
+                    ':funcion_asignada' => $funcionAsignada !== '' ? $funcionAsignada : null,
+                    ':fecha_planificada' => $fechaPlanificada,
+                    ':id_programa' => (int) $existingId,
+                ]);
+            }
+
+            $queryInsert = "INSERT INTO programa_trabajo
+                            (practica_id, actividad_planificada, departamento_area, funcion_asignada, fecha_planificada)
+                            VALUES (:practica_id, :actividad_planificada, :departamento_area, :funcion_asignada, :fecha_planificada)";
+
+            $stmtInsert = $this->db->prepare($queryInsert);
+            return $stmtInsert->execute([
+                ':practica_id' => $practicaId,
+                ':actividad_planificada' => $actividadPlanificada,
+                ':departamento_area' => $departamentoArea !== '' ? $departamentoArea : null,
+                ':funcion_asignada' => $funcionAsignada !== '' ? $funcionAsignada : null,
+                ':fecha_planificada' => $fechaPlanificada,
+            ]);
+        } catch (PDOException $e) {
+            error_log("Error al guardar resumen de plan de aprendizaje: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Guarda o actualiza todos los campos del Plan de Aprendizaje en la tabla dedicada.
+     */
+    public function savePlanAprendizaje(int $practicaId, array $data): bool
+    {
+        $sql = "INSERT INTO plan_aprendizaje_datos
+                    (practica_id, apellidos_nombres, carrera, nivel, cedula, correo, telefono,
+                     nombre_empresa, ruc, tipo_entidad, actividad_economica, ubicacion, area_departamento,
+                     nombre_tutor_empresarial, telefono_tutor_empresarial, correo_tutor_empresarial, descripcion_empresa,
+                     periodo_academico, fecha_inicio, fecha_fin, horario, total_horas, modalidad,
+                     nombre_tutor_academico, correo_tutor_academico,
+                     ra1, ra2, ra3, ra4, ra5, ra6, ra7, ra8, ra9,
+                     signature_tutor_empresarial, signature_tutor_academico,
+                     nombre_firma_empresarial, nombre_firma_academico)
+                VALUES
+                    (:practica_id, :apellidos_nombres, :carrera, :nivel, :cedula, :correo, :telefono,
+                     :nombre_empresa, :ruc, :tipo_entidad, :actividad_economica, :ubicacion, :area_departamento,
+                     :nombre_tutor_empresarial, :telefono_tutor_empresarial, :correo_tutor_empresarial, :descripcion_empresa,
+                     :periodo_academico, :fecha_inicio, :fecha_fin, :horario, :total_horas, :modalidad,
+                     :nombre_tutor_academico, :correo_tutor_academico,
+                     :ra1, :ra2, :ra3, :ra4, :ra5, :ra6, :ra7, :ra8, :ra9,
+                     :signature_tutor_empresarial, :signature_tutor_academico,
+                     :nombre_firma_empresarial, :nombre_firma_academico)
+                ON DUPLICATE KEY UPDATE
+                    apellidos_nombres           = VALUES(apellidos_nombres),
+                    carrera                     = VALUES(carrera),
+                    nivel                       = VALUES(nivel),
+                    cedula                      = VALUES(cedula),
+                    correo                      = VALUES(correo),
+                    telefono                    = VALUES(telefono),
+                    nombre_empresa              = VALUES(nombre_empresa),
+                    ruc                         = VALUES(ruc),
+                    tipo_entidad                = VALUES(tipo_entidad),
+                    actividad_economica         = VALUES(actividad_economica),
+                    ubicacion                   = VALUES(ubicacion),
+                    area_departamento           = VALUES(area_departamento),
+                    nombre_tutor_empresarial    = VALUES(nombre_tutor_empresarial),
+                    telefono_tutor_empresarial  = VALUES(telefono_tutor_empresarial),
+                    correo_tutor_empresarial    = VALUES(correo_tutor_empresarial),
+                    descripcion_empresa         = VALUES(descripcion_empresa),
+                    periodo_academico           = VALUES(periodo_academico),
+                    fecha_inicio                = VALUES(fecha_inicio),
+                    fecha_fin                   = VALUES(fecha_fin),
+                    horario                     = VALUES(horario),
+                    total_horas                 = VALUES(total_horas),
+                    modalidad                   = VALUES(modalidad),
+                    nombre_tutor_academico      = VALUES(nombre_tutor_academico),
+                    correo_tutor_academico      = VALUES(correo_tutor_academico),
+                    ra1                         = VALUES(ra1),
+                    ra2                         = VALUES(ra2),
+                    ra3                         = VALUES(ra3),
+                    ra4                         = VALUES(ra4),
+                    ra5                         = VALUES(ra5),
+                    ra6                         = VALUES(ra6),
+                    ra7                         = VALUES(ra7),
+                    ra8                         = VALUES(ra8),
+                    ra9                         = VALUES(ra9),
+                    signature_tutor_empresarial = VALUES(signature_tutor_empresarial),
+                    signature_tutor_academico   = VALUES(signature_tutor_academico),
+                    nombre_firma_empresarial    = VALUES(nombre_firma_empresarial),
+                    nombre_firma_academico      = VALUES(nombre_firma_academico),
+                    updated_at                  = NOW()";
+
+        try {
+            $stmt = $this->db->prepare($sql);
+            return $stmt->execute([
+                ':practica_id'                  => $practicaId,
+                ':apellidos_nombres'            => trim((string) ($data['apellidos_nombres'] ?? '')),
+                ':carrera'                      => trim((string) ($data['carrera'] ?? '')),
+                ':nivel'                        => trim((string) ($data['nivel'] ?? '')),
+                ':cedula'                       => trim((string) ($data['cedula'] ?? '')),
+                ':correo'                       => trim((string) ($data['correo'] ?? '')),
+                ':telefono'                     => trim((string) ($data['telefono'] ?? '')),
+                ':nombre_empresa'               => trim((string) ($data['nombre_empresa'] ?? '')),
+                ':ruc'                          => trim((string) ($data['ruc'] ?? '')),
+                ':tipo_entidad'                 => trim((string) ($data['tipo_entidad'] ?? '')),
+                ':actividad_economica'          => trim((string) ($data['actividad_economica'] ?? '')),
+                ':ubicacion'                    => trim((string) ($data['ubicacion'] ?? '')),
+                ':area_departamento'            => trim((string) ($data['area_departamento'] ?? '')),
+                ':nombre_tutor_empresarial'     => trim((string) ($data['nombre_tutor_empresarial'] ?? '')),
+                ':telefono_tutor_empresarial'   => trim((string) ($data['telefono_tutor_empresarial'] ?? '')),
+                ':correo_tutor_empresarial'     => trim((string) ($data['correo_tutor_empresarial'] ?? '')),
+                ':descripcion_empresa'          => trim((string) ($data['descripcion_empresa'] ?? '')),
+                ':periodo_academico'            => trim((string) ($data['periodo_academico'] ?? '')),
+                ':fecha_inicio'                 => trim((string) ($data['fecha_inicio'] ?? '')),
+                ':fecha_fin'                    => trim((string) ($data['fecha_fin'] ?? '')),
+                ':horario'                      => trim((string) ($data['horario'] ?? '')),
+                ':total_horas'                  => trim((string) ($data['total_horas'] ?? '240')),
+                ':modalidad'                    => trim((string) ($data['modalidad'] ?? '')),
+                ':nombre_tutor_academico'       => trim((string) ($data['nombre_tutor_academico'] ?? '')),
+                ':correo_tutor_academico'       => trim((string) ($data['correo_tutor_academico'] ?? '')),
+                ':ra1'                          => !empty($data['ra1']) ? 1 : 0,
+                ':ra2'                          => !empty($data['ra2']) ? 1 : 0,
+                ':ra3'                          => !empty($data['ra3']) ? 1 : 0,
+                ':ra4'                          => !empty($data['ra4']) ? 1 : 0,
+                ':ra5'                          => !empty($data['ra5']) ? 1 : 0,
+                ':ra6'                          => !empty($data['ra6']) ? 1 : 0,
+                ':ra7'                          => !empty($data['ra7']) ? 1 : 0,
+                ':ra8'                          => !empty($data['ra8']) ? 1 : 0,
+                ':ra9'                          => !empty($data['ra9']) ? 1 : 0,
+                ':signature_tutor_empresarial'  => $data['signature_tutor_empresarial'] ?? null,
+                ':signature_tutor_academico'    => $data['signature_tutor_academico'] ?? null,
+                ':nombre_firma_empresarial'     => trim((string) ($data['nombre_firma_empresarial'] ?? '')),
+                ':nombre_firma_academico'       => trim((string) ($data['nombre_firma_academico'] ?? '')),
+            ]);
+        } catch (PDOException $e) {
+            error_log("Error al guardar plan de aprendizaje: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Obtiene los datos del Plan de Aprendizaje guardados para una práctica.
+     */
+    public function getPlanAprendizaje(int $practicaId): ?array
+    {
+        try {
+            $stmt = $this->db->prepare(
+                "SELECT * FROM plan_aprendizaje_datos WHERE practica_id = :practica_id LIMIT 1"
+            );
+            $stmt->execute([':practica_id' => $practicaId]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            return $row ?: null;
+        } catch (PDOException $e) {
+            error_log("Error al obtener plan de aprendizaje: " . $e->getMessage());
+            return null;
+        }
+    }
+
     public function updateProgramaTrabajo(array $data)
     {
         $query = "

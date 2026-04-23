@@ -696,6 +696,11 @@ try {
 // Generar nombre de archivo
 $filename = 'Plan_Aprendizaje_' . preg_replace('/[^a-zA-Z0-9]/', '_', $apellidos_nombres) . '_' . date('Y-m-d') . '.pdf';
 
+// En modo admin el controlador gestiona el stream; el render ya se hizo arriba.
+if (!empty($adminPdfMode)) {
+    return;
+}
+
 // Limpiar el buffer de salida antes de enviar el PDF
 if (ob_get_level()) {
     ob_end_clean();
