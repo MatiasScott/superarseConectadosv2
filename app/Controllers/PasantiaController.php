@@ -785,8 +785,8 @@ class PasantiaController
         }
 
         $permissionState = $_SESSION['admin_permissions'] ?? ['enabled' => false, 'matrix' => []];
-        if (!empty($permissionState['enabled']) && empty($permissionState['matrix']['practicas']['edit'])) {
-            $_SESSION['error'] = 'No tienes permisos para descargar el plan de aprendizaje.';
+        if (!empty($permissionState['enabled']) && empty($permissionState['matrix']['practicas']['view'])) {
+            $_SESSION['error'] = 'No tienes permisos para ver prácticas.';
             header("Location: " . $this->basePath . "/admin/practicas");
             exit();
         }
@@ -797,80 +797,41 @@ class PasantiaController
             die('Práctica no encontrada.');
         }
 
-        $planData = $this->pasantiaModel->getPlanAprendizaje($id_practica);
-        if (!$planData) {
-            http_response_code(404);
-            die('Esta práctica todavía no tiene un Plan de Aprendizaje guardado. El estudiante debe enviar el formulario primero.');
-        }
+        $programaTrabajo = $this->pasantiaModel->getProgramaTrabajo((int) $id_practica, 1000, 0);
+
+        $data = [
+            'practica' => $practica,
+            'programaTrabajo' => $programaTrabajo,
+            'fechaEmision' => date('d/m/Y H:i'),
+        ];
+
+        $html = $this->renderPdfHtmlView('programa_trabajo_pdf', $data);
 
         $options = new Options();
         $options->set('defaultFont', 'Arial');
         $options->set('isHtml5ParserEnabled', true);
         $options->set('isRemoteEnabled', true);
-        $options->set('chroot', realpath(__DIR__ . '/../../'));
 
         $dompdf = new Dompdf($options);
-
-        // Cargar logo
-        $logoPath = __DIR__ . '/../../public/Assets/img/LOGO SUPERARSE PNG-02.png';
-        $logoSrc = '';
-        if (file_exists($logoPath)) {
-            $logoSrc = 'file:///' . str_replace('\\', '/', realpath($logoPath));
-        }
-
-        // Preparar $_POST con datos de BD para que generar_plan_pdf.php funcione igual
-        $originalPost = $_POST;
-        $_POST = [
-            'apellidos_nombres'            => $planData['apellidos_nombres'] ?? '',
-            'carrera'                      => $planData['carrera'] ?? '',
-            'nivel'                        => $planData['nivel'] ?? '',
-            'cedula'                       => $planData['cedula'] ?? '',
-            'correo'                       => $planData['correo'] ?? '',
-            'telefono'                     => $planData['telefono'] ?? '',
-            'nombre_empresa'               => $planData['nombre_empresa'] ?? '',
-            'ruc'                          => $planData['ruc'] ?? '',
-            'tipo_entidad'                 => $planData['tipo_entidad'] ?? '',
-            'actividad_economica'          => $planData['actividad_economica'] ?? '',
-            'ubicacion'                    => $planData['ubicacion'] ?? '',
-            'area_departamento'            => $planData['area_departamento'] ?? '',
-            'nombre_tutor_empresarial'     => $planData['nombre_tutor_empresarial'] ?? '',
-            'telefono_tutor_empresarial'   => $planData['telefono_tutor_empresarial'] ?? '',
-            'correo_tutor_empresarial'     => $planData['correo_tutor_empresarial'] ?? '',
-            'descripcion_empresa'          => $planData['descripcion_empresa'] ?? '',
-            'periodo_academico'            => $planData['periodo_academico'] ?? '',
-            'fecha_inicio'                 => $planData['fecha_inicio'] ?? '',
-            'fecha_fin'                    => $planData['fecha_fin'] ?? '',
-            'horario'                      => $planData['horario'] ?? '',
-            'total_horas'                  => $planData['total_horas'] ?? '240',
-            'modalidad'                    => $planData['modalidad'] ?? '',
-            'nombre_tutor_academico'       => $planData['nombre_tutor_academico'] ?? '',
-            'correo_tutor_academico'       => $planData['correo_tutor_academico'] ?? '',
-            'signature_tutor_empresarial'  => $planData['signature_tutor_empresarial'] ?? '',
-            'signature_tutor_academico'    => $planData['signature_tutor_academico'] ?? '',
-            'nombre_firma_empresarial'     => $planData['nombre_firma_empresarial'] ?? '',
-            'nombre_firma_academico'       => $planData['nombre_firma_academico'] ?? '',
-        ];
-        // RAs: isset($_POST['ra1']) en la vista → ponemos la clave solo si vale 1
-        foreach (['ra1','ra2','ra3','ra4','ra5','ra6','ra7','ra8','ra9'] as $raKey) {
-            if (!empty($planData[$raKey])) {
-                $_POST[$raKey] = '1';
-            }
-        }
-
-        // generar_plan_pdf.php construye $html, carga en $dompdf y renderiza.
-        // Con $adminPdfMode=true omite el stream; el controlador lo hace aquí.
-        $adminPdfMode = true;
-        require __DIR__ . '/../Views/estudiantes/generar_plan_pdf.php';
-        $_POST = $originalPost;
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
 
         $codigo = $practica['codigo_matricula'] ?? $id_practica;
-        $filenamePdf = 'Plan_Aprendizaje_' . $codigo . '_' . date('Y-m-d') . '.pdf';
+        $filename = 'Plan_Aprendizaje_' . $codigo . '_' . date('Y-m-d') . '.pdf';
 
         if (ob_get_level() > 0) {
             ob_end_clean();
         }
-        $dompdf->stream($filenamePdf, ["Attachment" => true]);
+
+        $dompdf->stream($filename, array('Attachment' => true));
         exit;
+    }
+
+    // Alias de compatibilidad para evitar errores por diferencias en el nombre del método.
+    public function generarProgramaTrabajoPdf(int $id_practica)
+    {
+        $this->generateProgramaTrabajoPdf($id_practica);
     }
 
     public function editarPasantia($id_practica)
@@ -906,7 +867,6 @@ class PasantiaController
 
         $totalActividadesDiarias = $this->pasantiaModel->countActividadesDiarias((int) $id_practica);
         $totalHorasActividades = $this->pasantiaModel->getTotalHorasActividades((int) $id_practica);
-        $tienePlanAprendizaje = $this->pasantiaModel->getPlanAprendizaje((int) $id_practica) !== null;
         $totalActivityPages = max(1, (int) ceil($totalActividadesDiarias / $activityLimit));
         $activityPage = min($activityPage, $totalActivityPages);
         $activityOffset = ($activityPage - 1) * $activityLimit;
@@ -982,7 +942,6 @@ class PasantiaController
             'actividadesDiarias' => $actividadesDiarias,
             'totalActividadesDiarias' => $totalActividadesDiarias,
             'totalHorasActividades' => $totalHorasActividades,
-            'tienePlanAprendizaje' => $tienePlanAprendizaje,
             'activityPage' => $activityPage,
             'activityLimit' => $activityLimit,
             'totalActivityPages' => $totalActivityPages,
@@ -1152,65 +1111,6 @@ class PasantiaController
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $_SESSION['mensaje'] = "Debe enviar el formulario del plan de aprendizaje.";
             header("Location: " . $this->basePath . "/estudiante/plan-aprendizaje");
-            exit();
-        }
-
-        $userId = (int) ($_SESSION['id_usuario'] ?? 0);
-        $practica = $this->pasantiaModel->getActivePracticaByUserId($userId);
-
-        if (!$practica || empty($practica['id_practica'])) {
-            $_SESSION['mensaje'] = "Debes registrar una práctica activa antes de enviar el plan de aprendizaje.";
-            header("Location: " . $this->basePath . "/estudiante/informacion");
-            exit();
-        }
-
-        // Guardar todos los campos del plan en la tabla dedicada
-        $planData = [
-            'apellidos_nombres'            => trim((string) ($_POST['apellidos_nombres'] ?? '')),
-            'carrera'                      => trim((string) ($_POST['carrera'] ?? '')),
-            'nivel'                        => trim((string) ($_POST['nivel'] ?? '')),
-            'cedula'                       => trim((string) ($_POST['cedula'] ?? '')),
-            'correo'                       => trim((string) ($_POST['correo'] ?? '')),
-            'telefono'                     => trim((string) ($_POST['telefono'] ?? '')),
-            'nombre_empresa'               => trim((string) ($_POST['nombre_empresa'] ?? '')),
-            'ruc'                          => trim((string) ($_POST['ruc'] ?? '')),
-            'tipo_entidad'                 => trim((string) ($_POST['tipo_entidad'] ?? '')),
-            'actividad_economica'          => trim((string) ($_POST['actividad_economica'] ?? '')),
-            'ubicacion'                    => trim((string) ($_POST['ubicacion'] ?? '')),
-            'area_departamento'            => trim((string) ($_POST['area_departamento'] ?? '')),
-            'nombre_tutor_empresarial'     => trim((string) ($_POST['nombre_tutor_empresarial'] ?? '')),
-            'telefono_tutor_empresarial'   => trim((string) ($_POST['telefono_tutor_empresarial'] ?? '')),
-            'correo_tutor_empresarial'     => trim((string) ($_POST['correo_tutor_empresarial'] ?? '')),
-            'descripcion_empresa'          => trim((string) ($_POST['descripcion_empresa'] ?? '')),
-            'periodo_academico'            => trim((string) ($_POST['periodo_academico'] ?? '')),
-            'fecha_inicio'                 => trim((string) ($_POST['fecha_inicio'] ?? '')),
-            'fecha_fin'                    => trim((string) ($_POST['fecha_fin'] ?? '')),
-            'horario'                      => trim((string) ($_POST['horario'] ?? '')),
-            'total_horas'                  => trim((string) ($_POST['total_horas'] ?? '240')),
-            'modalidad'                    => trim((string) ($_POST['modalidad'] ?? '')),
-            'nombre_tutor_academico'       => trim((string) ($_POST['nombre_tutor_academico'] ?? '')),
-            'correo_tutor_academico'       => trim((string) ($_POST['correo_tutor_academico'] ?? '')),
-            'ra1'                          => isset($_POST['ra1']) ? 1 : 0,
-            'ra2'                          => isset($_POST['ra2']) ? 1 : 0,
-            'ra3'                          => isset($_POST['ra3']) ? 1 : 0,
-            'ra4'                          => isset($_POST['ra4']) ? 1 : 0,
-            'ra5'                          => isset($_POST['ra5']) ? 1 : 0,
-            'ra6'                          => isset($_POST['ra6']) ? 1 : 0,
-            'ra7'                          => isset($_POST['ra7']) ? 1 : 0,
-            'ra8'                          => isset($_POST['ra8']) ? 1 : 0,
-            'ra9'                          => isset($_POST['ra9']) ? 1 : 0,
-            'signature_tutor_empresarial'  => $_POST['signature_tutor_empresarial'] ?? null,
-            'signature_tutor_academico'    => $_POST['signature_tutor_academico'] ?? null,
-            'nombre_firma_empresarial'     => trim((string) ($_POST['nombre_firma_empresarial'] ?? '')),
-            'nombre_firma_academico'       => trim((string) ($_POST['nombre_firma_academico'] ?? '')),
-        ];
-
-        $this->pasantiaModel->savePlanAprendizaje((int) $practica['id_practica'], $planData);
-
-        $saveOnly = isset($_GET['save_only']) && $_GET['save_only'] === '1';
-        if ($saveOnly) {
-            header('Content-Type: application/json; charset=UTF-8');
-            echo json_encode(['ok' => true]);
             exit();
         }
 
