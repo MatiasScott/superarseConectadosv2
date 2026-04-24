@@ -15,43 +15,28 @@ class AdminDashboardModel extends Database
     {
         $sql = "SELECT
                     COUNT(*) AS total,
-                    SUM(CASE WHEN pe.estado_fase_uno_completado = 1 THEN 1 ELSE 0 END) AS completadas,
-                    SUM(CASE WHEN pe.estado_fase_uno_completado = 0 THEN 1 ELSE 0 END) AS pendientes,
-                    COUNT(DISTINCT pe.entidad_id) AS empresas_activas,
-                    COUNT(DISTINCT u.programa) AS carreras_activas,
-                    SUM(CASE WHEN pe.tutor_empresarial_id IS NULL THEN 1 ELSE 0 END) AS sin_tutor_empresarial,
-                    SUM(CASE WHEN pe.docente_asignado_id IS NULL THEN 1 ELSE 0 END) AS sin_tutor_academico
+                    SUM(CASE WHEN pe.estado = 'ACTIVA' THEN 1 ELSE 0 END) AS total_activas,
+                    COUNT(DISTINCT CASE WHEN pe.estado = 'ACTIVA' THEN u.programa END) AS carreras_activas
                 FROM practicas_estudiantes pe
                 INNER JOIN users u ON u.id = pe.user_id";
 
         try {
             $row = $this->db->query($sql)->fetch(PDO::FETCH_ASSOC) ?: [];
 
-            $total = (int)($row['total'] ?? 0);
-            $completadas = (int)($row['completadas'] ?? 0);
-            $pendientes = (int)($row['pendientes'] ?? 0);
+            $totalGeneral = (int)($row['total'] ?? 0);
+            $totalActivas = (int)($row['total_activas'] ?? 0);
 
             return [
-                'total' => $total,
-                'completadas' => $completadas,
-                'pendientes' => $pendientes,
-                'cumplimiento' => $total > 0 ? round(($completadas / $total) * 100, 1) : 0,
-                'empresas_activas' => (int)($row['empresas_activas'] ?? 0),
+                'total' => $totalActivas,
+                'cumplimiento' => $totalGeneral > 0 ? round(($totalActivas / $totalGeneral) * 100, 1) : 0,
                 'carreras_activas' => (int)($row['carreras_activas'] ?? 0),
-                'sin_tutor_empresarial' => (int)($row['sin_tutor_empresarial'] ?? 0),
-                'sin_tutor_academico' => (int)($row['sin_tutor_academico'] ?? 0),
             ];
         } catch (PDOException $e) {
             error_log('AdminDashboardModel::getResumenEjecutivo -> ' . $e->getMessage());
             return [
                 'total' => 0,
-                'completadas' => 0,
-                'pendientes' => 0,
                 'cumplimiento' => 0,
-                'empresas_activas' => 0,
                 'carreras_activas' => 0,
-                'sin_tutor_empresarial' => 0,
-                'sin_tutor_academico' => 0,
             ];
         }
     }

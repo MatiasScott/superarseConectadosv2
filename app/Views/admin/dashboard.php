@@ -66,51 +66,21 @@ $cumplimientoClass = $cumplimiento >= 80 ? 'ok' : ($cumplimiento >= 50 ? 'warn' 
 
 <section class="kpi-grid">
     <article class="kpi-card">
-        <div class="kpi-label">Total de practicas</div>
+        <div class="kpi-label">Practicas activas</div>
         <div class="kpi-value"><?= (int)($resumen['total'] ?? 0); ?></div>
-        <div class="kpi-help">Universo actual registrado</div>
-    </article>
-
-    <article class="kpi-card">
-        <div class="kpi-label">Practicas completadas</div>
-        <div class="kpi-value ok"><?= (int)($resumen['completadas'] ?? 0); ?></div>
-        <div class="kpi-help">Con fase 1 aprobada</div>
-    </article>
-
-    <article class="kpi-card">
-        <div class="kpi-label">Practicas pendientes</div>
-        <div class="kpi-value bad"><?= (int)($resumen['pendientes'] ?? 0); ?></div>
-        <div class="kpi-help">En seguimiento de aprobacion</div>
+        <div class="kpi-help">Registros con estado ACTIVA</div>
     </article>
 
     <article class="kpi-card">
         <div class="kpi-label">Cumplimiento global</div>
         <div class="kpi-value <?= $cumplimientoClass; ?>"><?= number_format($cumplimiento, 1); ?>%</div>
-        <div class="kpi-help">Completadas / Total</div>
-    </article>
-
-    <article class="kpi-card">
-        <div class="kpi-label">Empresas activas</div>
-        <div class="kpi-value"><?= (int)($resumen['empresas_activas'] ?? 0); ?></div>
-        <div class="kpi-help">Aliados con practicas activas</div>
+        <div class="kpi-help">Activas / Total de todas las practicas</div>
     </article>
 
     <article class="kpi-card">
         <div class="kpi-label">Carreras activas</div>
         <div class="kpi-value"><?= (int)($resumen['carreras_activas'] ?? 0); ?></div>
         <div class="kpi-help">Programas con participacion</div>
-    </article>
-
-    <article class="kpi-card">
-        <div class="kpi-label">Sin tutor empresarial</div>
-        <div class="kpi-value warn"><?= (int)($resumen['sin_tutor_empresarial'] ?? 0); ?></div>
-        <div class="kpi-help">Riesgo operativo por asignar</div>
-    </article>
-
-    <article class="kpi-card">
-        <div class="kpi-label">Sin tutor academico</div>
-        <div class="kpi-value warn"><?= (int)($resumen['sin_tutor_academico'] ?? 0); ?></div>
-        <div class="kpi-help">Requiere coordinacion academica</div>
     </article>
 </section>
 

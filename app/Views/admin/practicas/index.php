@@ -2,29 +2,36 @@
 <div class="flex justify-between items-center mb-8">
     <div>
         <h1 class="text-2xl font-bold text-gray-800">Gestión de Prácticas</h1>
-        <p class="text-sm text-gray-500">
-            Total de registros (según filtro): <span class="font-semibold\"><?= $totalRegistros ?></span>
-        </p>
     </div>
 </div>
 
 
 <!-- 🔷 TARJETAS KPI -->
-<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-
-    <div class="bg-white shadow-md rounded-xl p-6 border-l-4 border-purple-700">
-        <p class="text-sm text-gray-500">Total Registros</p>
-        <p class="text-3xl font-bold text-purple-800 mt-2"><?= $totalRegistros ?></p>
-    </div>
+<div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
 
     <div class="bg-white shadow-md rounded-xl p-6 border-l-4 border-red-500">
-        <p class="text-sm text-gray-500">Fase 1 (Pendientes)</p>
+        <p class="text-sm text-gray-500">Fase 1</p>
         <p class="text-3xl font-bold text-red-600 mt-2"><?= $totalPendientes ?></p>
     </div>
 
     <div class="bg-white shadow-md rounded-xl p-6 border-l-4 border-green-600">
-        <p class="text-sm text-gray-500">Fase 2 (Completadas)</p>
+        <p class="text-sm text-gray-500">Fase 2</p>
         <p class="text-3xl font-bold text-green-600 mt-2"><?= $totalCompletadas ?></p>
+    </div>
+
+    <div class="bg-white shadow-md rounded-xl p-6 border-l-4 border-blue-500">
+        <p class="text-sm text-gray-500">Activas</p>
+        <p class="text-3xl font-bold text-blue-600 mt-2"><?= $kpiActiva ?></p>
+    </div>
+
+    <div class="bg-white shadow-md rounded-xl p-6 border-l-4 border-emerald-600">
+        <p class="text-sm text-gray-500">Finalizadas</p>
+        <p class="text-3xl font-bold text-emerald-700 mt-2"><?= $kpiFinalizada ?></p>
+    </div>
+
+    <div class="bg-white shadow-md rounded-xl p-6 border-l-4 border-orange-500">
+        <p class="text-sm text-gray-500">No Finalizadas</p>
+        <p class="text-3xl font-bold text-orange-600 mt-2"><?= $kpiNoFinalizado ?></p>
     </div>
 
 </div>

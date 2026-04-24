@@ -1474,6 +1474,9 @@ class AdminController
         // Contadores KPI
         $totalCompletadas = $this->pasantiaModel->contarPorEstado(1, $estadoPractica);
         $totalPendientes = $this->pasantiaModel->contarPorEstado(0, $estadoPractica);
+        $kpiActiva       = $this->pasantiaModel->contarPorEstadoPractica('ACTIVA');
+        $kpiFinalizada   = $this->pasantiaModel->contarPorEstadoPractica('FINALIZADA');
+        $kpiNoFinalizado = $this->pasantiaModel->contarPorEstadoPractica('NO FINALIZADO');
 
         $totalPaginas = ceil($totalRegistros / $limite);
 
@@ -1483,6 +1486,9 @@ class AdminController
             'totalRegistros' => $totalRegistros,
             'totalCompletadas' => $totalCompletadas,
             'totalPendientes' => $totalPendientes,
+            'kpiActiva' => $kpiActiva,
+            'kpiFinalizada' => $kpiFinalizada,
+            'kpiNoFinalizado' => $kpiNoFinalizado,
             'paginaActual' => $pagina,
             'totalPaginas' => $totalPaginas,
             'estado' => $fase,
