@@ -36,6 +36,7 @@
             <thead class="bg-gray-100 text-gray-600 uppercase text-xs tracking-wider">
                 <tr>
                     <th class="px-4 py-3">ID</th>
+                    <th class="px-4 py-3">Año</th>
                     <th class="px-4 py-3">Objetivo Estratégico</th>
                     <th class="px-4 py-3">Avance del Obj. Estratégico</th>
                     <th class="px-4 py-3">Estrategia</th>
@@ -52,6 +53,8 @@
                         <tr class="hover:bg-gray-50 transition">
 
                             <td class="px-4 py-3"><?= $p['id_pedi'] ?></td>
+
+                            <td class="px-4 py-3"><?= (int)($p['anio_creacion'] ?? 0) ?></td>
 
                             <td class="px-4 py-3 font-medium text-gray-800">
                                 <?= htmlspecialchars($p['objetivo_estrategico']) ?>
@@ -91,7 +94,7 @@
                 <?php else: ?>
 
                     <tr>
-                        <td colspan="4" class="px-4 py-6 text-center text-gray-400">
+                        <td colspan="7" class="px-4 py-6 text-center text-gray-400">
                             No hay registros disponibles
                         </td>
                     </tr>

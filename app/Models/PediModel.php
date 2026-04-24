@@ -8,7 +8,7 @@ class PediModel extends Database
     public function obtenerTodos()
     {
         $db = $this->getConnection();
-        $query = "SELECT * FROM " . $this->table_name . " ORDER BY id_pedi DESC";
+        $query = "SELECT *, YEAR(fecha_creacion) AS anio_creacion FROM " . $this->table_name . " ORDER BY id_pedi DESC";
 
         $stmt = $db->prepare($query);
         $stmt->execute();
@@ -19,7 +19,7 @@ class PediModel extends Database
     public function obtenerPorId($id)
     {
         $db = $this->getConnection();
-        $query = "SELECT * FROM " . $this->table_name . " WHERE id_pedi = ?";
+        $query = "SELECT *, YEAR(fecha_creacion) AS anio_creacion FROM " . $this->table_name . " WHERE id_pedi = ?";
 
         $stmt = $db->prepare($query);
         $stmt->execute([$id]);

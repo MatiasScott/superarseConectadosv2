@@ -551,6 +551,8 @@ class AdminReportesModel extends Database
     {
         $sql = "SELECT
                     id_pedi,
+                    fecha_creacion,
+                    YEAR(fecha_creacion) AS anio_creacion,
                     objetivo_estrategico,
                     avance,
                     objetivo_estrategia,
