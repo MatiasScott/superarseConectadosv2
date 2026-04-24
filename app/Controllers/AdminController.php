@@ -2975,7 +2975,7 @@ class AdminController
             'objetivo_estrategico' => $_POST['objetivo_estrategico'] ?? '',
             'objetivo_estrategia' => $_POST['objetivo_estrategia'] ?? '',
             'avance' => 0,
-            'avance_estrategia' => $_POST['avance_estrategia'] ?? 0,
+            'avance_estrategia' => 0,
             'estado' => $_POST['estado'] ?? 'ACTIVO'
         ];
 
@@ -3015,7 +3015,7 @@ class AdminController
             'objetivo_estrategico' => $_POST['objetivo_estrategico'],
             'objetivo_estrategia' => $_POST['objetivo_estrategia'],
             'avance' => (float)($pediAnterior['avance'] ?? 0),
-            'avance_estrategia' => $_POST['avance_estrategia'] ?? 0,
+            'avance_estrategia' => (float)($pediAnterior['avance_estrategia'] ?? 0),
             'estado' => $_POST['estado']
         ];
 

@@ -48,10 +48,10 @@
 
             <input type="number"
                 step="0.01"
-                name="avance_estrategia"
                 value="<?= $pedi['avance_estrategia'] ?>"
                 class="w-full mt-1 border rounded-lg px-4 py-2"
-                required>
+                readonly>
+            <p class="text-xs text-gray-500 mt-1">Se calcula automáticamente con el avance de actividades del POA.</p>
         </div>
 
 
