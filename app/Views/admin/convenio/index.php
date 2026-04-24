@@ -76,7 +76,7 @@
                                         Activo
                                     </span>
 
-                                <?php elseif ($convenio['estado_convenio'] == 'Caducado'): ?>
+                                <?php elseif (strcasecmp((string)($convenio['estado_convenio'] ?? ''), 'caducado') === 0): ?>
 
                                     <span class="px-2 py-1 text-xs rounded-full bg-orange-100 text-orange-700">
                                         Caducado

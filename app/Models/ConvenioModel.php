@@ -5,15 +5,40 @@ require_once __DIR__ . '/Database.php';
 class ConvenioModel extends Database
 {
 
+    private function resolverEstadosPorFechaFin(array $data): array
+    {
+        $fechaFin = trim((string)($data['fecha_fin'] ?? ''));
+        $hoy = date('Y-m-d');
+
+        if ($fechaFin !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $fechaFin) === 1) {
+            if ($fechaFin < $hoy) {
+                return [
+                    'estado' => 'Inactivo',
+                    'estado_convenio' => 'caducado'
+                ];
+            }
+
+            return [
+                'estado' => 'Activo',
+                'estado_convenio' => 'vigente'
+            ];
+        }
+
+        return [
+            'estado' => (string)($data['estado'] ?? 'Activo'),
+            'estado_convenio' => strtolower((string)($data['estado_convenio'] ?? 'vigente'))
+        ];
+    }
+
     public function caducarVencidos()
     {
         $db = $this->getConnection();
 
         $query = "UPDATE convenios
                   SET estado = 'Inactivo',
-                      estado_convenio = 'Caducado'
+                      estado_convenio = 'caducado'
                   WHERE fecha_fin < CURDATE()
-                    AND estado != 'Inactivo'";
+                    AND (estado != 'Inactivo' OR estado_convenio != 'caducado')";
 
         $stmt = $db->prepare($query);
         $stmt->execute();
@@ -63,6 +88,7 @@ class ConvenioModel extends Database
     public function crear($data)
     {
         $db = $this->getConnection();
+        $estados = $this->resolverEstadosPorFechaFin($data);
 
         $query = "INSERT INTO convenios
         (
@@ -103,7 +129,7 @@ class ConvenioModel extends Database
             ':nombre_empresa' => $data['nombre_empresa'],
             ':fecha_inicio' => $data['fecha_inicio'],
             ':fecha_fin' => $data['fecha_fin'],
-            ':estado_convenio' => $data['estado_convenio'],
+            ':estado_convenio' => $estados['estado_convenio'],
             ':tipo_convenio_acuerdo' => $data['tipo_convenio_acuerdo'],
             ':tipo_institucion' => $data['tipo_institucion'],
             ':en_ejecucion' => $data['en_ejecucion'],
@@ -112,13 +138,14 @@ class ConvenioModel extends Database
             ':localizacion' => $data['localizacion'],
             ':ciudad' => $data['ciudad'],
             ':observaciones' => $data['observaciones'],
-            ':estado' => $data['estado']
+            ':estado' => $estados['estado']
         ]);
     }
 
     public function actualizar($id, $data)
     {
         $db = $this->getConnection();
+        $estados = $this->resolverEstadosPorFechaFin($data);
 
         $query = "UPDATE convenios SET
 
@@ -145,7 +172,7 @@ class ConvenioModel extends Database
             ':nombre_empresa' => $data['nombre_empresa'],
             ':fecha_inicio' => $data['fecha_inicio'],
             ':fecha_fin' => $data['fecha_fin'],
-            ':estado_convenio' => $data['estado_convenio'],
+            ':estado_convenio' => $estados['estado_convenio'],
             ':tipo_convenio_acuerdo' => $data['tipo_convenio_acuerdo'],
             ':tipo_institucion' => $data['tipo_institucion'],
             ':en_ejecucion' => $data['en_ejecucion'],
@@ -154,7 +181,7 @@ class ConvenioModel extends Database
             ':localizacion' => $data['localizacion'],
             ':ciudad' => $data['ciudad'],
             ':observaciones' => $data['observaciones'],
-            ':estado' => $data['estado']
+            ':estado' => $estados['estado']
         ]);
     }
 
