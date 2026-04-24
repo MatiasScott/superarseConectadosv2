@@ -128,7 +128,7 @@ class PasantiaController
         $vistaRegistro = __DIR__ . '/../Views/estudiantes/registro_pasantia_fase1.php';
 
         if (!file_exists($vistaRegistro)) {
-            $_SESSION['mensaje'] = 'El formulario de registro de pasantía está integrado en el panel principal.';
+            $_SESSION['mensaje'] = 'El formulario de registro de Practicas Pre Profesionales esta integrado en el panel principal.';
             header('Location: ' . $this->basePath . '/estudiante/informacion');
             exit();
         }
@@ -915,7 +915,7 @@ class PasantiaController
         $practica = $this->pasantiaModel->getPracticaById($id_practica);
 
         if (!$practica) {
-            $_SESSION['error'] = "Pasantía no encontrada";
+            $_SESSION['error'] = "Practicas Pre Profesionales no encontradas";
             header("Location: " . $basePath . "/admin/dashboard");
             exit();
         }
@@ -986,9 +986,9 @@ class PasantiaController
             $resultado = $this->pasantiaModel->actualizarPasantia($id_practica, $datos);
 
             if ($resultado) {
-                $_SESSION['success'] = "Estado de pasantía actualizado correctamente";
+                $_SESSION['success'] = "Estado de Practicas Pre Profesionales actualizado correctamente";
             } else {
-                $_SESSION['error'] = "Error al actualizar el estado de la pasantía";
+                $_SESSION['error'] = "Error al actualizar el estado de Practicas Pre Profesionales";
             }
 
             header("Location: " . $basePath . "/admin/practicas");
@@ -998,7 +998,7 @@ class PasantiaController
         // Cargar vista de edición (ya no necesitamos cargar docentes)
         //require_once __DIR__ . '/../Views/admin/practicas/editar_pasantia.php';
         $this->renderAdmin('admin/practicas/editar_pasantia', [
-            'title' => 'Editar Pasantía',
+            'title' => 'Editar Practicas Pre Profesionales',
             'practica' => $practica,
             'activeTab' => $activeTab,
             'actividadesDiarias' => $actividadesDiarias,
@@ -1021,7 +1021,7 @@ class PasantiaController
         // Verificar que sea administrador
         if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
             error_log("❌ ACCESO DENEGADO: Usuario no es admin");
-            $_SESSION['error'] = 'No autorizado para eliminar pasantías. Debes iniciar sesión como administrador.';
+            $_SESSION['error'] = 'No autorizado para eliminar Practicas Pre Profesionales. Debes iniciar sesion como administrador.';
             header("Location: " . $this->basePath . "/admin/dashboard");
             exit();
         }
@@ -1040,10 +1040,10 @@ class PasantiaController
             error_log("Resultado eliminación: " . ($resultado ? '✓ SUCCESS' : '✗ FAILED'));
 
             if ($resultado) {
-                $_SESSION['success'] = 'Pasantía #' . $id_practica . ' eliminada correctamente';
-                error_log("✓ Pasantía eliminada exitosamente");
+                $_SESSION['success'] = 'Practicas Pre Profesionales #' . $id_practica . ' eliminadas correctamente';
+                error_log("✓ Practicas Pre Profesionales eliminadas exitosamente");
             } else {
-                $_SESSION['error'] = 'Error al eliminar la pasantía #' . $id_practica;
+                $_SESSION['error'] = 'Error al eliminar Practicas Pre Profesionales #' . $id_practica;
                 error_log("✗ Error en la eliminación");
             }
         } catch (Exception $e) {

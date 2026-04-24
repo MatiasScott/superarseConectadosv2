@@ -3,7 +3,7 @@
 /**
  * pdf-styles-pasantias.php
  * 
- * Genera los estilos CSS para PDFs de pasantías (Fase 1)
+ * Genera los estilos CSS para PDFs de Practicas Pre Profesionales (Fase 1)
  * Este archivo se incluye en pasantias_pdf_fase1.php de forma inline
  * RAZÓN: DomPDF requiere estilos inline para renderizar PDFs correctamente
  * 

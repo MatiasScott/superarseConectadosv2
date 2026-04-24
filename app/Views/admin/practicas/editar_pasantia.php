@@ -41,7 +41,7 @@
 
         <div class="flex items-center justify-between gap-3 mb-2">
             <h2 class="text-2xl font-bold text-gray-900">
-                Editar Pasantía
+                Editar Practicas Pre Profesionales
             </h2>
             <a href="<?php echo $basePath; ?>/admin/practicas"
                 class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 font-semibold transition whitespace-nowrap">
@@ -82,7 +82,7 @@
                     </a>
                 <?php else: ?>
                     <span class="inline-flex items-center rounded-lg bg-amber-100 px-3 py-2 text-sm font-medium text-amber-800">
-                        Esta pasantía todavía no tiene registros guardados del plan de aprendizaje.
+                        Esta Practica Pre Profesional todavia no tiene registros guardados del plan de aprendizaje.
                     </span>
                 <?php endif; ?>
             </div>
@@ -93,7 +93,7 @@
                 <div class="border border-gray-200 rounded-xl overflow-hidden bg-gray-50">
                     <button type="button" id="menuEditarPasantia"
                         class="w-full text-left px-4 py-3 transition <?php echo $activeTab === 'datos' ? 'bg-superarse-morado-claro text-superarse-morado-oscuro font-bold border-l-4 border-superarse-morado-oscuro' : 'text-gray-700 hover:bg-gray-100'; ?>">
-                        Editar pasantía
+                        Editar Practicas Pre Profesionales
                     </button>
                     <button type="button" id="menuVerActividades"
                         class="w-full text-left px-4 py-3 border-t border-gray-200 transition <?php echo $activeTab === 'actividades' ? 'bg-superarse-morado-claro text-superarse-morado-oscuro font-bold border-l-4 border-superarse-morado-oscuro' : 'text-gray-700 hover:bg-gray-100'; ?>">

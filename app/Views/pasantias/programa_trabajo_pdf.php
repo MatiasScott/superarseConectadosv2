@@ -128,7 +128,7 @@ $fechaEmision = (string)($fechaEmision ?? date('d/m/Y H:i'));
         </tr>
     </table>
 
-    <div class="section-title">1. Datos de la pasantía</div>
+    <div class="section-title">1. Datos de Practicas Pre Profesionales</div>
     <table class="data-table">
         <tr>
             <td class="data-label">Estudiante</td>
@@ -201,7 +201,7 @@ $fechaEmision = (string)($fechaEmision ?? date('d/m/Y H:i'));
         </tbody>
     </table>
 
-    <p class="muted">Documento generado desde el módulo administrativo de edición de pasantías.</p>
+    <p class="muted">Documento generado desde el modulo administrativo de edicion de Practicas Pre Profesionales.</p>
 </body>
 
 </html>
