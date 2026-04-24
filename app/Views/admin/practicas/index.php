@@ -72,7 +72,7 @@
             <option value="TODOS" <?= (($estadoPractica ?? 'TODOS') === 'TODOS') ? 'selected' : '' ?>>TODOS</option>
             <option value="ACTIVA" <?= (($estadoPractica ?? '') === 'ACTIVA') ? 'selected' : '' ?>>ACTIVA</option>
             <option value="FINALIZADA" <?= (($estadoPractica ?? '') === 'FINALIZADA') ? 'selected' : '' ?>>FINALIZADA</option>
-            <option value="CANCELADA" <?= (($estadoPractica ?? '') === 'CANCELADA') ? 'selected' : '' ?>>CANCELADA</option>
+            <option value="NO FINALIZADO" <?= (($estadoPractica ?? '') === 'NO FINALIZADO') ? 'selected' : '' ?>>NO FINALIZADO</option>
 
         </select>
 
@@ -137,12 +137,16 @@
                         </td>
 
                         <td class="px-6 py-4">
-                            <?php if (($p['estado'] ?? 'ACTIVA') === 'ACTIVA'): ?>
+                            <?php $estadoFila = strtoupper(trim((string) ($p['estado'] ?? 'ACTIVA'))); ?>
+                            <?php if ($estadoFila === 'CANCELADA') {
+                                $estadoFila = 'NO FINALIZADO';
+                            } ?>
+                            <?php if ($estadoFila === 'ACTIVA'): ?>
                                 <span class="px-3 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-700">ACTIVA</span>
-                            <?php elseif (($p['estado'] ?? '') === 'FINALIZADA'): ?>
+                            <?php elseif ($estadoFila === 'FINALIZADA'): ?>
                                 <span class="px-3 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-700">FINALIZADA</span>
                             <?php else: ?>
-                                <span class="px-3 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-700">CANCELADA</span>
+                                <span class="px-3 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-700">NO FINALIZADO</span>
                             <?php endif; ?>
                         </td>
 

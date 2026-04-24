@@ -464,44 +464,60 @@ class AdminController
         }
 
         $rows = $this->auditLogModel->getLogsForExport($search, $table, $action, 50000, $tableList);
-        $filename = 'auditoria_general_' . date('Ymd_His') . '.xls';
-
-        header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
-        header('Content-Disposition: attachment; filename="' . $filename . '"');
-
-        echo "<table border='1'>";
-        echo "<tr>";
-        echo "<th>fecha_hora</th><th>modulo</th><th>tabla</th><th>accion</th><th>record_pk</th><th>actor_tipo</th><th>actor_id_admin</th><th>actor_id_estudiante</th><th>actor_nombre</th><th>request_uri</th><th>request_method</th><th>ip</th><th>diff_campos</th><th>diff_valores_anteriores</th><th>diff_valores_nuevos</th><th>diff_resumen</th><th>before_data</th><th>after_data</th>";
-        echo "</tr>";
+        $filename = 'auditoria_general_' . date('Ymd_His') . '.xlsx';
+        $excelRows = [];
 
         foreach ($rows as $row) {
             $diff = $this->buildAuditDiff((string) ($row['action_type'] ?? ''), (string) ($row['before_data'] ?? ''), (string) ($row['after_data'] ?? ''));
             $moduleName = $this->resolveAuditModuleName((string) ($row['table_name'] ?? ''));
 
-            echo "<tr>";
-            echo "<td>" . htmlspecialchars((string) ($row['event_time'] ?? ''), ENT_QUOTES, 'UTF-8') . "</td>";
-            echo "<td>" . htmlspecialchars((string) $moduleName, ENT_QUOTES, 'UTF-8') . "</td>";
-            echo "<td>" . htmlspecialchars((string) ($row['table_name'] ?? ''), ENT_QUOTES, 'UTF-8') . "</td>";
-            echo "<td>" . htmlspecialchars((string) ($row['action_type'] ?? ''), ENT_QUOTES, 'UTF-8') . "</td>";
-            echo "<td>" . htmlspecialchars((string) ($row['record_pk'] ?? ''), ENT_QUOTES, 'UTF-8') . "</td>";
-            echo "<td>" . htmlspecialchars((string) ($row['actor_type'] ?? ''), ENT_QUOTES, 'UTF-8') . "</td>";
-            echo "<td>" . htmlspecialchars((string) ($row['actor_account_id'] ?? ''), ENT_QUOTES, 'UTF-8') . "</td>";
-            echo "<td>" . htmlspecialchars((string) ($row['actor_student_id'] ?? ''), ENT_QUOTES, 'UTF-8') . "</td>";
-            echo "<td>" . htmlspecialchars((string) ($row['actor_name'] ?? ''), ENT_QUOTES, 'UTF-8') . "</td>";
-            echo "<td>" . htmlspecialchars((string) ($row['request_uri'] ?? ''), ENT_QUOTES, 'UTF-8') . "</td>";
-            echo "<td>" . htmlspecialchars((string) ($row['request_method'] ?? ''), ENT_QUOTES, 'UTF-8') . "</td>";
-            echo "<td>" . htmlspecialchars((string) ($row['ip_address'] ?? ''), ENT_QUOTES, 'UTF-8') . "</td>";
-            echo "<td>" . htmlspecialchars(implode(' | ', $diff['changed_fields']), ENT_QUOTES, 'UTF-8') . "</td>";
-            echo "<td>" . htmlspecialchars(implode(' | ', $diff['old_values']), ENT_QUOTES, 'UTF-8') . "</td>";
-            echo "<td>" . htmlspecialchars(implode(' | ', $diff['new_values']), ENT_QUOTES, 'UTF-8') . "</td>";
-            echo "<td>" . htmlspecialchars(implode(' || ', $diff['summary_lines']), ENT_QUOTES, 'UTF-8') . "</td>";
-            echo "<td>" . htmlspecialchars((string) ($row['before_data'] ?? ''), ENT_QUOTES, 'UTF-8') . "</td>";
-            echo "<td>" . htmlspecialchars((string) ($row['after_data'] ?? ''), ENT_QUOTES, 'UTF-8') . "</td>";
-            echo "</tr>";
+            $excelRows[] = [
+                'fecha_hora' => (string) ($row['event_time'] ?? ''),
+                'modulo' => (string) $moduleName,
+                'tabla' => (string) ($row['table_name'] ?? ''),
+                'accion' => (string) ($row['action_type'] ?? ''),
+                'record_pk' => (string) ($row['record_pk'] ?? ''),
+                'actor_tipo' => (string) ($row['actor_type'] ?? ''),
+                'actor_id_admin' => (string) ($row['actor_account_id'] ?? ''),
+                'actor_id_estudiante' => (string) ($row['actor_student_id'] ?? ''),
+                'actor_nombre' => (string) ($row['actor_name'] ?? ''),
+                'request_uri' => (string) ($row['request_uri'] ?? ''),
+                'request_method' => (string) ($row['request_method'] ?? ''),
+                'ip' => (string) ($row['ip_address'] ?? ''),
+                'diff_campos' => implode(' | ', $diff['changed_fields']),
+                'diff_valores_anteriores' => implode(' | ', $diff['old_values']),
+                'diff_valores_nuevos' => implode(' | ', $diff['new_values']),
+                'diff_resumen' => implode(' || ', $diff['summary_lines']),
+                'before_data' => (string) ($row['before_data'] ?? ''),
+                'after_data' => (string) ($row['after_data'] ?? ''),
+            ];
         }
 
-        echo "</table>";
-        exit();
+        $this->streamXlsxDownload(
+            $filename,
+            $excelRows,
+            [
+                'fecha_hora' => 'Fecha Hora',
+                'modulo' => 'Modulo',
+                'tabla' => 'Tabla',
+                'accion' => 'Accion',
+                'record_pk' => 'Record PK',
+                'actor_tipo' => 'Actor Tipo',
+                'actor_id_admin' => 'Actor ID Admin',
+                'actor_id_estudiante' => 'Actor ID Estudiante',
+                'actor_nombre' => 'Actor Nombre',
+                'request_uri' => 'Request URI',
+                'request_method' => 'Request Method',
+                'ip' => 'IP',
+                'diff_campos' => 'Diff Campos',
+                'diff_valores_anteriores' => 'Diff Valores Anteriores',
+                'diff_valores_nuevos' => 'Diff Valores Nuevos',
+                'diff_resumen' => 'Diff Resumen',
+                'before_data' => 'Before Data',
+                'after_data' => 'After Data',
+            ],
+            'Auditoria General'
+        );
     }
 
     public function reportes()
@@ -653,11 +669,7 @@ class AdminController
         }
 
         $filename = 'reporte_' . $module . '_' . date('Ymd_His') . '.xlsx';
-        header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
-        header('Content-Disposition: attachment; filename="' . $filename . '"');
-
-        echo $this->buildStyledReportHtml($reportTitle, (string) $label, $downloadedAt, $rows, 'excel');
-        exit();
+        $this->streamXlsxDownload($filename, $rows, null, (string) $label);
     }
 
     private function buildStyledReportHtml($reportTitle, $moduleLabel, $downloadedAt, array $rows, $target = 'pdf')
@@ -750,28 +762,39 @@ class AdminController
         }
 
         $filename = 'reporte_empresas_estudiantes_' . date('Ymd_His') . '.xlsx';
-        header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
-        header('Content-Disposition: attachment; filename="' . $filename . '"');
-
-        echo "<table border='1'>";
-        echo "<tr><th>empresa</th><th>ruc</th><th>id_practica</th><th>estudiante_id</th><th>identificacion</th><th>estudiante</th><th>carrera</th><th>modalidad</th><th>fase</th><th>fecha_registro</th></tr>";
+        $excelRows = [];
         foreach ($rows as $row) {
-            $fase = ((int) ($row['estado_fase_uno_completado'] ?? 0) === 1) ? 'Fase 2' : 'Fase 1';
-            echo '<tr>';
-            echo '<td>' . htmlspecialchars((string) ($row['empresa'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
-            echo '<td>' . htmlspecialchars((string) ($row['ruc'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
-            echo '<td>' . htmlspecialchars((string) ($row['id_practica'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
-            echo '<td>' . htmlspecialchars((string) ($row['estudiante_id'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
-            echo '<td>' . htmlspecialchars((string) ($row['identificacion'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
-            echo '<td>' . htmlspecialchars(trim((string) ($row['estudiante'] ?? '')), ENT_QUOTES, 'UTF-8') . '</td>';
-            echo '<td>' . htmlspecialchars((string) ($row['carrera'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
-            echo '<td>' . htmlspecialchars((string) ($row['modalidad'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
-            echo '<td>' . htmlspecialchars($fase, ENT_QUOTES, 'UTF-8') . '</td>';
-            echo '<td>' . htmlspecialchars((string) ($row['fecha_registro'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
-            echo '</tr>';
+            $excelRows[] = [
+                'empresa' => (string) ($row['empresa'] ?? ''),
+                'ruc' => (string) ($row['ruc'] ?? ''),
+                'id_practica' => (string) ($row['id_practica'] ?? ''),
+                'estudiante_id' => (string) ($row['estudiante_id'] ?? ''),
+                'identificacion' => (string) ($row['identificacion'] ?? ''),
+                'estudiante' => trim((string) ($row['estudiante'] ?? '')),
+                'carrera' => (string) ($row['carrera'] ?? ''),
+                'modalidad' => (string) ($row['modalidad'] ?? ''),
+                'fase' => ((int) ($row['estado_fase_uno_completado'] ?? 0) === 1) ? 'Fase 2' : 'Fase 1',
+                'fecha_registro' => (string) ($row['fecha_registro'] ?? ''),
+            ];
         }
-        echo '</table>';
-        exit();
+
+        $this->streamXlsxDownload(
+            $filename,
+            $excelRows,
+            [
+                'empresa' => 'Empresa',
+                'ruc' => 'RUC',
+                'id_practica' => 'ID Practica',
+                'estudiante_id' => 'ID Estudiante',
+                'identificacion' => 'Cedula',
+                'estudiante' => 'Estudiante',
+                'carrera' => 'Carrera',
+                'modalidad' => 'Modalidad',
+                'fase' => 'Fase',
+                'fecha_registro' => 'Fecha Registro',
+            ],
+            'Empresas y Estudiantes'
+        );
     }
 
     public function exportReporteModalidadCarreraExcel()
@@ -808,52 +831,40 @@ class AdminController
         }
 
         $filename = 'reporte_modalidad_por_carrera_' . date('Ymd_His') . '.xlsx';
-
-        header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
-        header('Content-Disposition: attachment; filename="' . $filename . '"');
-
-        echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>";
-        echo "<Workbook xmlns=\"urn:schemas-microsoft-com:office:spreadsheet\"";
-        echo " xmlns:o=\"urn:schemas-microsoft-com:office:office\"";
-        echo " xmlns:x=\"urn:schemas-microsoft-com:office:excel\"";
-        echo " xmlns:ss=\"urn:schemas-microsoft-com:office:spreadsheet\"";
-        echo " xmlns:html=\"http://www.w3.org/TR/REC-html40\">";
-
-        echo "<Styles>";
-        echo "<Style ss:ID=\"header\"><Font ss:Bold=\"1\"/></Style>";
-        echo "</Styles>";
+        $sheets = [];
 
         if (empty($groups)) {
-            echo "<Worksheet ss:Name=\"Sin datos\"><Table>";
-            echo "<Row><Cell><Data ss:Type=\"String\">No hay datos para exportar.</Data></Cell></Row>";
-            echo "</Table></Worksheet>";
-            echo "</Workbook>";
-            exit();
-        }
+            $sheets[] = [
+                'title' => 'Sin datos',
+                'rows' => [],
+            ];
+        } else {
+            foreach ($groups as $carrera => $rows) {
+                $normalizedRows = [];
+                foreach ($rows as $row) {
+                    $normalizedRows[] = [
+                        'modalidad' => (string) ($row['modalidad'] ?? ''),
+                        'identificacion' => (string) ($row['identificacion'] ?? ''),
+                        'estudiante' => (string) ($row['estudiante'] ?? ''),
+                    ];
+                }
 
-        foreach ($groups as $carrera => $rows) {
-            $sheetName = $this->sanitizeExcelSheetName((string) $carrera);
-            echo '<Worksheet ss:Name="' . htmlspecialchars($sheetName, ENT_QUOTES, 'UTF-8') . '"><Table>';
-            echo '<Row>';
-            echo '<Cell ss:StyleID="header"><Data ss:Type="String">Carrera</Data></Cell>';
-            echo '<Cell ss:StyleID="header"><Data ss:Type="String">Modalidad</Data></Cell>';
-            echo '<Cell ss:StyleID="header"><Data ss:Type="String">Cédula</Data></Cell>';
-            echo '<Cell ss:StyleID="header"><Data ss:Type="String">Estudiante</Data></Cell>';
-            echo '</Row>';
-
-            foreach ($rows as $row) {
-                echo '<Row>';
-                echo '<Cell><Data ss:Type="String">' . htmlspecialchars((string) ($row['modalidad'] ?? ''), ENT_QUOTES, 'UTF-8') . '</Data></Cell>';
-                echo '<Cell><Data ss:Type="String">' . htmlspecialchars((string) ($row['identificacion'] ?? ''), ENT_QUOTES, 'UTF-8') . '</Data></Cell>';
-                echo '<Cell><Data ss:Type="String">' . htmlspecialchars((string) ($row['estudiante'] ?? ''), ENT_QUOTES, 'UTF-8') . '</Data></Cell>';
-                echo '</Row>';
+                $sheets[] = [
+                    'title' => (string) $carrera,
+                    'rows' => $normalizedRows,
+                ];
             }
-
-            echo '</Table></Worksheet>';
         }
 
-        echo '</Workbook>';
-        exit();
+        $this->streamXlsxDownloadBySheets(
+            $filename,
+            $sheets,
+            [
+                'modalidad' => 'Modalidad',
+                'identificacion' => 'Cedula',
+                'estudiante' => 'Estudiante',
+            ]
+        );
     }
 
     public function exportReporteEstudiantesFaseCsv()
@@ -893,27 +904,39 @@ class AdminController
         }
 
         $filename = 'reporte_estudiantes_' . $fase . '_' . date('Ymd_His') . '.xlsx';
-        header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
-        header('Content-Disposition: attachment; filename="' . $filename . '"');
-
-        echo "<table border='1'>";
-        echo "<tr><th>id_practica</th><th>identificacion</th><th>estudiante</th><th>email</th><th>carrera</th><th>empresa</th><th>ruc</th><th>modalidad</th><th>fase</th><th>fecha_registro</th></tr>";
+        $excelRows = [];
         foreach ($rows as $row) {
-            echo '<tr>';
-            echo '<td>' . htmlspecialchars((string) ($row['id_practica'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
-            echo '<td>' . htmlspecialchars((string) ($row['identificacion'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
-            echo '<td>' . htmlspecialchars(trim((string) ($row['estudiante'] ?? '')), ENT_QUOTES, 'UTF-8') . '</td>';
-            echo '<td>' . htmlspecialchars((string) ($row['email'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
-            echo '<td>' . htmlspecialchars((string) ($row['carrera'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
-            echo '<td>' . htmlspecialchars((string) ($row['empresa'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
-            echo '<td>' . htmlspecialchars((string) ($row['ruc'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
-            echo '<td>' . htmlspecialchars((string) ($row['modalidad'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
-            echo '<td>' . htmlspecialchars((string) ($row['fase'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
-            echo '<td>' . htmlspecialchars((string) ($row['fecha_registro'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
-            echo '</tr>';
+            $excelRows[] = [
+                'id_practica' => (string) ($row['id_practica'] ?? ''),
+                'identificacion' => (string) ($row['identificacion'] ?? ''),
+                'estudiante' => trim((string) ($row['estudiante'] ?? '')),
+                'email' => (string) ($row['email'] ?? ''),
+                'carrera' => (string) ($row['carrera'] ?? ''),
+                'empresa' => (string) ($row['empresa'] ?? ''),
+                'ruc' => (string) ($row['ruc'] ?? ''),
+                'modalidad' => (string) ($row['modalidad'] ?? ''),
+                'fase' => (string) ($row['fase'] ?? ''),
+                'fecha_registro' => (string) ($row['fecha_registro'] ?? ''),
+            ];
         }
-        echo '</table>';
-        exit();
+
+        $this->streamXlsxDownload(
+            $filename,
+            $excelRows,
+            [
+                'id_practica' => 'ID Practica',
+                'identificacion' => 'Cedula',
+                'estudiante' => 'Estudiante',
+                'email' => 'Email',
+                'carrera' => 'Carrera',
+                'empresa' => 'Empresa',
+                'ruc' => 'RUC',
+                'modalidad' => 'Modalidad',
+                'fase' => 'Fase',
+                'fecha_registro' => 'Fecha Registro',
+            ],
+            'Estudiantes por Fase'
+        );
     }
 
     private function normalizeReportFormat($format)
@@ -940,6 +963,120 @@ class AdminController
 
         $dompdf->stream($filename, ['Attachment' => true]);
         exit();
+    }
+
+    private function streamXlsxDownload($filename, array $rows, ?array $columns = null, $sheetTitle = 'Reporte')
+    {
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle($this->sanitizeExcelSheetName((string) $sheetTitle));
+
+        $this->writeRowsToSheet($sheet, $rows, $columns);
+
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Cache-Control: max-age=0, no-cache, no-store, must-revalidate');
+        header('Pragma: public');
+        header('Expires: 0');
+
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $writer->save('php://output');
+        $spreadsheet->disconnectWorksheets();
+        unset($spreadsheet);
+
+        exit();
+    }
+
+    private function streamXlsxDownloadBySheets($filename, array $sheets, ?array $columns = null)
+    {
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $first = true;
+
+        foreach ($sheets as $item) {
+            $title = isset($item['title']) ? (string) $item['title'] : 'Hoja';
+            $rows = isset($item['rows']) && is_array($item['rows']) ? $item['rows'] : [];
+
+            if ($first) {
+                $sheet = $spreadsheet->getActiveSheet();
+                $first = false;
+            } else {
+                $sheet = $spreadsheet->createSheet();
+            }
+
+            $sheet->setTitle($this->sanitizeExcelSheetName($title));
+            $this->writeRowsToSheet($sheet, $rows, $columns);
+        }
+
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Cache-Control: max-age=0, no-cache, no-store, must-revalidate');
+        header('Pragma: public');
+        header('Expires: 0');
+
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $writer->save('php://output');
+        $spreadsheet->disconnectWorksheets();
+        unset($spreadsheet);
+
+        exit();
+    }
+
+    private function writeRowsToSheet($sheet, array $rows, ?array $columns = null)
+    {
+        if ($columns !== null) {
+            $keys = array_keys($columns);
+            $labels = array_values($columns);
+        } elseif (!empty($rows)) {
+            $keys = array_keys((array) $rows[0]);
+            $labels = $keys;
+        } else {
+            $keys = [];
+            $labels = [];
+        }
+
+        if (empty($keys)) {
+            $sheet->setCellValue('A1', 'No hay datos para exportar.');
+            return;
+        }
+
+        foreach ($labels as $index => $label) {
+            $column = $index + 1;
+            $cellRef = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($column) . '1';
+            $cell = $sheet->getCell($cellRef);
+            $cell->setValueExplicit((string) $label, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+        }
+
+        $lastHeaderColumn = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($keys));
+        $sheet->getStyle('A1:' . $lastHeaderColumn . '1')->getFont()->setBold(true);
+
+        $rowNumber = 2;
+        foreach ($rows as $row) {
+            foreach ($keys as $index => $key) {
+                $value = $row[$key] ?? '';
+                if (is_array($value) || is_object($value)) {
+                    $value = json_encode($value, JSON_UNESCAPED_UNICODE);
+                }
+
+                $column = $index + 1;
+                $cellRef = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($column) . (string) $rowNumber;
+                $cell = $sheet->getCell($cellRef);
+                $cell->setValueExplicit((string) $value, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+            }
+            $rowNumber++;
+        }
+
+        for ($column = 1; $column <= count($keys); $column++) {
+            $columnRef = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($column);
+            $sheet->getColumnDimension($columnRef)->setAutoSize(true);
+        }
     }
 
     private function sanitizeExcelSheetName($name)
@@ -1318,7 +1455,10 @@ class AdminController
         $buscar = $_GET['buscar'] ?? '';
         $fase = $_GET['fase'] ?? ($_GET['estado'] ?? '');
         $estadoPractica = strtoupper(trim((string) ($_GET['estado_practica'] ?? 'TODOS')));
-        if (!in_array($estadoPractica, ['ACTIVA', 'FINALIZADA', 'CANCELADA', 'TODOS'], true)) {
+        if ($estadoPractica === 'CANCELADA') {
+            $estadoPractica = 'NO FINALIZADO';
+        }
+        if (!in_array($estadoPractica, ['ACTIVA', 'FINALIZADA', 'NO FINALIZADO', 'TODOS'], true)) {
             $estadoPractica = 'TODOS';
         }
         $pagina = isset($_GET['page']) ? (int)$_GET['page'] : 1;

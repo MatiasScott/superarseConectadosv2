@@ -1,4 +1,47 @@
-<div id="pasantias" class="tab-pane hidden">
+<div id="pasantias" class="tab-pane hidden relative isolate">
+    <?php
+    $estadoPracticaDashboard = strtoupper(trim((string) ($data['infoStatusPractica']['estado'] ?? 'ACTIVA')));
+    if ($estadoPracticaDashboard === 'CANCELADA') {
+        $estadoPracticaDashboard = 'NO FINALIZADO';
+    }
+    $bloquearModuloPracticas = in_array($estadoPracticaDashboard, ['FINALIZADA', 'NO FINALIZADO'], true);
+    $observacionPractica = trim((string) ($data['infoStatusPractica']['observacion'] ?? ''));
+    $observacionPractica = $observacionPractica !== '' ? $observacionPractica : 'Sin observación registrada.';
+
+    $tituloEstado = $estadoPracticaDashboard === 'FINALIZADA' ? 'FINALIZADA' : 'NO FINALIZADO';
+    $mensajeEstado = $estadoPracticaDashboard === 'FINALIZADA'
+        ? [
+            'Estimado/a estudiante:',
+            'Se le informa que ha culminado satisfactoriamente su proceso de prácticas preprofesionales, cumpliendo con los requisitos establecidos.',
+            'Felicitamos su esfuerzo y compromiso durante esta etapa de formación profesional.',
+        ]
+        : [
+            'Estimado/a estudiante:',
+            'Su proceso de prácticas preprofesionales no ha finalizado. Le recomendamos ponerse en contacto a la brevedad posible con el coordinador de prácticas preprofesionales, a fin de recibir orientación y completar los requisitos pendientes.',
+            'Es importante regularizar su situación para evitar inconvenientes en su proceso académico.',
+        ];
+    ?>
+
+    <?php if ($bloquearModuloPracticas): ?>
+        <div class="absolute inset-0 z-40 bg-white/20 backdrop-blur-md flex items-start justify-center p-4 sm:p-6 overflow-y-auto" role="dialog" aria-modal="true" aria-label="Estado de práctica bloqueado">
+            <div class="w-full max-w-2xl rounded-2xl border border-white/20 bg-white shadow-2xl p-6 sm:p-8 text-center my-6 sm:my-10">
+                <p class="text-xs uppercase tracking-[0.25em] text-gray-500 mb-3">Estado de Práctica</p>
+                <h3 class="text-4xl sm:text-5xl font-extrabold text-superarse-morado-oscuro mb-6"><?php echo htmlspecialchars($tituloEstado, ENT_QUOTES, 'UTF-8'); ?></h3>
+
+                <div class="space-y-4 text-left mb-6">
+                    <?php foreach ($mensajeEstado as $parrafo): ?>
+                        <p class="text-base sm:text-lg text-gray-800"><?php echo htmlspecialchars($parrafo, ENT_QUOTES, 'UTF-8'); ?></p>
+                    <?php endforeach; ?>
+                </div>
+
+                <div class="text-left rounded-xl border border-gray-200 bg-gray-50 p-4 sm:p-5">
+                    <p class="text-sm font-semibold text-gray-700 mb-2">Observación</p>
+                    <p class="text-sm sm:text-base text-gray-800"><?php echo nl2br(htmlspecialchars($observacionPractica, ENT_QUOTES, 'UTF-8')); ?></p>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <h2 class="text-3xl font-bold text-superarse-morado-oscuro mb-6 border-b pb-2">Gestión de Prácticas
         Pre-Profesionales</h2>
 

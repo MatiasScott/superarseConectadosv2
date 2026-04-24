@@ -5,11 +5,28 @@ require_once __DIR__ . '/Database.php';
 class AdminReportesModel extends Database
 {
     private $db;
+    private ?bool $practicaTieneObservacionColumnCache = null;
 
     public function __construct()
     {
         $this->db = $this->getConnection();
         $this->db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    }
+
+    private function practicaTieneObservacionColumn(): bool
+    {
+        if ($this->practicaTieneObservacionColumnCache !== null) {
+            return $this->practicaTieneObservacionColumnCache;
+        }
+
+        try {
+            $stmt = $this->db->query("SHOW COLUMNS FROM practicas_estudiantes LIKE 'observacion'");
+            $this->practicaTieneObservacionColumnCache = (bool) $stmt->fetch(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            $this->practicaTieneObservacionColumnCache = false;
+        }
+
+        return $this->practicaTieneObservacionColumnCache;
     }
 
     public function getTotalesPracticas(): array
@@ -48,14 +65,30 @@ class AdminReportesModel extends Database
 
     public function getEmpresasConEstudiantes(): array
     {
+        $selectObservacion = $this->practicaTieneObservacionColumn()
+            ? "COALESCE(NULLIF(TRIM(pe.observacion), ''), 'N/A') AS observacion,"
+            : "'N/A' AS observacion,";
+
         $sql = "SELECT
+                    pe.id_practica,
+                    CASE
+                        WHEN UPPER(TRIM(COALESCE(pe.estado, 'ACTIVA'))) IN ('CANCELADA', 'NO FINALIZADO') THEN 'NO FINALIZADO'
+                        ELSE UPPER(TRIM(COALESCE(pe.estado, 'ACTIVA')))
+                    END AS estado_practica,
+                    CASE WHEN pe.estado_fase_uno_completado = 1 THEN 'Fase 2' ELSE 'Fase 1' END AS fase,
+                    pe.fecha_registro,
+                    pe.fecha_fin,
+                    {$selectObservacion}
+                    COALESCE(NULLIF(TRIM(pe.modalidad), ''), 'Sin modalidad') AS modalidad,
                     COALESCE(NULLIF(TRIM(e.nombre_empresa), ''), 'Sin empresa') AS empresa,
                     COALESCE(NULLIF(TRIM(e.ruc), ''), 'N/A') AS ruc,
-                    pe.id_practica,
-                    pe.fecha_registro,
-                    COALESCE(NULLIF(TRIM(pe.modalidad), ''), 'Sin modalidad') AS modalidad,
-                    pe.estado_fase_uno_completado,
+                    COALESCE(NULLIF(TRIM(e.razon_social), ''), 'N/A') AS razon_social,
+                    COALESCE(NULLIF(TRIM(e.persona_contacto), ''), 'N/A') AS persona_contacto,
+                    COALESCE(NULLIF(TRIM(e.telefono_contacto), ''), 'N/A') AS telefono_contacto,
+                    COALESCE(NULLIF(TRIM(e.email_contacto), ''), 'N/A') AS email_contacto,
+                    COALESCE(NULLIF(TRIM(e.direccion), ''), 'N/A') AS direccion,
                     u.id AS estudiante_id,
+                    COALESCE(NULLIF(TRIM(u.codigo_matricula), ''), 'N/A') AS codigo_matricula,
                     COALESCE(NULLIF(TRIM(u.numero_identificacion), ''), 'N/A') AS identificacion,
                     CONCAT(
                         COALESCE(u.primer_nombre, ''), ' ',
@@ -63,10 +96,19 @@ class AdminReportesModel extends Database
                         COALESCE(u.primer_apellido, ''), ' ',
                         COALESCE(u.segundo_apellido, '')
                     ) AS estudiante,
-                    COALESCE(NULLIF(TRIM(u.programa), ''), 'Sin carrera') AS carrera
+                    COALESCE(NULLIF(TRIM(u.programa), ''), 'Sin carrera') AS carrera,
+                    COALESCE(NULLIF(TRIM(doc.nombre_completo), ''), 'N/A') AS docente_asignado,
+                    COALESCE(NULLIF(TRIM(tutemp.nombre_completo), ''), 'N/A') AS tutor_empresarial,
+                    COALESCE(NULLIF(TRIM(tutemp.cedula), ''), 'N/A') AS tutor_empresarial_cedula,
+                    COALESCE(NULLIF(TRIM(tutemp.funcion), ''), 'N/A') AS tutor_empresarial_funcion,
+                    COALESCE(NULLIF(TRIM(tutemp.telefono), ''), 'N/A') AS tutor_empresarial_telefono,
+                    COALESCE(NULLIF(TRIM(tutemp.email), ''), 'N/A') AS tutor_empresarial_email,
+                    COALESCE(NULLIF(TRIM(tutemp.departamento), ''), 'N/A') AS tutor_empresarial_departamento
                 FROM practicas_estudiantes pe
                 INNER JOIN users u ON u.id = pe.user_id
                 LEFT JOIN entidades e ON e.id_entidad = pe.entidad_id
+                LEFT JOIN docentes doc ON doc.id_docente = pe.docente_asignado_id
+                LEFT JOIN tutores_empresariales tutemp ON tutemp.id_tutor_empresa = pe.tutor_empresarial_id
                 ORDER BY empresa ASC, estudiante ASC";
 
         try {
@@ -95,14 +137,30 @@ class AdminReportesModel extends Database
 
     public function getEmpresasConEstudiantesPaginated(int $limit, int $offset): array
     {
+        $selectObservacion = $this->practicaTieneObservacionColumn()
+            ? "COALESCE(NULLIF(TRIM(pe.observacion), ''), 'N/A') AS observacion,"
+            : "'N/A' AS observacion,";
+
         $sql = "SELECT
+                    pe.id_practica,
+                    CASE
+                        WHEN UPPER(TRIM(COALESCE(pe.estado, 'ACTIVA'))) IN ('CANCELADA', 'NO FINALIZADO') THEN 'NO FINALIZADO'
+                        ELSE UPPER(TRIM(COALESCE(pe.estado, 'ACTIVA')))
+                    END AS estado_practica,
+                    CASE WHEN pe.estado_fase_uno_completado = 1 THEN 'Fase 2' ELSE 'Fase 1' END AS fase,
+                    pe.fecha_registro,
+                    pe.fecha_fin,
+                    {$selectObservacion}
+                    COALESCE(NULLIF(TRIM(pe.modalidad), ''), 'Sin modalidad') AS modalidad,
                     COALESCE(NULLIF(TRIM(e.nombre_empresa), ''), 'Sin empresa') AS empresa,
                     COALESCE(NULLIF(TRIM(e.ruc), ''), 'N/A') AS ruc,
-                    pe.id_practica,
-                    pe.fecha_registro,
-                    COALESCE(NULLIF(TRIM(pe.modalidad), ''), 'Sin modalidad') AS modalidad,
-                    pe.estado_fase_uno_completado,
+                    COALESCE(NULLIF(TRIM(e.razon_social), ''), 'N/A') AS razon_social,
+                    COALESCE(NULLIF(TRIM(e.persona_contacto), ''), 'N/A') AS persona_contacto,
+                    COALESCE(NULLIF(TRIM(e.telefono_contacto), ''), 'N/A') AS telefono_contacto,
+                    COALESCE(NULLIF(TRIM(e.email_contacto), ''), 'N/A') AS email_contacto,
+                    COALESCE(NULLIF(TRIM(e.direccion), ''), 'N/A') AS direccion,
                     u.id AS estudiante_id,
+                    COALESCE(NULLIF(TRIM(u.codigo_matricula), ''), 'N/A') AS codigo_matricula,
                     COALESCE(NULLIF(TRIM(u.numero_identificacion), ''), 'N/A') AS identificacion,
                     CONCAT(
                         COALESCE(u.primer_nombre, ''), ' ',
@@ -110,10 +168,19 @@ class AdminReportesModel extends Database
                         COALESCE(u.primer_apellido, ''), ' ',
                         COALESCE(u.segundo_apellido, '')
                     ) AS estudiante,
-                    COALESCE(NULLIF(TRIM(u.programa), ''), 'Sin carrera') AS carrera
+                    COALESCE(NULLIF(TRIM(u.programa), ''), 'Sin carrera') AS carrera,
+                    COALESCE(NULLIF(TRIM(doc.nombre_completo), ''), 'N/A') AS docente_asignado,
+                    COALESCE(NULLIF(TRIM(tutemp.nombre_completo), ''), 'N/A') AS tutor_empresarial,
+                    COALESCE(NULLIF(TRIM(tutemp.cedula), ''), 'N/A') AS tutor_empresarial_cedula,
+                    COALESCE(NULLIF(TRIM(tutemp.funcion), ''), 'N/A') AS tutor_empresarial_funcion,
+                    COALESCE(NULLIF(TRIM(tutemp.telefono), ''), 'N/A') AS tutor_empresarial_telefono,
+                    COALESCE(NULLIF(TRIM(tutemp.email), ''), 'N/A') AS tutor_empresarial_email,
+                    COALESCE(NULLIF(TRIM(tutemp.departamento), ''), 'N/A') AS tutor_empresarial_departamento
                 FROM practicas_estudiantes pe
                 INNER JOIN users u ON u.id = pe.user_id
                 LEFT JOIN entidades e ON e.id_entidad = pe.entidad_id
+                LEFT JOIN docentes doc ON doc.id_docente = pe.docente_asignado_id
+                LEFT JOIN tutores_empresariales tutemp ON tutemp.id_tutor_empresa = pe.tutor_empresarial_id
                 ORDER BY empresa ASC, estudiante ASC
                 LIMIT :lim OFFSET :off";
 

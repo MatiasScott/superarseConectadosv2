@@ -22,6 +22,10 @@
     $totalHoras = (float) ($totalHorasActividades ?? 0);
     $activityPage = (int) ($activityPage ?? 1);
     $totalPages = (int) ($totalActivityPages ?? 1);
+    $estadoPracticaActual = strtoupper(trim((string) ($practica['estado'] ?? 'ACTIVA')));
+    if ($estadoPracticaActual === 'CANCELADA') {
+        $estadoPracticaActual = 'NO FINALIZADO';
+    }
 
     if (!function_exists('format_decimal_hours_hm_admin')) {
         function format_decimal_hours_hm_admin($decimalHours): string
@@ -396,9 +400,9 @@
                                     </label>
                                     <select id="estado" name="estado"
                                         class="block w-full px-4 py-3 text-base border-2 border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition">
-                                        <option value="ACTIVA" <?php echo (($practica['estado'] ?? 'ACTIVA') === 'ACTIVA') ? 'selected' : ''; ?>>ACTIVA</option>
-                                        <option value="FINALIZADA" <?php echo (($practica['estado'] ?? '') === 'FINALIZADA') ? 'selected' : ''; ?>>FINALIZADA</option>
-                                        <option value="CANCELADA" <?php echo (($practica['estado'] ?? '') === 'CANCELADA') ? 'selected' : ''; ?>>CANCELADA</option>
+                                        <option value="ACTIVA" <?php echo $estadoPracticaActual === 'ACTIVA' ? 'selected' : ''; ?>>ACTIVA</option>
+                                        <option value="FINALIZADA" <?php echo $estadoPracticaActual === 'FINALIZADA' ? 'selected' : ''; ?>>FINALIZADA</option>
+                                        <option value="NO FINALIZADO" <?php echo $estadoPracticaActual === 'NO FINALIZADO' ? 'selected' : ''; ?>>NO FINALIZADO</option>
                                     </select>
                                 </div>
 
@@ -421,10 +425,10 @@
                                     id="observacion"
                                     name="observacion"
                                     rows="4"
-                                    placeholder="Escribe el motivo de cancelación/finalización o comentarios adicionales"
+                                    placeholder="Escribe el motivo de no finalización/finalización o comentarios adicionales"
                                     class="block w-full px-4 py-3 text-base border-2 border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"><?php echo htmlspecialchars((string) ($practica['observacion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></textarea>
                                 <p class="mt-2 text-xs text-gray-500">
-                                    Puedes usar este campo para explicar por qué se finaliza o cancela la práctica, o para dejar notas de seguimiento.
+                                    Puedes usar este campo para explicar por qué se finaliza o no se finaliza la práctica, o para dejar notas de seguimiento.
                                 </p>
                             </div>
                         </section>

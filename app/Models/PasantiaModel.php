@@ -39,12 +39,19 @@ class PasantiaModel extends Database
     }
     public function getActivePracticaByUserId(int $userId)
     {
+        $selectObservacion = $this->practicaTieneObservacionColumn()
+            ? "pe.observacion,"
+            : "'' AS observacion,";
+
         $query = "SELECT
             pe.id_practica,
             pe.modalidad,
             pe.proyecto_id,
             pe.estado_fase_uno_completado,
             pe.afiliacion_iess,
+            pe.estado,
+            pe.fecha_fin,
+            {$selectObservacion}
             ent.ruc,
             pmod.id_practica_modalidad,
             ent.nombre_empresa,
@@ -65,7 +72,9 @@ class PasantiaModel extends Database
         INNER JOIN practica_modalidad pmod ON pmod.modalidad = pe.modalidad
         INNER JOIN entidades ent ON ent.id_entidad = pe.entidad_id
         LEFT JOIN tutores_empresariales tutemp ON tutemp.id_tutor_empresa = pe.tutor_empresarial_id
-        WHERE user_id = :userId LIMIT 1";
+        WHERE user_id = :userId
+        ORDER BY pe.id_practica DESC
+        LIMIT 1";
         $stmt = $this->db->prepare($query);
         $stmt->execute([':userId' => $userId]);
         return $stmt->fetch(PDO::FETCH_ASSOC);
@@ -961,11 +970,19 @@ class PasantiaModel extends Database
 
     public function getStatusPracticaByUserId(int $userId)
     {
+        $selectObservacion = $this->practicaTieneObservacionColumn()
+            ? "COALESCE(NULLIF(TRIM(pe.observacion), ''), '') AS observacion"
+            : "'' AS observacion";
+
         $query = "SELECT
-	pe.estado_fase_uno_completado
+	pe.estado_fase_uno_completado,
+        COALESCE(NULLIF(TRIM(pe.estado), ''), 'ACTIVA') AS estado,
+        {$selectObservacion}
     FROM
 	practicas_estudiantes pe 
-    WHERE user_id = :userId LIMIT 1";
+    WHERE user_id = :userId
+    ORDER BY pe.id_practica DESC
+    LIMIT 1";
         $stmt = $this->db->prepare($query);
         $stmt->execute([':userId' => $userId]);
         return $stmt->fetch(PDO::FETCH_ASSOC);
@@ -1166,8 +1183,14 @@ class PasantiaModel extends Database
             $this->db->beginTransaction();
 
             $estadoActual = strtoupper(trim((string) ($datos['estado_actual'] ?? 'ACTIVA')));
+            if ($estadoActual === 'CANCELADA') {
+                $estadoActual = 'NO FINALIZADO';
+            }
             $nuevoEstado = strtoupper(trim((string) ($datos['estado'] ?? 'ACTIVA')));
-            $estadosPermitidos = ['ACTIVA', 'FINALIZADA', 'CANCELADA'];
+            if ($nuevoEstado === 'CANCELADA') {
+                $nuevoEstado = 'NO FINALIZADO';
+            }
+            $estadosPermitidos = ['ACTIVA', 'FINALIZADA', 'NO FINALIZADO'];
             if (!in_array($nuevoEstado, $estadosPermitidos, true)) {
                 $nuevoEstado = 'ACTIVA';
             }
@@ -1176,7 +1199,7 @@ class PasantiaModel extends Database
             if ($nuevoEstado === 'ACTIVA') {
                 $fechaFin = null;
             } elseif ($nuevoEstado !== $estadoActual) {
-                // Si cambió a FINALIZADA/CANCELADA, registrar fecha fin del día del cambio.
+                // Si cambió a FINALIZADA/NO FINALIZADO, registrar fecha fin del día del cambio.
                 $fechaFin = date('Y-m-d');
             }
 

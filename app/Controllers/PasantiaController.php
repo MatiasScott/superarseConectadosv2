@@ -50,6 +50,62 @@ class PasantiaController
         }
     }
 
+    private function normalizePracticeStatus(?string $status): string
+    {
+        $normalized = strtoupper(trim((string) ($status ?? 'ACTIVA')));
+
+        if ($normalized === 'CANCELADA') {
+            return 'NO FINALIZADO';
+        }
+
+        return $normalized === '' ? 'ACTIVA' : $normalized;
+    }
+
+    private function isPracticeLocked(?array $practica): bool
+    {
+        $status = $this->normalizePracticeStatus($practica['estado'] ?? 'ACTIVA');
+        return in_array($status, ['FINALIZADA', 'NO FINALIZADO'], true);
+    }
+
+    private function getPracticeLockedMessage(?array $practica): string
+    {
+        $status = $this->normalizePracticeStatus($practica['estado'] ?? 'ACTIVA');
+        $observacion = trim((string) ($practica['observacion'] ?? ''));
+
+        if ($status === 'FINALIZADA') {
+            $message = 'Estado de Práctica: FINALIZADA. Estimado/a estudiante: Se le informa que ha culminado satisfactoriamente su proceso de prácticas preprofesionales, cumpliendo con los requisitos establecidos. Felicitamos su esfuerzo y compromiso durante esta etapa de formación profesional.';
+        } else {
+            $message = 'Estado de Práctica: NO FINALIZADO. Estimado/a estudiante: Su proceso de prácticas preprofesionales no ha finalizado. Le recomendamos ponerse en contacto a la brevedad posible con el coordinador de prácticas preprofesionales, a fin de recibir orientación y completar los requisitos pendientes. Es importante regularizar su situación para evitar inconvenientes en su proceso académico.';
+        }
+
+        if ($observacion !== '') {
+            $message .= ' Observación: ' . $observacion;
+        }
+
+        return $message;
+    }
+
+    private function redirectLockedPractice(string $fallbackTab = 'programa', int $activityPage = 1): void
+    {
+        $query = 'module=pasantias&tab=' . urlencode($fallbackTab);
+        if ($fallbackTab === 'actividades') {
+            $query .= '&activity_page=' . max(1, $activityPage);
+        }
+
+        header('Location: ' . $this->basePath . '/estudiante/informacion?' . $query);
+        exit();
+    }
+
+    private function ensurePracticeEditableOrRedirect(?array $practica, string $fallbackTab = 'programa', int $activityPage = 1): void
+    {
+        if (!$this->isPracticeLocked($practica)) {
+            return;
+        }
+
+        $_SESSION['mensaje'] = $this->getPracticeLockedMessage($practica);
+        $this->redirectLockedPractice($fallbackTab, $activityPage);
+    }
+
     public function index()
     {
         $userId = $_SESSION['id_usuario'];
@@ -187,6 +243,8 @@ class PasantiaController
             exit();
         }
 
+        $this->ensurePracticeEditableOrRedirect($practica, 'programa');
+
         $requiredFields = ['actividad_planificada', 'fecha_planificada'];
         foreach ($requiredFields as $field) {
             if (empty($_POST[$field])) {
@@ -229,6 +287,8 @@ class PasantiaController
             header("Location: " . $this->basePath . "/estudiante/seguimiento");
             exit();
         }
+
+        $this->ensurePracticeEditableOrRedirect($practica, 'programa');
 
         $id = $_POST['id'] ?? 0;
         $requiredFields = ['actividad_planificada', 'fecha_planificada'];
@@ -274,6 +334,8 @@ class PasantiaController
             header("Location: " . $this->basePath . "/estudiante/seguimiento");
             exit();
         }
+
+        $this->ensurePracticeEditableOrRedirect($practica, 'programa');
 
         $id = $_POST['id'] ?? 0;
 
@@ -337,11 +399,13 @@ class PasantiaController
             exit();
         }
 
+        $activityPage = max(1, (int) ($_POST['activity_page'] ?? 1));
+        $this->ensurePracticeEditableOrRedirect($practica, 'actividades', $activityPage);
+
         $requiredFields = ['actividad_realizada', 'fecha_actividad', 'hora_inicio', 'hora_fin', 'horas_invertidas'];
         foreach ($requiredFields as $field) {
             if (empty($_POST[$field])) {
                 $_SESSION['mensaje'] = "Error: Faltan campos obligatorios para el reporte diario.";
-                $activityPage = max(1, (int) ($_POST['activity_page'] ?? 1));
                 header("Location: " . $this->basePath . "/estudiante/informacion?module=pasantias&tab=actividades&activity_page=" . $activityPage);
                 exit();
             }
@@ -352,7 +416,6 @@ class PasantiaController
         $fecha_hoy = date('Y-m-d');
         if ($fecha_actividad > $fecha_hoy) {
             $_SESSION['mensaje'] = "❌ Error: No puedes registrar actividades con fecha futura. Hoy es " . date('d/m/Y') . ".";
-            $activityPage = max(1, (int) ($_POST['activity_page'] ?? 1));
             header("Location: " . $this->basePath . "/estudiante/informacion?module=pasantias&tab=actividades&activity_page=" . $activityPage);
             exit();
         }
@@ -361,7 +424,6 @@ class PasantiaController
         $existeActividadMismaFecha = $this->pasantiaModel->countActividadesByDateAndPractica($practica['id_practica'], $fecha_actividad);
         if ($existeActividadMismaFecha > 0) {
             $_SESSION['mensaje'] = "⚠️ Error: Ya existe una actividad registrada para " . date('d/m/Y', strtotime($fecha_actividad)) . ". Solo puedes registrar una actividad por día.";
-            $activityPage = max(1, (int) ($_POST['activity_page'] ?? 1));
             header("Location: " . $this->basePath . "/estudiante/informacion?module=pasantias&tab=actividades&activity_page=" . $activityPage);
             exit();
         }
@@ -369,7 +431,6 @@ class PasantiaController
         $horas_invertidas = $this->calculateDurationHoursFromTime($_POST['hora_inicio'], $_POST['hora_fin']);
         if ($horas_invertidas <= 0 || $horas_invertidas > 12.00) {
             $_SESSION['mensaje'] = "Error: Las horas invertidas deben ser mayores a 0 y menores o iguales a 12.";
-            $activityPage = max(1, (int) ($_POST['activity_page'] ?? 1));
             header("Location: " . $this->basePath . "/estudiante/informacion?module=pasantias&tab=actividades&activity_page=" . $activityPage);
             exit();
         }
@@ -389,7 +450,6 @@ class PasantiaController
             $_SESSION['mensaje'] = "Error al guardar la actividad diaria.";
         }
 
-        $activityPage = max(1, (int) ($_POST['activity_page'] ?? 1));
         header("Location: " . $this->basePath . "/estudiante/informacion?module=pasantias&tab=actividades&activity_page=" . $activityPage);
         exit();
     }
@@ -470,6 +530,8 @@ class PasantiaController
             exit();
         }
 
+        $this->ensurePracticeEditableOrRedirect($practica, 'actividades');
+
         $actividad = $this->pasantiaModel->getActividadDiaria($id, $practica['id_practica']);
         if (!$actividad) {
             $_SESSION['mensaje'] = "Actividad no encontrada.";
@@ -516,11 +578,13 @@ class PasantiaController
             exit();
         }
 
+        $activityPage = max(1, (int) ($_POST['activity_page'] ?? 1));
+        $this->ensurePracticeEditableOrRedirect($practica, 'actividades', $activityPage);
+
         $requiredFields = ['id', 'actividad_realizada', 'fecha_actividad', 'hora_inicio', 'hora_fin', 'horas_invertidas'];
         foreach ($requiredFields as $field) {
             if (empty($_POST[$field])) {
                 $_SESSION['mensaje'] = "Error: Faltan campos obligatorios al actualizar.";
-                $activityPage = max(1, (int) ($_POST['activity_page'] ?? 1));
                 header("Location: {$this->basePath}/estudiante/informacion?module=pasantias&tab=actividades&activity_page={$activityPage}");
                 exit();
             }
@@ -531,7 +595,6 @@ class PasantiaController
         $fecha_hoy = date('Y-m-d');
         if ($fecha_actividad > $fecha_hoy) {
             $_SESSION['mensaje'] = "❌ Error: No puedes registrar actividades con fecha futura. Hoy es " . date('d/m/Y') . ".";
-            $activityPage = max(1, (int) ($_POST['activity_page'] ?? 1));
             header("Location: {$this->basePath}/estudiante/informacion?module=pasantias&tab=actividades&activity_page={$activityPage}");
             exit();
         }
@@ -541,7 +604,6 @@ class PasantiaController
         $existeActividadMismaFecha = $this->pasantiaModel->countActividadesByDateAndPractica($practica['id_practica'], $fecha_actividad, $actividadId);
         if ($existeActividadMismaFecha > 0) {
             $_SESSION['mensaje'] = "⚠️ Error: Ya existe otra actividad registrada para " . date('d/m/Y', strtotime($fecha_actividad)) . ". Solo puedes registrar una actividad por día.";
-            $activityPage = max(1, (int) ($_POST['activity_page'] ?? 1));
             header("Location: {$this->basePath}/estudiante/informacion?module=pasantias&tab=actividades&activity_page={$activityPage}");
             exit();
         }
@@ -549,7 +611,6 @@ class PasantiaController
         $horas_invertidas = $this->calculateDurationHoursFromTime($_POST['hora_inicio'], $_POST['hora_fin']);
         if ($horas_invertidas <= 0 || $horas_invertidas > 12.00) {
             $_SESSION['mensaje'] = "Error: Las horas invertidas deben ser mayores a 0 y menores o iguales a 12.";
-            $activityPage = max(1, (int) ($_POST['activity_page'] ?? 1));
             header("Location: {$this->basePath}/estudiante/informacion?module=pasantias&tab=actividades&activity_page={$activityPage}");
             exit();
         }
@@ -570,7 +631,6 @@ class PasantiaController
             $_SESSION['mensaje'] = "Error al actualizar la actividad diaria.";
         }
 
-        $activityPage = max(1, (int) ($_POST['activity_page'] ?? 1));
         header("Location: {$this->basePath}/estudiante/informacion?module=pasantias&tab=actividades&activity_page={$activityPage}");
         exit();
     }
@@ -599,6 +659,9 @@ class PasantiaController
             exit();
         }
 
+        $activityPage = max(1, (int) ($_POST['activity_page'] ?? 1));
+        $this->ensurePracticeEditableOrRedirect($practica, 'actividades', $activityPage);
+
         $id = (int) $_POST['id'];
 
         if ($this->pasantiaModel->deleteActividadDiaria($id, $practica['id_practica'])) {
@@ -607,7 +670,6 @@ class PasantiaController
             $_SESSION['mensaje'] = "Error al eliminar la actividad diaria.";
         }
 
-        $activityPage = max(1, (int) ($_POST['activity_page'] ?? 1));
         header("Location: {$this->basePath}/estudiante/informacion?module=pasantias&tab=actividades&activity_page={$activityPage}");
         exit();
     }
@@ -1014,6 +1076,8 @@ class PasantiaController
             exit();
         }
 
+        $this->ensurePracticeEditableOrRedirect($practica, 'programa');
+
         // Obtener información completa del estudiante
         $estudiante = $this->userModel->getUserInfoByIdentificacion($_SESSION['identificacion']);
 
@@ -1113,6 +1177,17 @@ class PasantiaController
             header("Location: " . $this->basePath . "/estudiante/plan-aprendizaje");
             exit();
         }
+
+        $userId = $_SESSION['id_usuario'] ?? 0;
+        $practica = $this->pasantiaModel->getActivePracticaByUserId((int) $userId);
+
+        if (!$practica || !$practica['estado_fase_uno_completado']) {
+            $_SESSION['mensaje'] = "La Fase 1 debe estar completa y aprobada para acceder al Plan de Aprendizaje.";
+            header("Location: " . $this->basePath . "/estudiante/informacion?module=pasantias&tab=programa");
+            exit();
+        }
+
+        $this->ensurePracticeEditableOrRedirect($practica, 'programa');
 
         // Incluir el archivo que genera el PDF con los datos del formulario
         require_once __DIR__ . '/../Views/estudiantes/generar_plan_pdf.php';
