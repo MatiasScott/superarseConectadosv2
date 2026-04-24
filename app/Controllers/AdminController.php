@@ -2974,12 +2974,20 @@ class AdminController
         $data = [
             'objetivo_estrategico' => $_POST['objetivo_estrategico'] ?? '',
             'objetivo_estrategia' => $_POST['objetivo_estrategia'] ?? '',
-            'avance' => $_POST['avance'] ?? 0,
+            'avance' => 0,
             'avance_estrategia' => $_POST['avance_estrategia'] ?? 0,
             'estado' => $_POST['estado'] ?? 'ACTIVO'
         ];
 
-        $model->crear($data);
+        $creado = $model->crear($data);
+
+        if ($creado) {
+            $db = $this->pediModel->getConnection();
+            $nuevoId = (int)$db->lastInsertId();
+            if ($nuevoId > 0) {
+                $this->pediModel->recalcularAvanceObjetivoPorPediId($nuevoId);
+            }
+        }
 
         header("Location: " . $this->basePath . "/admin/plan-estrategico");
         exit();
@@ -3000,17 +3008,25 @@ class AdminController
     {
         $model = new PediModel();
 
-        $id = $_POST['id_pedi'];
+        $id = (int)($_POST['id_pedi'] ?? 0);
+        $pediAnterior = $model->obtenerPorId($id);
 
         $data = [
             'objetivo_estrategico' => $_POST['objetivo_estrategico'],
             'objetivo_estrategia' => $_POST['objetivo_estrategia'],
-            'avance' => $_POST['avance'],
+            'avance' => (float)($pediAnterior['avance'] ?? 0),
             'avance_estrategia' => $_POST['avance_estrategia'] ?? 0,
             'estado' => $_POST['estado']
         ];
 
         $model->actualizar($id, $data);
+
+        if ($id > 0) {
+            $this->pediModel->recalcularAvanceObjetivoPorPediId($id);
+            if (!empty($pediAnterior['id_pedi'])) {
+                $this->pediModel->recalcularAvanceObjetivoPorPediId((int)$pediAnterior['id_pedi']);
+            }
+        }
 
         header("Location: " . $this->basePath . "/admin/plan-estrategico");
         exit();
@@ -3343,7 +3359,29 @@ class AdminController
             exit();
         }
 
+        $pedi = $this->pediModel->obtenerPorId((int)$id);
         $eliminado = $this->pediModel->eliminar($id);
+
+        if ($eliminado && !empty($pedi['objetivo_estrategico'])) {
+            $idReferencia = null;
+            $db = $this->pediModel->getConnection();
+            $sql = "SELECT id_pedi FROM pedi
+                    WHERE objetivo_estrategico = :objetivo
+                      AND YEAR(fecha_creacion) = :anio
+                    ORDER BY id_pedi DESC
+                    LIMIT 1";
+            $stmt = $db->prepare($sql);
+            $stmt->execute([
+                ':objetivo' => $pedi['objetivo_estrategico'],
+                ':anio' => (int)($pedi['anio_creacion'] ?? 0)
+            ]);
+            $idReferencia = (int)$stmt->fetchColumn();
+
+            if ($idReferencia > 0) {
+                $this->pediModel->recalcularAvanceObjetivoPorPediId($idReferencia);
+            }
+        }
+
         $_SESSION[$eliminado ? 'success' : 'error'] = $eliminado
             ? 'PEDI eliminado correctamente'
             : 'No se pudo eliminar el PEDI';
@@ -3423,6 +3461,8 @@ class AdminController
             'avance_estrategia' => $avanceCalculado,
             'estado' => $pedi['estado'] ?? 'ACTIVO'
         ]);
+
+        $this->pediModel->recalcularAvanceObjetivoPorPediId($idPedi);
     }
 
     /* Convenios */

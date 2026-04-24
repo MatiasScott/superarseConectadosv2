@@ -5,6 +5,47 @@ class PediModel extends Database
 {
     protected $table_name = "pedi";
 
+    public function recalcularAvanceObjetivoPorPediId($idPedi)
+    {
+        $db = $this->getConnection();
+
+        $sqlMeta = "SELECT objetivo_estrategico, YEAR(fecha_creacion) AS anio_creacion
+                    FROM " . $this->table_name . "
+                    WHERE id_pedi = ?
+                    LIMIT 1";
+        $stmtMeta = $db->prepare($sqlMeta);
+        $stmtMeta->execute([(int)$idPedi]);
+        $meta = $stmtMeta->fetch(PDO::FETCH_ASSOC);
+
+        if (!$meta) {
+            return;
+        }
+
+        $objetivo = trim((string)($meta['objetivo_estrategico'] ?? ''));
+        $anio = (int)($meta['anio_creacion'] ?? 0);
+
+        if ($objetivo === '' || $anio <= 0) {
+            return;
+        }
+
+        $sqlAvg = "SELECT AVG(COALESCE(avance_estrategia, 0)) AS promedio
+                   FROM " . $this->table_name . "
+                   WHERE objetivo_estrategico = ?
+                     AND YEAR(fecha_creacion) = ?";
+        $stmtAvg = $db->prepare($sqlAvg);
+        $stmtAvg->execute([$objetivo, $anio]);
+        $rowAvg = $stmtAvg->fetch(PDO::FETCH_ASSOC);
+
+        $promedio = round((float)($rowAvg['promedio'] ?? 0), 2);
+
+        $sqlUpd = "UPDATE " . $this->table_name . "
+                   SET avance = ?
+                   WHERE objetivo_estrategico = ?
+                     AND YEAR(fecha_creacion) = ?";
+        $stmtUpd = $db->prepare($sqlUpd);
+        $stmtUpd->execute([$promedio, $objetivo, $anio]);
+    }
+
     public function obtenerTodos()
     {
         $db = $this->getConnection();

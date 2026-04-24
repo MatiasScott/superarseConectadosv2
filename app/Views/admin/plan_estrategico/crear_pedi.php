@@ -22,9 +22,10 @@
 
             <input type="number"
                 step="0.01"
-                name="avance"
+                value="0.00"
                 class="w-full mt-1 border rounded-lg px-4 py-2 focus:ring-2 focus:ring-purple-400"
-                required>
+                readonly>
+            <p class="text-xs text-gray-500 mt-1">Se calcula automáticamente a partir del avance de sus estrategias.</p>
         </div>
 
 
