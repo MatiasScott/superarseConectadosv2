@@ -92,7 +92,7 @@
                         echo '<br>';
                         echo '<a href="https://site2.q10.com/Prematricula" target="_blank" class="text-superarse-rosa hover:underline font-semibold">¡Prematrículate aquí!</a>';
                         echo ' / ';
-                        echo '<a href="..." target="_blank" class="text-blue-600 hover:underline">¿Cómo me prematriculo?</a>';
+                        echo '<a href="https://goo.su/o1y2g " target="_blank" class="text-blue-600 hover:underline">¿Cómo me prematriculo?</a>';
                     }
                     ?>
                 </span>
