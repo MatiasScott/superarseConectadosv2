@@ -2,7 +2,8 @@
 <html lang="es">
 
 <?php
-$basePath = $data['basePath'] ?? '/superarseconectadosv2/public';
+require_once __DIR__ . '/../../Helpers/BasePath.php';
+$basePath = $data['basePath'] ?? BasePath::detect();
 $moduleCss = $data['moduleCss'] ?? [];
 $moduleJs = $data['moduleJs'] ?? [];
 

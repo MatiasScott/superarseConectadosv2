@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+@theme {
+  --color-superarse-morado-oscuro: #4A148C;
+  --color-superarse-morado-medio: #673AB7;
+  --color-superarse-rosa: #E91E63;
+}

@@ -17,6 +17,7 @@ require_once __DIR__ . '/../Models/AdminPermissionModel.php';
 require_once __DIR__ . '/../Models/AuditLogModel.php';
 require_once __DIR__ . '/../Models/AdminReportesModel.php';
 require_once __DIR__ . '/../Helpers/AuthSecurity.php';
+require_once __DIR__ . '/../Helpers/BasePath.php';
 
 class AdminController
 {
@@ -44,12 +45,7 @@ class AdminController
             session_start();
         }
 
-        // Configurar basePath según el entorno
-        if (isset($_SERVER['HTTP_HOST']) && strpos($_SERVER['HTTP_HOST'], 'superarse.ec') !== false) {
-            $this->basePath = '';
-        } else {
-            $this->basePath = '/superarseconectadosv2/public';
-        }
+        $this->basePath = BasePath::detect();
 
         $this->pasantiaModel = new PasantiaModel();
         $this->userModel = new UserModel();
@@ -361,6 +357,525 @@ class AdminController
         ]);
     }
 
+    public function configuracion()
+    {
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $pediModel = new PediModel();
+        $pedi = $pediModel->obtenerTodos();
+
+        $db = $pediModel->getConnection();
+        $ejes = $db->query("SELECT * FROM eje_estrategico ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
+        $areas = $db->query("SELECT * FROM area ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
+        $sedes = $db->query("SELECT * FROM sede ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
+        $objetivos = $db->query("SELECT o.*, e.nombre AS eje_nombre FROM objetivo_estrategico o LEFT JOIN eje_estrategico e ON o.eje_id = e.id ORDER BY o.nombre")->fetchAll(PDO::FETCH_ASSOC);
+        $estrategias = $db->query("SELECT s.*, o.nombre AS objetivo_nombre FROM estrategia s LEFT JOIN objetivo_estrategico o ON s.objetivo_id = o.id ORDER BY s.nombre")->fetchAll(PDO::FETCH_ASSOC);
+        $canCreateConfiguracion = $this->hasPermission('configuracion', 'create');
+        $canEditConfiguracion = $this->hasPermission('configuracion', 'edit');
+        $canDeleteConfiguracion = $this->hasPermission('configuracion', 'delete');
+
+        $this->render('admin/configuracion/index', [
+            'title' => 'Configuración del Sistema',
+            'pedi' => $pedi,
+            'ejes' => $ejes,
+            'areas' => $areas,
+            'sedes' => $sedes,
+            'objetivos' => $objetivos,
+            'estrategias' => $estrategias,
+            'canCreateConfiguracion' => $canCreateConfiguracion,
+            'canEditConfiguracion' => $canEditConfiguracion,
+            'canDeleteConfiguracion' => $canDeleteConfiguracion,
+        ]);
+    }
+
+    public function guardarEje()
+    {
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $db = (new PediModel())->getConnection();
+        $nombre = trim($_POST['nombre'] ?? '');
+        $descripcion = trim($_POST['descripcion'] ?? '');
+
+        if ($nombre === '') {
+            $_SESSION['error'] = 'El nombre del eje es obligatorio.';
+            header("Location: " . $this->basePath . "/admin/configuracion");
+            exit();
+        }
+
+        $db->prepare("INSERT INTO eje_estrategico (nombre, descripcion, estado) VALUES (?, ?, 'activo')")
+            ->execute([$nombre, $descripcion]);
+
+        $_SESSION['success'] = 'Eje estratégico creado correctamente.';
+        header("Location: " . $this->basePath . "/admin/configuracion");
+        exit();
+    }
+
+    public function actualizarEje()
+    {
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $id = (int)($_POST['id_eje'] ?? 0);
+        if ($id <= 0) {
+            $_SESSION['error'] = 'ID de eje inválido.';
+            header("Location: " . $this->basePath . "/admin/configuracion");
+            exit();
+        }
+
+        $db = (new PediModel())->getConnection();
+        $nombre = trim($_POST['nombre'] ?? '');
+        $descripcion = trim($_POST['descripcion'] ?? '');
+
+        if ($nombre === '') {
+            $_SESSION['error'] = 'El nombre del eje es obligatorio.';
+            header("Location: " . $this->basePath . "/admin/configuracion");
+            exit();
+        }
+
+        $db->prepare("UPDATE eje_estrategico SET nombre = ?, descripcion = ? WHERE id = ?")
+            ->execute([$nombre, $descripcion, $id]);
+
+        $_SESSION['success'] = 'Eje estratégico actualizado correctamente.';
+        header("Location: " . $this->basePath . "/admin/configuracion");
+        exit();
+    }
+
+    public function eliminarEje($id)
+    {
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        if ($id <= 0) {
+            $_SESSION['error'] = 'ID de eje inválido.';
+            header("Location: " . $this->basePath . "/admin/configuracion");
+            exit();
+        }
+
+        $db = (new PediModel())->getConnection();
+
+        $stmt = $db->prepare("SELECT COUNT(*) FROM objetivo_estrategico WHERE eje_id = ?");
+        $stmt->execute([$id]);
+        $hijos = (int)$stmt->fetchColumn();
+        if ($hijos > 0) {
+            $_SESSION['error'] = "No se puede eliminar: {$hijos} objetivo(s) dependen de este eje.";
+            header("Location: " . $this->basePath . "/admin/configuracion");
+            exit();
+        }
+
+        $stmt2 = $db->prepare("SELECT COUNT(*) FROM poa_actividades WHERE eje_id = ?");
+        $stmt2->execute([$id]);
+        $hijos2 = (int)$stmt2->fetchColumn();
+        if ($hijos2 > 0) {
+            $_SESSION['error'] = "No se puede eliminar: {$hijos2} actividad(es) POA dependen de este eje.";
+            header("Location: " . $this->basePath . "/admin/configuracion");
+            exit();
+        }
+
+        $db->prepare("DELETE FROM eje_estrategico WHERE id = ?")->execute([$id]);
+
+        $_SESSION['success'] = 'Eje estratégico eliminado correctamente.';
+        header("Location: " . $this->basePath . "/admin/configuracion");
+        exit();
+    }
+
+    public function guardarArea()
+    {
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $nombre = trim($_POST['nombre'] ?? '');
+        if ($nombre === '') {
+            $_SESSION['error'] = 'El nombre del área es obligatorio.';
+            header("Location: " . $this->basePath . "/admin/configuracion");
+            exit();
+        }
+
+        $db = (new PediModel())->getConnection();
+        $db->prepare("INSERT INTO area (nombre) VALUES (?)")->execute([$nombre]);
+
+        $_SESSION['success'] = 'Área creada correctamente.';
+        header("Location: " . $this->basePath . "/admin/configuracion");
+        exit();
+    }
+
+    public function actualizarArea()
+    {
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $id = (int)($_POST['id'] ?? 0);
+        $nombre = trim($_POST['nombre'] ?? '');
+        if ($id <= 0 || $nombre === '') {
+            $_SESSION['error'] = 'Datos inválidos.';
+            header("Location: " . $this->basePath . "/admin/configuracion");
+            exit();
+        }
+
+        $db = (new PediModel())->getConnection();
+        $db->prepare("UPDATE area SET nombre = ? WHERE id = ?")->execute([$nombre, $id]);
+
+        $_SESSION['success'] = 'Área actualizada correctamente.';
+        header("Location: " . $this->basePath . "/admin/configuracion");
+        exit();
+    }
+
+    public function eliminarArea($id)
+    {
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        if ($id <= 0) {
+            $_SESSION['error'] = 'ID inválido.';
+            header("Location: " . $this->basePath . "/admin/configuracion");
+            exit();
+        }
+
+        $db = (new PediModel())->getConnection();
+
+        $stmt = $db->prepare("SELECT COUNT(*) FROM poa WHERE area_id = ?");
+        $stmt->execute([$id]);
+        $hijos = (int)$stmt->fetchColumn();
+        if ($hijos > 0) {
+            $_SESSION['error'] = "No se puede eliminar: {$hijos} POA(s) dependen de esta área.";
+            header("Location: " . $this->basePath . "/admin/configuracion");
+            exit();
+        }
+
+        $stmt2 = $db->prepare("SELECT COUNT(*) FROM poa_actividades WHERE area_id = ?");
+        $stmt2->execute([$id]);
+        $hijos2 = (int)$stmt2->fetchColumn();
+        if ($hijos2 > 0) {
+            $_SESSION['error'] = "No se puede eliminar: {$hijos2} actividad(es) POA dependen de esta área.";
+            header("Location: " . $this->basePath . "/admin/configuracion");
+            exit();
+        }
+
+        $db->prepare("DELETE FROM area WHERE id = ?")->execute([$id]);
+
+        $_SESSION['success'] = 'Área eliminada correctamente.';
+        header("Location: " . $this->basePath . "/admin/configuracion");
+        exit();
+    }
+
+    public function guardarSede()
+    {
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $nombre = trim($_POST['nombre'] ?? '');
+        if ($nombre === '') {
+            $_SESSION['error'] = 'El nombre de la sede es obligatorio.';
+            header("Location: " . $this->basePath . "/admin/configuracion");
+            exit();
+        }
+
+        $db = (new PediModel())->getConnection();
+        $db->prepare("INSERT INTO sede (nombre) VALUES (?)")->execute([$nombre]);
+
+        $_SESSION['success'] = 'Sede creada correctamente.';
+        header("Location: " . $this->basePath . "/admin/configuracion");
+        exit();
+    }
+
+    public function actualizarSede()
+    {
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $id = (int)($_POST['id'] ?? 0);
+        $nombre = trim($_POST['nombre'] ?? '');
+        if ($id <= 0 || $nombre === '') {
+            $_SESSION['error'] = 'Datos inválidos.';
+            header("Location: " . $this->basePath . "/admin/configuracion");
+            exit();
+        }
+
+        $db = (new PediModel())->getConnection();
+        $db->prepare("UPDATE sede SET nombre = ? WHERE id = ?")->execute([$nombre, $id]);
+
+        $_SESSION['success'] = 'Sede actualizada correctamente.';
+        header("Location: " . $this->basePath . "/admin/configuracion");
+        exit();
+    }
+
+    public function eliminarSede($id)
+    {
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        if ($id <= 0) {
+            $_SESSION['error'] = 'ID inválido.';
+            header("Location: " . $this->basePath . "/admin/configuracion");
+            exit();
+        }
+
+        $db = (new PediModel())->getConnection();
+
+        $stmt = $db->prepare("SELECT COUNT(*) FROM poa_actividades WHERE sede_id = ?");
+        $stmt->execute([$id]);
+        $hijos = (int)$stmt->fetchColumn();
+        if ($hijos > 0) {
+            $_SESSION['error'] = "No se puede eliminar: {$hijos} actividad(es) POA dependen de esta sede.";
+            header("Location: " . $this->basePath . "/admin/configuracion");
+            exit();
+        }
+
+        $db->prepare("DELETE FROM sede WHERE id = ?")->execute([$id]);
+
+        $_SESSION['success'] = 'Sede eliminada correctamente.';
+        header("Location: " . $this->basePath . "/admin/configuracion");
+        exit();
+    }
+
+    public function guardarObjetivo()
+    {
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $nombre = trim($_POST['nombre'] ?? '');
+        $ejeId = !empty($_POST['eje_id']) ? (int)$_POST['eje_id'] : null;
+        if ($nombre === '') {
+            $_SESSION['error'] = 'El nombre es obligatorio.';
+            header("Location: " . $this->basePath . "/admin/configuracion");
+            exit();
+        }
+
+        $db = (new PediModel())->getConnection();
+        $db->prepare("INSERT INTO objetivo_estrategico (eje_id, nombre, estado) VALUES (?, ?, 'activo')")->execute([$ejeId, $nombre]);
+
+        $_SESSION['success'] = 'Objetivo Estratégico creado correctamente.';
+        header("Location: " . $this->basePath . "/admin/configuracion");
+        exit();
+    }
+
+    public function actualizarObjetivo()
+    {
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $id = (int)($_POST['id'] ?? 0);
+        $nombre = trim($_POST['nombre'] ?? '');
+        $ejeId = !empty($_POST['eje_id']) ? (int)$_POST['eje_id'] : null;
+        if ($id <= 0 || $nombre === '') {
+            $_SESSION['error'] = 'Datos inválidos.';
+            header("Location: " . $this->basePath . "/admin/configuracion");
+            exit();
+        }
+
+        $db = (new PediModel())->getConnection();
+        $db->prepare("UPDATE objetivo_estrategico SET nombre = ?, eje_id = ? WHERE id = ?")->execute([$nombre, $ejeId, $id]);
+
+        $_SESSION['success'] = 'Objetivo Estratégico actualizado correctamente.';
+        header("Location: " . $this->basePath . "/admin/configuracion");
+        exit();
+    }
+
+    public function eliminarObjetivo($id)
+    {
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        if ($id <= 0) {
+            $_SESSION['error'] = 'ID inválido.';
+            header("Location: " . $this->basePath . "/admin/configuracion");
+            exit();
+        }
+
+        $db = (new PediModel())->getConnection();
+
+        $stmt = $db->prepare("SELECT COUNT(*) FROM estrategia WHERE objetivo_id = ?");
+        $stmt->execute([$id]);
+        $hijos = (int)$stmt->fetchColumn();
+        if ($hijos > 0) {
+            $_SESSION['error'] = "No se puede eliminar: {$hijos} estrategia(s) dependen de este objetivo.";
+            header("Location: " . $this->basePath . "/admin/configuracion");
+            exit();
+        }
+
+        $stmt2 = $db->prepare("SELECT COUNT(*) FROM poa_actividades WHERE objetivo_id = ?");
+        $stmt2->execute([$id]);
+        $hijos2 = (int)$stmt2->fetchColumn();
+        if ($hijos2 > 0) {
+            $_SESSION['error'] = "No se puede eliminar: {$hijos2} actividad(es) POA dependen de este objetivo.";
+            header("Location: " . $this->basePath . "/admin/configuracion");
+            exit();
+        }
+
+        $db->prepare("DELETE FROM objetivo_estrategico WHERE id = ?")->execute([$id]);
+
+        $_SESSION['success'] = 'Objetivo Estratégico eliminado correctamente.';
+        header("Location: " . $this->basePath . "/admin/configuracion");
+        exit();
+    }
+
+    public function guardarEstrategia()
+    {
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $nombre = trim($_POST['nombre'] ?? '');
+        $objetivoId = !empty($_POST['objetivo_id']) ? (int)$_POST['objetivo_id'] : null;
+        if ($nombre === '') {
+            $_SESSION['error'] = 'El nombre es obligatorio.';
+            header("Location: " . $this->basePath . "/admin/configuracion");
+            exit();
+        }
+
+        $db = (new PediModel())->getConnection();
+        $db->prepare("INSERT INTO estrategia (objetivo_id, nombre, estado) VALUES (?, ?, 'activo')")->execute([$objetivoId, $nombre]);
+
+        $_SESSION['success'] = 'Estrategia creada correctamente.';
+        header("Location: " . $this->basePath . "/admin/configuracion");
+        exit();
+    }
+
+    public function actualizarEstrategia()
+    {
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $id = (int)($_POST['id'] ?? 0);
+        $nombre = trim($_POST['nombre'] ?? '');
+        $objetivoId = !empty($_POST['objetivo_id']) ? (int)$_POST['objetivo_id'] : null;
+        if ($id <= 0 || $nombre === '') {
+            $_SESSION['error'] = 'Datos inválidos.';
+            header("Location: " . $this->basePath . "/admin/configuracion");
+            exit();
+        }
+
+        $db = (new PediModel())->getConnection();
+        $db->prepare("UPDATE estrategia SET nombre = ?, objetivo_id = ? WHERE id = ?")->execute([$nombre, $objetivoId, $id]);
+
+        $_SESSION['success'] = 'Estrategia actualizada correctamente.';
+        header("Location: " . $this->basePath . "/admin/configuracion");
+        exit();
+    }
+
+    public function eliminarEstrategia($id)
+    {
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        if ($id <= 0) {
+            $_SESSION['error'] = 'ID inválido.';
+            header("Location: " . $this->basePath . "/admin/configuracion");
+            exit();
+        }
+
+        $db = (new PediModel())->getConnection();
+
+        $stmt = $db->prepare("SELECT COUNT(*) FROM poa_actividades WHERE estrategia_id = ?");
+        $stmt->execute([$id]);
+        $hijos = (int)$stmt->fetchColumn();
+        if ($hijos > 0) {
+            $_SESSION['error'] = "No se puede eliminar: {$hijos} actividad(es) POA dependen de esta estrategia.";
+            header("Location: " . $this->basePath . "/admin/configuracion");
+            exit();
+        }
+
+        $db->prepare("DELETE FROM estrategia WHERE id = ?")->execute([$id]);
+
+        $_SESSION['success'] = 'Estrategia eliminada correctamente.';
+        header("Location: " . $this->basePath . "/admin/configuracion");
+        exit();
+    }
+
+    public function guardarConfiguracionPediModal()
+    {
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $pediModel = new PediModel();
+        $id = (int) ($_POST['id_pedi'] ?? 0);
+
+        $metas = $_POST['meta_modal'] ?? [];
+        $data = [
+            'objetivo_estrategico' => $_POST['objetivo_estrategico'] ?? '',
+            'eje' => $_POST['eje'] ?? '',
+            'objetivo_estrategia' => $_POST['objetivo_estrategia'] ?? '',
+            'eje_id' => !empty($_POST['eje_id']) ? (int)$_POST['eje_id'] : null,
+            'linea_base' => $_POST['linea_base_modal'] ?? '',
+            'meta_2024' => $metas[2024] ?? '',
+            'meta_2025' => $metas[2025] ?? '',
+            'meta_2026' => $metas[2026] ?? '',
+            'meta_2027' => $metas[2027] ?? '',
+            'meta_2028' => $metas[2028] ?? '',
+            'estado' => $_POST['estado'] ?? 'activo',
+        ];
+
+        try {
+            if ($id > 0) {
+                $pediModel->actualizar($id, $data);
+                $_SESSION['success'] = 'PEDI actualizado correctamente.';
+            } else {
+                $data['avance'] = 0;
+                $data['avance_estrategia'] = 0;
+                $pediModel->crear($data);
+                $_SESSION['success'] = 'PEDI creado correctamente.';
+            }
+        } catch (Exception $e) {
+            error_log("Error guardar PEDI modal: " . $e->getMessage());
+            $_SESSION['error'] = 'Error al guardar el PEDI.';
+        }
+
+        header("Location: " . $this->basePath . "/admin/configuracion");
+        exit();
+    }
+
+    public function eliminarConfiguracionPedi($id)
+    {
+        if (!isset($_SESSION['is_admin']) || $_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $pediModel = new PediModel();
+        $eliminado = $pediModel->eliminar((int)$id);
+
+        $_SESSION[$eliminado ? 'success' : 'error'] = $eliminado
+            ? 'PEDI eliminado correctamente.'
+            : 'No se pudo eliminar el PEDI.';
+
+        header("Location: " . $this->basePath . "/admin/configuracion");
+        exit();
+    }
+
     public function exportAuditoriaGeneralCsv()
     {
         if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
@@ -527,8 +1042,12 @@ class AdminController
             exit();
         }
 
+        $db = $this->reportesModel->getConnection();
+        $areas = $db->query("SELECT * FROM area ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
+
         $this->render('admin/reportes/index', [
             'title' => 'Reportes de Prácticas',
+            'areas' => $areas,
         ]);
     }
 
@@ -616,15 +1135,19 @@ class AdminController
             ],
             [
                 'key' => 'planificacion_poa_actividades',
-                'label' => 'Actividades de Plan Operativo',
-                'description' => 'Reporte de actividades del POA.',
+                'label' => 'Actividades POA',
+                'description' => 'Reporte de actividades del POA con cronograma y presupuesto.',
             ],
         ];
+
+        $db = $this->reportesModel->getConnection();
+        $areas = $db->query("SELECT * FROM area ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
 
         $this->render('admin/reportes/module_page', [
             'title' => 'Reportes - Planificación',
             'moduleTitle' => 'Planificación',
             'sections' => $sections,
+            'areas' => $areas,
         ]);
     }
 
@@ -657,76 +1180,210 @@ class AdminController
         }
 
         $format = $this->normalizeReportFormat($_GET['format'] ?? 'excel');
-        $exportData = $this->reportesModel->getDataForModuleExport($module);
+        $areaId = isset($_GET['area_id']) && $_GET['area_id'] !== '' ? $_GET['area_id'] : null;
+        $exportData = $this->reportesModel->getDataForModuleExport($module, $areaId);
         $rows = $exportData['rows'] ?? [];
         $label = $exportData['label'] ?? ucfirst($module);
         $reportTitle = 'Reporte Administrativo';
         $downloadedAt = date('d/m/Y H:i:s');
-
         if ($format === 'pdf') {
-            $html = $this->buildStyledReportHtml($reportTitle, (string) $label, $downloadedAt, $rows, 'pdf');
-            $this->renderPdfDownload('reporte_' . $module . '_' . date('Ymd_His') . '.pdf', $html);
+            $html = $this->buildStyledReportHtml($reportTitle, (string) $label, $downloadedAt, $rows, 'pdf', $module);
+            $paper = $module === 'planificacion_poa_actividades' ? 'A3' : 'A4';
+            $this->renderPdfDownload('reporte_' . $module . '_' . date('Ymd_His') . '.pdf', $html, $paper, 'landscape');
         }
 
         $filename = 'reporte_' . $module . '_' . date('Ymd_His') . '.xlsx';
-        $this->streamXlsxDownload($filename, $rows, null, (string) $label);
+        $this->streamXlsxDownload($filename, $rows, null, (string) $label, $module);
     }
 
-    private function buildStyledReportHtml($reportTitle, $moduleLabel, $downloadedAt, array $rows, $target = 'pdf')
+    private function buildStyledReportHtml($reportTitle, $moduleLabel, $downloadedAt, array $rows, $target = 'pdf', $module = '')
     {
         $target = strtolower((string) $target);
         $headers = !empty($rows) ? array_keys((array) $rows[0]) : [];
+        $colCount = count($headers);
 
         $isExcel = $target === 'excel';
-        $pagePadding = $isExcel ? '14px' : '12px';
-        $headerBg = $isExcel ? '#f3f4f6' : '#eef2ff';
+        $pagePadding = $isExcel ? '14px' : '16px';
+        $bodySize = $isExcel ? '11px' : '9.5px';
+        $headerSize = $isExcel ? '10px' : '8.5px';
+
+        $moduleClass = $module ? 'report-' . preg_replace('/[^a-z0-9_-]/', '', strtolower($module)) : '';
 
         $html = '<!DOCTYPE html><html><head><meta charset="utf-8">';
         $html .= '<style>';
-        $html .= 'body{font-family:Arial,Helvetica,sans-serif;color:#111827;font-size:12px;padding:' . $pagePadding . ';}';
-        $html .= '.card{border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;}';
-        $html .= '.head{background:' . $headerBg . ';padding:12px 14px;border-bottom:1px solid #d1d5db;}';
-        $html .= '.title{font-size:18px;font-weight:700;margin:0;color:#1f2937;}';
-        $html .= '.meta{margin-top:6px;font-size:11px;color:#374151;}';
-        $html .= '.meta span{margin-right:14px;}';
-        $html .= 'table{width:100%;border-collapse:collapse;}';
-        $html .= 'th,td{border:1px solid #d1d5db;padding:7px 8px;vertical-align:top;}';
-        $html .= 'th{background:#111827;color:#ffffff;font-size:11px;text-transform:uppercase;}';
-        $html .= 'tr:nth-child(even) td{background:#f9fafb;}';
-        $html .= '.empty{padding:14px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;margin-top:10px;border-radius:6px;}';
+        $html .= '*{box-sizing:border-box;}';
+        $html .= 'body{font-family:Arial,Helvetica,sans-serif;color:#1e293b;font-size:' . $bodySize . ';padding:' . $pagePadding . ';margin:0;}';
+        $html .= 'table{width:100%;border-collapse:collapse;border:1px solid #cbd5e1;}';
+        $html .= 'th,td{border:1px solid #cbd5e1;padding:6px 7px;vertical-align:middle;}';
+        $html .= 'th{background:#4c1d95;color:#ffffff;font-size:' . $headerSize . ';text-transform:uppercase;letter-spacing:0.4px;font-weight:700;}';
+        $html .= 'td{color:#1e293b;}';
+        $html .= 'tr:nth-child(even) td{background:#f1f5f9;}';
+        $html .= '.empty{padding:16px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:6px;font-size:12px;}';
+
+        // Module-specific adjustments
+        if ($moduleClass === 'report-planificacion_pedi') {
+            $html .= 'table{border:2px solid #334155;border-radius:6px;}';
+            $html .= 'th{background:#4c1d95;padding:7px 6px;font-size:7.5px;border-color:#334155;text-align:center;}';
+            $html .= 'td{padding:5px 6px;font-size:8.5px;border-color:#e2e8f0;}';
+            $html .= 'td:first-child{text-align:center;font-weight:700;width:22px;background:#f8fafc;}';
+            $html .= 'td:nth-child(2){font-weight:600;color:#6d28d9;min-width:70px;}';
+            $html .= 'td:nth-child(3){min-width:160px;}';
+            $html .= 'td:nth-child(4){min-width:150px;}';
+            $html .= 'td:nth-child(5),td:nth-child(6),td:nth-child(7),td:nth-child(8),td:nth-child(9),td:nth-child(10){text-align:center;font-size:8px;min-width:42px;padding:5px 3px;background:#fafafa;}';
+            $html .= 'td:nth-child(11){text-align:center;font-weight:700;font-size:8px;text-transform:uppercase;min-width:55px;}';
+            $html .= 'td:nth-child(11):before{content:"";}';
+            $html .= 'tr:nth-child(even) td{background:#ffffff;}';
+            $html .= 'tr:nth-child(even) td:first-child{background:#f8fafc;}';
+            $html .= 'tr:hover td{background:#eef2ff;}';
+        } elseif ($moduleClass === 'report-planificacion_poa_actividades') {
+            $html .= 'table{border:2px solid #334155;border-radius:6px;}';
+            $html .= 'th{background:#4c1d95;padding:5px 4px;font-size:6.5px;border-color:#334155;text-align:center;line-height:1.15;}';
+            $html .= 'td{padding:3px 4px;font-size:6.5px;border-color:#e2e8f0;}';
+            $html .= 'td:nth-child(1){text-align:center;width:22px;background:#f8fafc;}';
+            $html .= 'td:nth-child(2){font-weight:600;color:#6d28d9;}';
+            $html .= 'td:nth-child(9),td:nth-child(10),td:nth-child(11),td:nth-child(12),td:nth-child(13),td:nth-child(14),td:nth-child(15),td:nth-child(16),td:nth-child(17),td:nth-child(18),td:nth-child(19),td:nth-child(20){text-align:center;font-size:6px;padding:3px 2px;min-width:28px;}';
+            $html .= 'td:nth-child(21),td:nth-child(22){text-align:center;font-weight:700;}';
+            $html .= 'td:nth-child(24),td:nth-child(25){text-align:right;font-weight:600;}';
+            $html .= 'td:nth-child(26){text-align:center;font-weight:700;}';
+            $html .= 'th:nth-child(9),th:nth-child(10),th:nth-child(11),th:nth-child(12),th:nth-child(13),th:nth-child(14),th:nth-child(15),th:nth-child(16),th:nth-child(17),th:nth-child(18),th:nth-child(19),th:nth-child(20){text-align:center;font-size:6px;padding:4px 2px;}';
+            $html .= 'tr:nth-child(even) td{background:#ffffff;}';
+            $html .= 'tr:hover td{background:#eef2ff;}';
+        } elseif ($moduleClass === 'report-planificacion_poa') {
+            $html .= 'table{border:2px solid #334155;border-radius:6px;}';
+            $html .= 'th{background:#4c1d95;padding:6px 5px;font-size:7px;border-color:#334155;text-align:center;}';
+            $html .= 'td{padding:4px 5px;font-size:7.5px;border-color:#e2e8f0;}';
+            $html .= 'td:nth-child(4){min-width:140px;}';
+            $html .= 'td:nth-child(5){min-width:120px;}';
+            $html .= 'td:nth-child(9){font-size:7px;color:#475569;}';
+            $html .= 'td:nth-child(10),td:nth-child(11){text-align:right;font-weight:600;}';
+            $html .= 'td:nth-child(12){text-align:center;font-weight:700;color:#6d28d9;}';
+        } elseif ($colCount >= 12) {
+            $html .= 'th,td{font-size:7px;padding:3px 4px;}';
+            $html .= 'th{font-size:6.5px;}';
+        } elseif ($colCount >= 8) {
+            $html .= 'th,td{font-size:8px;padding:4px 5px;}';
+            $html .= 'th{font-size:7px;}';
+        }
+
         $html .= '</style></head><body>';
 
-        $html .= '<div class="card">';
-        $html .= '<div class="head">';
-        $html .= '<p class="title">' . htmlspecialchars((string) $reportTitle, ENT_QUOTES, 'UTF-8') . '</p>';
-        $html .= '<div class="meta">';
-        $html .= '<span><strong>Modulo:</strong> ' . htmlspecialchars((string) $moduleLabel, ENT_QUOTES, 'UTF-8') . '</span>';
-        $html .= '<span><strong>Descargado:</strong> ' . htmlspecialchars((string) $downloadedAt, ENT_QUOTES, 'UTF-8') . '</span>';
-        $html .= '</div>';
-        $html .= '</div>';
+        // Head section (card-like for PDF)
+        if (!$isExcel) {
+            $html .= '<table style="border:none;margin-bottom:10px;"><tr><td style="border:none;padding:0;">';
+            $html .= '<div style="background:#4c1d95;padding:14px 18px;border-radius:6px 6px 0 0;">';
+            $html .= '<div style="font-size:17px;font-weight:700;color:#ffffff;margin:0;">' . htmlspecialchars((string) $reportTitle, ENT_QUOTES, 'UTF-8') . '</div>';
+            $html .= '<div style="margin-top:5px;font-size:10px;color:#94a3b8;">';
+            $html .= '<span style="margin-right:18px;"><strong style="color:#e2e8f0;">Módulo:</strong> ' . htmlspecialchars((string) $moduleLabel, ENT_QUOTES, 'UTF-8') . '</span>';
+            $html .= '<span><strong style="color:#e2e8f0;">Descargado:</strong> ' . htmlspecialchars((string) $downloadedAt, ENT_QUOTES, 'UTF-8') . '</span>';
+            $html .= '</div></div>';
+            $html .= '</td></tr></table>';
+        }
 
+        // Table section
         if (empty($rows)) {
-            $html .= '<div class="empty">No hay datos para exportar.</div>';
-        } else {
-            $html .= '<table><thead><tr>';
-            foreach ($headers as $header) {
-                $html .= '<th>' . htmlspecialchars((string) $header, ENT_QUOTES, 'UTF-8') . '</th>';
-            }
-            $html .= '</tr></thead><tbody>';
+            $html .= '<div class="empty" style="margin-top:10px;">No hay datos para exportar.</div>';
+        } elseif ($moduleClass === 'report-planificacion_poa_actividades') {
+            $splitRows = $this->splitPoaActividadesRowsForExport($rows);
+            $generalRows = $splitRows['general'] ?? [];
+            $cronogramaRows = $splitRows['cronograma'] ?? [];
 
-            foreach ($rows as $row) {
+            $html .= '<div style="margin:8px 0 6px 0;font-size:11px;font-weight:700;color:#334155;">TABLA GENERAL</div>';
+            $html .= $this->buildReportTableHtml($generalRows, false);
+
+            $html .= '<div style="margin:14px 0 6px 0;font-size:11px;font-weight:700;color:#334155;">TABLA CRONOGRAMA</div>';
+            $html .= $this->buildReportTableHtml($cronogramaRows, true);
+        } else {
+            $html .= $this->buildReportTableHtml($rows, false);
+        }
+
+        $html .= '</body></html>';
+
+        return $html;
+    }
+
+    private function splitPoaActividadesRowsForExport(array $rows)
+    {
+        $monthKeys = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+        $generalRows = [];
+        $cronogramaRows = [];
+
+        foreach ($rows as $row) {
+            $source = is_array($row) ? $row : (array) $row;
+
+            $general = $source;
+            foreach ($monthKeys as $monthKey) {
+                unset($general[$monthKey]);
+            }
+            unset($general['AVANCE PLANIFICADO']);
+            $generalRows[] = $general;
+
+            $cronograma = [];
+
+            foreach ($monthKeys as $monthKey) {
+                $cronograma[$monthKey] = $source[$monthKey] ?? '0%';
+            }
+
+            $cronogramaRows[] = $cronograma;
+        }
+
+        return [
+            'general' => $generalRows,
+            'cronograma' => $cronogramaRows,
+        ];
+    }
+
+    private function buildReportTableHtml(array $rows, $includeCronogramaHeader = false)
+    {
+        if (empty($rows)) {
+            return '<div class="empty" style="margin-top:10px;">No hay datos para exportar.</div>';
+        }
+
+        $headers = array_keys((array) $rows[0]);
+        $html = '<table><thead>';
+
+        if ($includeCronogramaHeader) {
+            $monthKeys = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+            $monthStart = null;
+            $monthEnd = null;
+            foreach ($headers as $i => $header) {
+                if (in_array($header, $monthKeys, true)) {
+                    if ($monthStart === null) {
+                        $monthStart = $i;
+                    }
+                    $monthEnd = $i;
+                }
+            }
+
+            if ($monthStart !== null) {
                 $html .= '<tr>';
-                foreach ($headers as $header) {
-                    $html .= '<td>' . htmlspecialchars((string) ($row[$header] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
+                for ($i = 0; $i < count($headers); $i++) {
+                    if ($i === $monthStart) {
+                        $colspan = $monthEnd - $monthStart + 1;
+                        $html .= '<th colspan="' . $colspan . '" style="text-align:center;background:#4c1d95;color:#ffffff;font-size:8px;">CRONOGRAMA</th>';
+                    } elseif ($i < $monthStart || $i > $monthEnd) {
+                        $html .= '<th style="background:#4c1d95;"></th>';
+                    }
                 }
                 $html .= '</tr>';
             }
-
-            $html .= '</tbody></table>';
         }
 
-        $html .= '</div></body></html>';
+        $html .= '<tr>';
+        foreach ($headers as $header) {
+            $html .= '<th>' . htmlspecialchars((string) $header, ENT_QUOTES, 'UTF-8') . '</th>';
+        }
+        $html .= '</tr></thead><tbody>';
 
+        foreach ($rows as $row) {
+            $item = is_array($row) ? $row : (array) $row;
+            $html .= '<tr>';
+            foreach ($headers as $header) {
+                $html .= '<td>' . htmlspecialchars((string) ($item[$header] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
+            }
+            $html .= '</tr>';
+        }
+
+        $html .= '</tbody></table>';
         return $html;
     }
 
@@ -945,7 +1602,7 @@ class AdminController
         return in_array($value, ['excel', 'pdf'], true) ? $value : 'excel';
     }
 
-    private function renderPdfDownload($filename, $html)
+    private function renderPdfDownload($filename, $html, $paper = 'A4', $orientation = 'landscape')
     {
         $options = new \Dompdf\Options();
         $options->set('defaultFont', 'Arial');
@@ -954,7 +1611,7 @@ class AdminController
 
         $dompdf = new \Dompdf\Dompdf($options);
         $dompdf->loadHtml('<meta charset="utf-8">' . (string) $html);
-        $dompdf->setPaper('A4', 'landscape');
+        $dompdf->setPaper((string) $paper, (string) $orientation);
         $dompdf->render();
 
         if (ob_get_level() > 0) {
@@ -965,7 +1622,7 @@ class AdminController
         exit();
     }
 
-    private function streamXlsxDownload($filename, array $rows, ?array $columns = null, $sheetTitle = 'Reporte')
+    private function streamXlsxDownload($filename, array $rows, ?array $columns = null, $sheetTitle = 'Reporte', $module = '')
     {
         while (ob_get_level() > 0) {
             ob_end_clean();
@@ -975,7 +1632,7 @@ class AdminController
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle($this->sanitizeExcelSheetName((string) $sheetTitle));
 
-        $this->writeRowsToSheet($sheet, $rows, $columns);
+        $this->writeRowsToSheet($sheet, $rows, $columns, $module);
 
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
@@ -1029,7 +1686,7 @@ class AdminController
         exit();
     }
 
-    private function writeRowsToSheet($sheet, array $rows, ?array $columns = null)
+    private function writeRowsToSheet($sheet, array $rows, ?array $columns = null, $module = '')
     {
         if ($columns !== null) {
             $keys = array_keys($columns);
@@ -1047,17 +1704,54 @@ class AdminController
             return;
         }
 
+        $isPoaActividades = strpos($module, 'planificacion_poa_actividades') !== false;
+        $headerRow = 1;
+
+        // CRONOGRAMA merged header row for POA activities
+        if ($isPoaActividades) {
+            $monthKeys = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+            $monthStart = null;
+            $monthEnd = null;
+            foreach ($keys as $i => $k) {
+                if (in_array($k, $monthKeys)) {
+                    if ($monthStart === null) $monthStart = $i;
+                    $monthEnd = $i;
+                }
+            }
+            if ($monthStart !== null) {
+                $startCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($monthStart + 1);
+                $endCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($monthEnd + 1);
+                $mergeRange = $startCol . '1:' . $endCol . '1';
+                $sheet->mergeCells($mergeRange);
+                $cell = $sheet->getCell($startCol . '1');
+                $cell->setValueExplicit('CRONOGRAMA', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                $sheet->getStyle($mergeRange)->applyFromArray([
+                    'font' => ['bold' => true, 'color' => ['argb' => 'FFFFFFFF'], 'size' => 9],
+                    'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF4C1D95']],
+                    'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER, 'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER],
+                ]);
+                $headerRow = 2;
+            }
+        }
+
+        // Individual column headers
         foreach ($labels as $index => $label) {
             $column = $index + 1;
-            $cellRef = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($column) . '1';
+            $cellRef = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($column) . $headerRow;
             $cell = $sheet->getCell($cellRef);
             $cell->setValueExplicit((string) $label, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
         }
 
         $lastHeaderColumn = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($keys));
-        $sheet->getStyle('A1:' . $lastHeaderColumn . '1')->getFont()->setBold(true);
+        $headerStyle = $sheet->getStyle('A' . $headerRow . ':' . $lastHeaderColumn . $headerRow);
+        $headerStyle->getFont()->setBold(true)->getColor()->setARGB('FFFFFFFF');
+        $headerStyle->getFill()
+            ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+            ->getStartColor()
+            ->setARGB('FF4C1D95');
 
-        $rowNumber = 2;
+        $dataStartRow = $isPoaActividades ? 3 : 2;
+        $rowNumber = $dataStartRow;
         foreach ($rows as $row) {
             foreach ($keys as $index => $key) {
                 $value = $row[$key] ?? '';
@@ -1640,11 +2334,14 @@ class AdminController
             'vinculacion' => 'Vinculación',
             'investigacion' => 'Investigación',
             'plan_estrategico' => 'Planificación Estratégica',
+            'pedi' => 'PEDI',
+            'poa' => 'POA',
             'convenios' => 'Convenios',
             'auditoria' => 'Auditoría',
             'reportes' => 'Reportes',
             'cuentas' => 'Cuentas',
             'solicitudes' => 'Solicitudes de Restablecimiento',
+            'configuracion' => 'Configuración',
         ];
     }
 
@@ -1667,6 +2364,17 @@ class AdminController
 
         $matrix = $permissionState['matrix'] ?? [];
         if (!isset($matrix[$moduleKey])) {
+            // Compatibilidad: instalaciones anteriores usaban plan_estrategico para PEDI/POA.
+            $fallbackByModule = [
+                'pedi' => 'plan_estrategico',
+                'poa' => 'plan_estrategico',
+            ];
+
+            $fallback = $fallbackByModule[$moduleKey] ?? null;
+            if ($fallback !== null && isset($matrix[$fallback])) {
+                return !empty($matrix[$fallback][$action]);
+            }
+
             return false;
         }
 
@@ -1754,14 +2462,59 @@ class AdminController
         if ($uri === '/admin/plan-estrategico') {
             return ['plan_estrategico', 'view'];
         }
-        if (in_array($uri, ['/admin/pedi/create', '/admin/pedi/store', '/admin/poa/create', '/admin/poa/store', '/admin/actividad/create', '/admin/actividad/store'], true)) {
-            return ['plan_estrategico', 'create'];
+
+        if ($uri === '/admin/pedi') {
+            return ['pedi', 'view'];
         }
-        if (preg_match('#^/admin/pedi/edit/\d+$#', $uri) || $uri === '/admin/pedi/update' || preg_match('#^/admin/poa/edit/\d+$#', $uri) || $uri === '/admin/poa/update' || preg_match('#^/admin/actividad/edit/\d+$#', $uri) || $uri === '/admin/actividad/update') {
-            return ['plan_estrategico', 'edit'];
+        if (in_array($uri, ['/admin/pedi/create', '/admin/pedi/store'], true)) {
+            return ['pedi', 'create'];
         }
-        if (preg_match('#^/admin/pedi/eliminar/\d+$#', $uri) || preg_match('#^/admin/poa/eliminar/\d+$#', $uri) || preg_match('#^/admin/actividad/eliminar/\d+$#', $uri)) {
-            return ['plan_estrategico', 'delete'];
+        if (preg_match('#^/admin/pedi/edit/\d+$#', $uri) || $uri === '/admin/pedi/update') {
+            return ['pedi', 'edit'];
+        }
+        if (preg_match('#^/admin/pedi/eliminar/\d+$#', $uri)) {
+            return ['pedi', 'delete'];
+        }
+
+        if ($uri === '/admin/poa') {
+            return ['poa', 'view'];
+        }
+        if (in_array($uri, ['/admin/poa/create', '/admin/poa/store', '/admin/actividad/create', '/admin/actividad/store'], true)) {
+            return ['poa', 'create'];
+        }
+        if (preg_match('#^/admin/poa/edit/\d+$#', $uri) || $uri === '/admin/poa/update' || preg_match('#^/admin/actividad/edit/\d+$#', $uri) || $uri === '/admin/actividad/update' || $uri === '/admin/actividad/avance-update') {
+            return ['poa', 'edit'];
+        }
+        if (preg_match('#^/admin/poa/eliminar/\d+$#', $uri) || preg_match('#^/admin/actividad/eliminar/\d+$#', $uri)) {
+            return ['poa', 'delete'];
+        }
+
+        if ($uri === '/admin/configuracion') {
+            return ['configuracion', 'view'];
+        }
+        if (strpos($uri, '/admin/configuracion/') === 0) {
+            if ($method !== 'POST') {
+                return ['configuracion', 'view'];
+            }
+
+            if ($uri === '/admin/configuracion/guardar-pedi-modal') {
+                $idPedi = (int) ($_POST['id_pedi'] ?? 0);
+                return ['configuracion', $idPedi > 0 ? 'edit' : 'create'];
+            }
+
+            if (preg_match('#^/admin/configuracion/eliminar-#', $uri)) {
+                return ['configuracion', 'delete'];
+            }
+
+            if (preg_match('#^/admin/configuracion/actualizar-#', $uri)) {
+                return ['configuracion', 'edit'];
+            }
+
+            if (preg_match('#^/admin/configuracion/guardar-#', $uri)) {
+                return ['configuracion', 'create'];
+            }
+
+            return ['configuracion', 'edit'];
         }
 
         if ($uri === '/admin/convenio') {
@@ -1855,7 +2608,7 @@ class AdminController
 
     /* Metodos para Guardar Nuevos Registros */
 
-    /* === GESTIÓN DE CUENTAS ADMIN === */
+    /* === GESTI�"N DE CUENTAS ADMIN === */
 
     private function buildAccountsReturnQuery($rawQuery = '')
     {
@@ -2357,7 +3110,7 @@ class AdminController
         exit();
     }
 
-    /* === OLVIDÉ MI CONTRASEÑA (admin) === */
+    /* === OLVID�? MI CONTRASE�'A (admin) === */
 
     public function showForgotPasswordFormAdmin()
     {
@@ -2948,22 +3701,65 @@ class AdminController
             exit();
         }
 
-        $pedi = $this->pediModel->obtenerTodos() ?? [];
-        $poa = $this->poaModel->obtenerTodos() ?? [];
-        $actividades = $this->actividadModel->obtenerTodos() ?? [];
-
         $this->render('admin/plan_estrategico/pedi_poa_index', [
-            'title' => 'Planificación Estratégica',
+            'title' => 'Planificación'
+        ]);
+    }
+
+    public function pediIndex()
+    {
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $pedi = $this->pediModel->obtenerTodos() ?? [];
+        $canCreatePedi = $this->hasPermission('pedi', 'create');
+        $canEditPedi = $this->hasPermission('pedi', 'edit');
+        $canDeletePedi = $this->hasPermission('pedi', 'delete');
+
+        $this->render('admin/pedi/index', [
+            'title' => 'PEDI',
             'pedi' => $pedi,
+            'canCreatePedi' => $canCreatePedi,
+            'canEditPedi' => $canEditPedi,
+            'canDeletePedi' => $canDeletePedi,
+        ]);
+    }
+
+    public function poaIndex()
+    {
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $poa = $this->poaModel->obtenerTodos() ?? [];
+        $canCreatePoa = $this->hasPermission('poa', 'create');
+        $canEditPoa = $this->hasPermission('poa', 'edit');
+        $canDeletePoa = $this->hasPermission('poa', 'delete');
+
+        $this->render('admin/poa/index', [
+            'title' => 'POA',
             'poa' => $poa,
-            'actividades' => $actividades
+            'canCreatePoa' => $canCreatePoa,
+            'canEditPoa' => $canEditPoa,
+            'canDeletePoa' => $canDeletePoa,
         ]);
     }
 
     public function crearPedi()
     {
+        $db = (new PediModel())->getConnection();
+        $ejes = $db->query("SELECT * FROM eje_estrategico WHERE estado = 'activo' ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
+        $objetivos = $db->query("SELECT * FROM objetivo_estrategico WHERE estado = 'activo' ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
+        $estrategias = $db->query("SELECT * FROM estrategia WHERE estado = 'activo' ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
+
         $this->render('admin/plan_estrategico/crear_pedi', [
-            'title' => 'Crear PEDI'
+            'title' => 'Crear PEDI',
+            'ejes' => $ejes,
+            'objetivos' => $objetivos,
+            'estrategias' => $estrategias,
         ]);
     }
 
@@ -2973,10 +3769,22 @@ class AdminController
 
         $data = [
             'objetivo_estrategico' => $_POST['objetivo_estrategico'] ?? '',
+            'eje' => $_POST['eje'] ?? '',
             'objetivo_estrategia' => $_POST['objetivo_estrategia'] ?? '',
+            'linea_base' => '',
+            'meta_2024' => '',
+            'meta_2024_pct' => 0,
+            'meta_2025' => '',
+            'meta_2025_pct' => 0,
+            'meta_2026' => '',
+            'meta_2026_pct' => 0,
+            'meta_2027' => '',
+            'meta_2027_pct' => 0,
+            'meta_2028' => '',
+            'meta_2028_pct' => 0,
             'avance' => 0,
             'avance_estrategia' => 0,
-            'estado' => $_POST['estado'] ?? 'ACTIVO'
+            'estado' => $_POST['estado'] ?? 'activo'
         ];
 
         $creado = $model->crear($data);
@@ -2989,7 +3797,7 @@ class AdminController
             }
         }
 
-        header("Location: " . $this->basePath . "/admin/plan-estrategico");
+        header("Location: " . $this->basePath . "/admin/pedi");
         exit();
     }
 
@@ -2997,10 +3805,17 @@ class AdminController
     {
         $model = new PediModel();
         $pedi = $model->obtenerPorId($id);
+        $db = $model->getConnection();
+        $ejes = $db->query("SELECT * FROM eje_estrategico WHERE estado = 'activo' ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
+        $objetivos = $db->query("SELECT * FROM objetivo_estrategico WHERE estado = 'activo' ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
+        $estrategias = $db->query("SELECT * FROM estrategia WHERE estado = 'activo' ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
 
         $this->render('admin/plan_estrategico/editar_pedi', [
             'title' => 'Editar PEDI',
-            'pedi' => $pedi
+            'pedi' => $pedi,
+            'ejes' => $ejes,
+            'objetivos' => $objetivos,
+            'estrategias' => $estrategias
         ]);
     }
 
@@ -3013,10 +3828,22 @@ class AdminController
 
         $data = [
             'objetivo_estrategico' => $_POST['objetivo_estrategico'],
+            'eje' => $_POST['eje'] ?? '',
             'objetivo_estrategia' => $_POST['objetivo_estrategia'],
+            'linea_base' => $pediAnterior['linea_base'] ?? '',
+            'meta_2024' => $pediAnterior['meta_2024'] ?? '',
+            'meta_2024_pct' => (float)($pediAnterior['meta_2024_pct'] ?? 0),
+            'meta_2025' => $pediAnterior['meta_2025'] ?? '',
+            'meta_2025_pct' => (float)($pediAnterior['meta_2025_pct'] ?? 0),
+            'meta_2026' => $pediAnterior['meta_2026'] ?? '',
+            'meta_2026_pct' => (float)($pediAnterior['meta_2026_pct'] ?? 0),
+            'meta_2027' => $pediAnterior['meta_2027'] ?? '',
+            'meta_2027_pct' => (float)($pediAnterior['meta_2027_pct'] ?? 0),
+            'meta_2028' => $pediAnterior['meta_2028'] ?? '',
+            'meta_2028_pct' => (float)($pediAnterior['meta_2028_pct'] ?? 0),
             'avance' => (float)($pediAnterior['avance'] ?? 0),
             'avance_estrategia' => (float)($pediAnterior['avance_estrategia'] ?? 0),
-            'estado' => $_POST['estado']
+            'estado' => $pediAnterior['estado'] ?? 'activo'
         ];
 
         $model->actualizar($id, $data);
@@ -3028,7 +3855,7 @@ class AdminController
             }
         }
 
-        header("Location: " . $this->basePath . "/admin/plan-estrategico");
+        header("Location: " . $this->basePath . "/admin/pedi");
         exit();
     }
 
@@ -3048,7 +3875,7 @@ class AdminController
         $model = new PoaModel();
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            header("Location: " . $this->basePath . "/admin/plan-estrategico");
+            header("Location: " . $this->basePath . "/admin/poa");
             exit();
         }
 
@@ -3063,7 +3890,7 @@ class AdminController
 
         $model->crear($data);
 
-        header("Location: " . $this->basePath . "/admin/plan-estrategico");
+        header("Location: " . $this->basePath . "/admin/poa");
         exit();
     }
 
@@ -3092,7 +3919,7 @@ class AdminController
 
         if (!$poaActual) {
             $_SESSION['error'] = 'POA no encontrado.';
-            header("Location: " . $this->basePath . "/admin/plan-estrategico");
+            header("Location: " . $this->basePath . "/admin/pedi");
             exit();
         }
 
@@ -3120,139 +3947,253 @@ class AdminController
             $this->recalcularAvanceEstrategiaPedi((int) $poaActual['id_pedi']);
         }
 
-        header("Location: " . $this->basePath . "/admin/plan-estrategico");
+        header("Location: " . $this->basePath . "/admin/poa");
         exit();
     }
 
     public function crearActividad()
     {
-        $poaModel = new PoaModel();
-        $poa = $poaModel->obtenerTodos();
+        $db = (new PediModel())->getConnection();
+        $areas = $db->query("SELECT * FROM area ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
+        $sedes = $db->query("SELECT * FROM sede ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
+        $ejes = $db->query("SELECT * FROM eje_estrategico WHERE estado = 'activo' ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
+        $objetivos = $db->query("SELECT * FROM objetivo_estrategico WHERE estado = 'activo' ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
+        $estrategias = $db->query("SELECT * FROM estrategia WHERE estado = 'activo' ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
+        $metasEje = $db->query("SELECT pm.eje_id, pm.meta_texto, pm.porcentaje FROM pedi_metas pm WHERE pm.anio = YEAR(CURDATE()) AND pm.eje_id IS NOT NULL UNION SELECT e.id AS eje_id, pm.meta_texto, pm.porcentaje FROM pedi_metas pm JOIN pedi p ON pm.pedi_id = p.id_pedi JOIN eje_estrategico e ON p.eje = e.nombre WHERE pm.anio = YEAR(CURDATE()) AND pm.eje_id IS NULL")->fetchAll(PDO::FETCH_ASSOC);
 
         $this->render('admin/plan_estrategico/crear_actividad', [
             'title' => 'Crear Actividad',
-            'poa' => $poa
+            'areas' => $areas,
+            'sedes' => $sedes,
+            'ejes' => $ejes,
+            'objetivos' => $objetivos,
+            'estrategias' => $estrategias,
+            'metasEje' => $metasEje
         ]);
     }
 
     public function guardarActividad()
     {
         $model = new PoaActividadModel();
-        $poaModel = new PoaModel();
+        $db = (new PediModel())->getConnection();
 
-        $idPoa = (int) ($_POST['id_poa'] ?? 0);
-        $presupuestoActividad = (float) ($_POST['presupuesto_actividad'] ?? 0);
-
-        $poa = $poaModel->obtenerPorId($idPoa);
-        if (!$poa) {
-            $_SESSION['error'] = 'Debe seleccionar un POA valido.';
-            header("Location: " . $this->basePath . "/admin/actividad/create");
-            exit();
+        $avanceEjecutado = (float) ($_POST['avance_ejecutado'] ?? 0);
+        if ($avanceEjecutado < 0) {
+            $avanceEjecutado = 0;
+        }
+        if ($avanceEjecutado > 100) {
+            $avanceEjecutado = 100;
         }
 
-        $presupuestoUsado = $model->obtenerPresupuestoUsadoPorPoa($idPoa);
-        $presupuestoDisponible = (float) ($poa['presupuesto_anual'] ?? 0) - $presupuestoUsado;
+        $ejeId = !empty($_POST['eje_id']) ? (int) $_POST['eje_id'] : null;
+        $metaPedi = null;
+        if ($ejeId) {
+            $stmt = $db->prepare("SELECT meta_texto FROM pedi_metas WHERE eje_id = ? AND anio = YEAR(CURDATE()) LIMIT 1");
+            $stmt->execute([$ejeId]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$row) {
+                $stmt = $db->prepare("SELECT pm.meta_texto FROM pedi_metas pm JOIN pedi p ON pm.pedi_id = p.id_pedi JOIN eje_estrategico e ON p.eje = e.nombre AND e.id = ? WHERE pm.anio = YEAR(CURDATE()) AND pm.eje_id IS NULL LIMIT 1");
+                $stmt->execute([$ejeId]);
+                $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            }
+            $metaPedi = $row ? $row['meta_texto'] : null;
+        }
 
-        if ($presupuestoActividad > $presupuestoDisponible) {
-            $_SESSION['error'] = 'El presupuesto de la actividad supera el disponible del POA seleccionado.';
-            header("Location: " . $this->basePath . "/admin/actividad/create");
-            exit();
+        $cronogramaMeses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+        $cronograma = [];
+        foreach ($cronogramaMeses as $mes) {
+            $campo = $mes . '_pct';
+            $valor = $_POST[$campo] ?? 0;
+            $cronograma[$campo] = is_numeric($valor) ? (float) $valor : 0;
         }
 
         $data = [
-            'id_poa' => $idPoa,
+            'eje_id' => $ejeId,
+            'objetivo_id' => !empty($_POST['objetivo_id']) ? (int) $_POST['objetivo_id'] : null,
+            'estrategia_id' => !empty($_POST['estrategia_id']) ? (int) $_POST['estrategia_id'] : null,
+            'eje' => $_POST['eje'] ?? '',
+            'objetivo_estrategico' => $_POST['objetivo_estrategico'] ?? '',
+            'objetivo_estrategia' => $_POST['objetivo_estrategia'] ?? '',
             'nombre_actividad' => $_POST['nombre_actividad'] ?? '',
-            'presupuesto_actividad' => $presupuestoActividad,
+            'meta' => $metaPedi ?? '',
+            'area_id' => !empty($_POST['area_id']) ? (int) $_POST['area_id'] : null,
+            'sede_id' => !empty($_POST['sede_id']) ? (int) $_POST['sede_id'] : null,
+            'laboratorio' => $_POST['laboratorio'] ?? '',
+            'sede' => $_POST['sede'] ?? '',
+            'presupuesto_planificado' => (float) ($_POST['presupuesto_planificado'] ?? 0),
+            'presupuesto_ejecutado' => (float) ($_POST['presupuesto_ejecutado'] ?? 0),
             'fecha_inicio' => $_POST['fecha_inicio'] ?? null,
             'fecha_fin' => $_POST['fecha_fin'] ?? null,
-            'avance' => (float) ($_POST['avance'] ?? 0),
+            'avance' => 0,
+            'avance_ejecutado' => $avanceEjecutado,
+            'observaciones_avance' => trim((string) ($_POST['observaciones_avance'] ?? '')),
             'observacion_actividad' => $_POST['observacion_actividad'] ?? '',
-            'estado' => $_POST['estado'] ?? 'ACTIVO'
+            'observaciones' => $_POST['observaciones'] ?? '',
+            'estado' => (!empty($_POST['fecha_fin']) && $_POST['fecha_fin'] < date('Y-m-d')) ? 'CADUCADO' : ($_POST['estado'] ?? 'ACTIVO'),
+            'ene_pct' => $cronograma['ene_pct'],
+            'feb_pct' => $cronograma['feb_pct'],
+            'mar_pct' => $cronograma['mar_pct'],
+            'abr_pct' => $cronograma['abr_pct'],
+            'may_pct' => $cronograma['may_pct'],
+            'jun_pct' => $cronograma['jun_pct'],
+            'jul_pct' => $cronograma['jul_pct'],
+            'ago_pct' => $cronograma['ago_pct'],
+            'sep_pct' => $cronograma['sep_pct'],
+            'oct_pct' => $cronograma['oct_pct'],
+            'nov_pct' => $cronograma['nov_pct'],
+            'dic_pct' => $cronograma['dic_pct'],
         ];
 
         $creado = $model->crear($data);
 
-        if ($creado) {
-            $this->recalcularAvanceEstrategiaPedi((int) ($poa['id_pedi'] ?? 0));
-        }
-
-        header("Location: " . $this->basePath . "/admin/plan-estrategico");
+        header("Location: " . $this->basePath . "/admin/poa");
         exit();
     }
 
     public function editarActividad($id)
     {
         $actividadModel = new PoaActividadModel();
-        $poaModel = new PoaModel();
 
         $actividad = $actividadModel->obtenerPorId($id);
-        $poa = $poaModel->obtenerTodos();
+
+        $db = (new PediModel())->getConnection();
+        $areas = $db->query("SELECT * FROM area ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
+        $sedes = $db->query("SELECT * FROM sede ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
+        $ejes = $db->query("SELECT * FROM eje_estrategico WHERE estado = 'activo' ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
+        $objetivos = $db->query("SELECT * FROM objetivo_estrategico WHERE estado = 'activo' ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
+        $estrategias = $db->query("SELECT * FROM estrategia WHERE estado = 'activo' ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
+        $metasEje = $db->query("SELECT pm.eje_id, pm.meta_texto, pm.porcentaje FROM pedi_metas pm WHERE pm.anio = YEAR(CURDATE()) AND pm.eje_id IS NOT NULL UNION SELECT e.id AS eje_id, pm.meta_texto, pm.porcentaje FROM pedi_metas pm JOIN pedi p ON pm.pedi_id = p.id_pedi JOIN eje_estrategico e ON p.eje = e.nombre WHERE pm.anio = YEAR(CURDATE()) AND pm.eje_id IS NULL")->fetchAll(PDO::FETCH_ASSOC);
 
         $this->render('admin/plan_estrategico/editar_actividad', [
             'title' => 'Editar Actividad',
             'actividad' => $actividad,
-            'poa' => $poa
+            'areas' => $areas,
+            'sedes' => $sedes,
+            'ejes' => $ejes,
+            'objetivos' => $objetivos,
+            'estrategias' => $estrategias,
+            'metasEje' => $metasEje
         ]);
     }
 
     public function actualizarActividad()
     {
         $model = new PoaActividadModel();
-        $poaModel = new PoaModel();
+        $db = (new PediModel())->getConnection();
+
+        $avanceEjecutado = (float) ($_POST['avance_ejecutado'] ?? 0);
+        if ($avanceEjecutado < 0) {
+            $avanceEjecutado = 0;
+        }
+        if ($avanceEjecutado > 100) {
+            $avanceEjecutado = 100;
+        }
 
         $id = (int) ($_POST['id_actividad'] ?? 0);
         $actividadAnterior = $model->obtenerPorId($id);
 
         if (!$actividadAnterior) {
             $_SESSION['error'] = 'Actividad no encontrada.';
-            header("Location: " . $this->basePath . "/admin/plan-estrategico");
+            header("Location: " . $this->basePath . "/admin/poa");
             exit();
         }
 
-        $idPoaNuevo = (int) ($_POST['id_poa'] ?? 0);
-        $poaNuevo = $poaModel->obtenerPorId($idPoaNuevo);
-
-        if (!$poaNuevo) {
-            $_SESSION['error'] = 'Debe seleccionar un POA valido.';
-            header("Location: " . $this->basePath . "/admin/actividad/edit/" . $id);
-            exit();
+        $ejeId = !empty($_POST['eje_id']) ? (int) $_POST['eje_id'] : null;
+        $metaPedi = null;
+        if ($ejeId) {
+            $stmt = $db->prepare("SELECT meta_texto FROM pedi_metas WHERE eje_id = ? AND anio = YEAR(CURDATE()) LIMIT 1");
+            $stmt->execute([$ejeId]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$row) {
+                $stmt = $db->prepare("SELECT pm.meta_texto FROM pedi_metas pm JOIN pedi p ON pm.pedi_id = p.id_pedi JOIN eje_estrategico e ON p.eje = e.nombre AND e.id = ? WHERE pm.anio = YEAR(CURDATE()) AND pm.eje_id IS NULL LIMIT 1");
+                $stmt->execute([$ejeId]);
+                $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            }
+            $metaPedi = $row ? $row['meta_texto'] : null;
         }
 
-        $presupuestoActividad = (float) ($_POST['presupuesto_actividad'] ?? 0);
-        $presupuestoUsadoSinActual = $model->obtenerPresupuestoUsadoPorPoa($idPoaNuevo, $id);
-        $presupuestoDisponible = (float) ($poaNuevo['presupuesto_anual'] ?? 0) - $presupuestoUsadoSinActual;
-
-        if ($presupuestoActividad > $presupuestoDisponible) {
-            $_SESSION['error'] = 'El presupuesto de la actividad supera el disponible del POA seleccionado.';
-            header("Location: " . $this->basePath . "/admin/actividad/edit/" . $id);
-            exit();
+        $cronogramaMeses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+        $cronograma = [];
+        foreach ($cronogramaMeses as $mes) {
+            $campo = $mes . '_pct';
+            $valor = $_POST[$campo] ?? 0;
+            $cronograma[$campo] = is_numeric($valor) ? (float) $valor : 0;
         }
 
         $data = [
-            'id_poa' => $idPoaNuevo,
+            'eje_id' => $ejeId,
+            'objetivo_id' => !empty($_POST['objetivo_id']) ? (int) $_POST['objetivo_id'] : null,
+            'estrategia_id' => !empty($_POST['estrategia_id']) ? (int) $_POST['estrategia_id'] : null,
+            'eje' => $_POST['eje'] ?? '',
+            'objetivo_estrategico' => $_POST['objetivo_estrategico'] ?? '',
+            'objetivo_estrategia' => $_POST['objetivo_estrategia'] ?? '',
             'nombre_actividad' => $_POST['nombre_actividad'] ?? '',
-            'presupuesto_actividad' => $presupuestoActividad,
+            'meta' => $metaPedi ?? $actividadAnterior['meta'] ?? '',
+            'area_id' => !empty($_POST['area_id']) ? (int) $_POST['area_id'] : null,
+            'sede_id' => !empty($_POST['sede_id']) ? (int) $_POST['sede_id'] : null,
+            'laboratorio' => $_POST['laboratorio'] ?? '',
+            'sede' => $_POST['sede'] ?? '',
+            'presupuesto_planificado' => (float) ($_POST['presupuesto_planificado'] ?? 0),
+            'presupuesto_ejecutado' => (float) ($_POST['presupuesto_ejecutado'] ?? 0),
             'fecha_inicio' => $_POST['fecha_inicio'] ?? null,
             'fecha_fin' => $_POST['fecha_fin'] ?? null,
-            'avance' => (float) ($_POST['avance'] ?? 0),
+            'avance' => 0,
+            'avance_ejecutado' => $avanceEjecutado,
+            'observaciones_avance' => trim((string) ($_POST['observaciones_avance'] ?? '')),
             'observacion_actividad' => $_POST['observacion_actividad'] ?? '',
-            'estado' => $_POST['estado'] ?? 'ACTIVO'
+            'observaciones' => $_POST['observaciones'] ?? '',
+            'estado' => (!empty($_POST['fecha_fin']) && $_POST['fecha_fin'] < date('Y-m-d')) ? 'CADUCADO' : ($_POST['estado'] ?? 'ACTIVO'),
+            'ene_pct' => $cronograma['ene_pct'],
+            'feb_pct' => $cronograma['feb_pct'],
+            'mar_pct' => $cronograma['mar_pct'],
+            'abr_pct' => $cronograma['abr_pct'],
+            'may_pct' => $cronograma['may_pct'],
+            'jun_pct' => $cronograma['jun_pct'],
+            'jul_pct' => $cronograma['jul_pct'],
+            'ago_pct' => $cronograma['ago_pct'],
+            'sep_pct' => $cronograma['sep_pct'],
+            'oct_pct' => $cronograma['oct_pct'],
+            'nov_pct' => $cronograma['nov_pct'],
+            'dic_pct' => $cronograma['dic_pct'],
         ];
 
-        $actualizado = $model->actualizar($id, $data);
+        $model->actualizar($id, $data);
 
-        if ($actualizado) {
-            $poaAnterior = $poaModel->obtenerPorId((int) ($actividadAnterior['id_poa'] ?? 0));
-            $idPediAnterior = (int) ($poaAnterior['id_pedi'] ?? 0);
-            $idPediNuevo = (int) ($poaNuevo['id_pedi'] ?? 0);
+        header("Location: " . $this->basePath . "/admin/poa");
+        exit();
+    }
 
-            $this->recalcularAvanceEstrategiaPedi($idPediNuevo);
-            if ($idPediAnterior !== $idPediNuevo) {
-                $this->recalcularAvanceEstrategiaPedi($idPediAnterior);
-            }
+    public function actualizarAvanceActividad()
+    {
+        if (!isset($_SESSION['is_admin']) || $_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
         }
 
-        header("Location: " . $this->basePath . "/admin/plan-estrategico");
+        $idActividad = (int) ($_POST['id_actividad'] ?? 0);
+        $avanceRaw = $_POST['avance_ejecutado'] ?? null;
+        $observacionAvance = trim((string) ($_POST['observaciones_avance'] ?? ''));
+
+        if ($idActividad <= 0 || $avanceRaw === null || $avanceRaw === '' || !is_numeric($avanceRaw)) {
+            $_SESSION['error'] = 'Datos inválidos para actualizar avance ejecutado.';
+            header("Location: " . $this->basePath . "/admin/poa");
+            exit();
+        }
+
+        $avanceEjecutado = (float) $avanceRaw;
+        if ($avanceEjecutado < 0 || $avanceEjecutado > 100) {
+            $_SESSION['error'] = 'El avance ejecutado debe estar entre 0 y 100.';
+            header("Location: " . $this->basePath . "/admin/poa");
+            exit();
+        }
+
+        $actualizado = $this->actividadModel->actualizarAvanceEjecutado($idActividad, $avanceEjecutado, $observacionAvance);
+
+        $_SESSION[$actualizado ? 'success' : 'error'] = $actualizado
+            ? 'Avance ejecutado actualizado correctamente.'
+            : 'No se pudo actualizar el avance ejecutado.';
+
+        header("Location: " . $this->basePath . "/admin/poa");
         exit();
     }
 
@@ -3386,7 +4327,7 @@ class AdminController
             ? 'PEDI eliminado correctamente'
             : 'No se pudo eliminar el PEDI';
 
-        header("Location: " . $this->basePath . "/admin/plan-estrategico");
+        header("Location: " . $this->basePath . "/admin/pedi");
         exit();
     }
 
@@ -3409,7 +4350,7 @@ class AdminController
             ? 'POA eliminado correctamente'
             : 'No se pudo eliminar el POA';
 
-        header("Location: " . $this->basePath . "/admin/plan-estrategico");
+        header("Location: " . $this->basePath . "/admin/poa");
         exit();
     }
 
@@ -3436,7 +4377,7 @@ class AdminController
             ? 'Actividad eliminada correctamente'
             : 'No se pudo eliminar la actividad';
 
-        header("Location: " . $this->basePath . "/admin/plan-estrategico");
+        header("Location: " . $this->basePath . "/admin/poa");
         exit();
     }
 
@@ -3561,3 +4502,4 @@ class AdminController
         exit();
     }
 }
+
