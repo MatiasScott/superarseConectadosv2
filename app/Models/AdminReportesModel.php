@@ -711,7 +711,7 @@ class AdminReportesModel extends Database
                 $entry['AVANCE PLANIFICADO'] = $avancePlanificado . '%';
                 $entry['PRESUPUESTO PLANIFICADO'] = '$' . number_format($planificado, 2);
                 $entry['PRESUPUESTO EJECUTADO'] = '$' . number_format($ejecutado, 2);
-                $entry['% Ejecución Presupuestaria'] = $porcentaje . '%';
+                $entry['Ejecución Presupuestaria (%)'] = $porcentaje . '%';
                 $entry['PROCESOS'] = $row['area_responsable'] ?? '';
                 $entry['OBSERVACIONES'] = $row['observaciones'] ?? '';
                 $entry['ESTADO'] = $row['estado'] ?? '';

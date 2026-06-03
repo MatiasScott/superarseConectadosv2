@@ -44,32 +44,39 @@ $basePath = isset($basePath) ? (string)$basePath : '';
             </div>
 
             <div class="overflow-x-auto">
-                <table id="tablaPoa" class="min-w-full text-sm border-separate" style="border-spacing:0;">
+                <table id="tablaPoa" class="min-w-full text-sm" style="table-layout:fixed;border-collapse:collapse;">
+                    <colgroup>
+                        <col span="8">
+                        <?php foreach ($mesesLabel as $ml): ?>
+                        <col style="width:40px;">
+                        <?php endforeach; ?>
+                        <col span="10">
+                    </colgroup>
                     <thead>
                         <tr class="bg-gray-100 text-gray-600 uppercase text-xs tracking-wider">
-                            <th class="px-2 py-3 text-left border-r border-gray-200" rowspan="2">Eje Estratégico (PEDI)</th>
-                            <th class="px-2 py-3 text-left border-r border-gray-200" rowspan="2">Objetivo Estratégico (PEDI)</th>
-                            <th class="px-2 py-3 text-left border-r border-gray-200" rowspan="2">Estrategia (PEDI)</th>
-                            <th class="px-2 py-3 text-left border-r border-gray-200" rowspan="2">Nombre del Proyecto/Actividad</th>
-                            <th class="px-2 py-3 text-left border-r border-gray-200" rowspan="2">Descripción</th>
-                            <th class="px-2 py-3 text-left border-r border-gray-200" rowspan="2">Meta (PEDI)</th>
-                            <th class="px-2 py-3 text-left border-r border-gray-200" rowspan="2">Sede</th>
-                            <th class="px-2 py-3 text-left border-r border-gray-200" rowspan="2">Laboratorio</th>
+                            <th class="px-2 py-3 text-center border-r border-gray-200" rowspan="2">Eje Estratégico (PEDI)</th>
+                            <th class="px-2 py-3 text-center border-r border-gray-200" rowspan="2">Objetivo Estratégico (PEDI)</th>
+                            <th class="px-2 py-3 text-center border-r border-gray-200" rowspan="2">Estrategia (PEDI)</th>
+                            <th class="px-2 py-3 text-center border-r border-gray-200" rowspan="2">Nombre del Proyecto/Actividad</th>
+                            <th class="px-2 py-3 text-center border-r border-gray-200" rowspan="2">Descripción</th>
+                            <th class="px-2 py-3 text-center border-r border-gray-200" rowspan="2">Meta (PEDI)</th>
+                            <th class="px-2 py-3 text-center border-r border-gray-200" rowspan="2">Sede</th>
+                            <th class="px-2 py-3 text-center border-r border-gray-200" rowspan="2">Laboratorio</th>
                             <th class="px-2 py-3 text-center border-r border-gray-200" colspan="<?= count($mesesLabel) ?>">Cronograma</th>
                             <th class="px-2 py-3 text-center border-r border-gray-200" rowspan="2">Avance Planificado</th>
                             <th class="px-2 py-3 text-center border-r border-gray-200" rowspan="2">Avance Ejecutado (%)</th>
-                            <th class="px-2 py-3 text-left border-r border-gray-200" rowspan="2">Observación de Avance</th>
-                            <th class="px-2 py-3 text-right border-r border-gray-200" rowspan="2">Presupuesto Planificado</th>
-                            <th class="px-2 py-3 text-right border-r border-gray-200" rowspan="2">Presupuesto Ejecutado</th>
-                            <th class="px-2 py-3 text-right border-r border-gray-200" rowspan="2">% Ejecución Presupuestaria</th>
-                            <th class="px-2 py-3 text-left border-r border-gray-200" rowspan="2">PROCESOS</th>
-                                <th class="px-2 py-3 text-left border-r border-gray-200" rowspan="2">Observaciones</th>
-                            <th class="px-2 py-3 text-left border-r border-gray-200" rowspan="2">Estado</th>
+                            <th class="px-2 py-3 text-center border-r border-gray-200" rowspan="2">Observación de Avance</th>
+                            <th class="px-2 py-3 text-center border-r border-gray-200" rowspan="2">Presupuesto Planificado</th>
+                            <th class="px-2 py-3 text-center border-r border-gray-200" rowspan="2">Presupuesto Ejecutado</th>
+                            <th class="px-2 py-3 text-center border-r border-gray-200" rowspan="2">Ejecución Presupuestaria (%)</th>
+                            <th class="px-2 py-3 text-center border-r border-gray-200" rowspan="2">PROCESOS</th>
+                                <th class="px-2 py-3 text-center border-r border-gray-200" rowspan="2">Observaciones</th>
+                            <th class="px-2 py-3 text-center border-r border-gray-200" rowspan="2">Estado</th>
                             <th class="px-2 py-3 text-center" rowspan="2">Acciones</th>
                         </tr>
                         <tr class="bg-gray-50 text-gray-500 text-xs">
                             <?php foreach ($mesesLabel as $ml): ?>
-                            <th class="px-1 py-2 text-center font-semibold border-r border-gray-200 last:border-r-0"><?= $ml ?></th>
+                            <th class="px-1 py-2 text-center font-semibold border-r border-gray-200"><?= $ml ?></th>
                             <?php endforeach; ?>
                         </tr>
                     </thead>
@@ -151,14 +158,12 @@ $basePath = isset($basePath) ? (string)$basePath : '';
                                         }
                                     }
                                     $avancePlanif = $seleccionados > 0 ? round(($cumplidos / $seleccionados) * 100) : 0;
-                                    $apColor = $avancePlanif >= 70 ? 'text-green-700' : ($avancePlanif >= 50 ? 'text-yellow-600' : 'text-red-600');
                                     $avanceEjecutado = isset($p['avance_ejecutado']) ? (float)$p['avance_ejecutado'] : 0.0;
+                                    $aeColor = $avanceEjecutado >= 70 ? 'text-green-700' : ($avanceEjecutado >= 50 ? 'text-yellow-600' : 'text-red-600');
                                     $observacionAvance = $p['observaciones_avance'] ?? ($p['obeservaciones_avance'] ?? '');
                                     ?>
-                                    <td class="px-2 py-3 text-center font-semibold border-r border-gray-100 whitespace-nowrap <?= $avancePlanif > 0 ? $apColor : 'text-gray-400' ?>"><?= $avancePlanif ?>%</td>
-                                    <td class="px-2 py-3 text-center border-r border-gray-100 whitespace-nowrap">
-                                        <span class="font-semibold text-gray-700"><?= number_format($avanceEjecutado, 2) ?>%</span>
-                                    </td>
+                                    <td class="px-2 py-3 text-center font-semibold border-r border-gray-100 whitespace-nowrap text-gray-700"><?= $avancePlanif ?>%</td>
+                                    <td class="px-2 py-3 text-center font-semibold border-r border-gray-100 whitespace-nowrap <?= $avanceEjecutado > 0 ? $aeColor : 'text-gray-400' ?>"><?= number_format($avanceEjecutado, 2) ?>%</td>
                                     <td class="px-2 py-3 border-r border-gray-100">
                                         <span class="text-gray-600"><?= htmlspecialchars((string)($observacionAvance !== '' ? $observacionAvance : '—')) ?></span>
                                     </td>
