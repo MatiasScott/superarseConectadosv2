@@ -49,22 +49,7 @@ class PediModel extends Database
     public function obtenerTodos()
     {
         $db = $this->getConnection();
-        $query = "SELECT p.*, YEAR(p.fecha_creacion) AS anio_creacion,
-                         MAX(CASE WHEN pm.anio = 0 THEN pm.meta_texto END) AS linea_base,
-                         MAX(CASE WHEN pm.anio = 2024 THEN pm.meta_texto END) AS meta_2024,
-                         MAX(CASE WHEN pm.anio = 2024 THEN pm.porcentaje END) AS meta_2024_pct,
-                         MAX(CASE WHEN pm.anio = 2025 THEN pm.meta_texto END) AS meta_2025,
-                         MAX(CASE WHEN pm.anio = 2025 THEN pm.porcentaje END) AS meta_2025_pct,
-                         MAX(CASE WHEN pm.anio = 2026 THEN pm.meta_texto END) AS meta_2026,
-                         MAX(CASE WHEN pm.anio = 2026 THEN pm.porcentaje END) AS meta_2026_pct,
-                         MAX(CASE WHEN pm.anio = 2027 THEN pm.meta_texto END) AS meta_2027,
-                         MAX(CASE WHEN pm.anio = 2027 THEN pm.porcentaje END) AS meta_2027_pct,
-                         MAX(CASE WHEN pm.anio = 2028 THEN pm.meta_texto END) AS meta_2028,
-                         MAX(CASE WHEN pm.anio = 2028 THEN pm.porcentaje END) AS meta_2028_pct
-                FROM " . $this->table_name . " p
-                LEFT JOIN pedi_metas pm ON pm.pedi_id = p.id_pedi
-                GROUP BY p.id_pedi
-                ORDER BY p.id_pedi DESC";
+        $query = "SELECT *, YEAR(fecha_creacion) AS anio_creacion FROM " . $this->table_name . " ORDER BY id_pedi DESC";
 
         $stmt = $db->prepare($query);
         $stmt->execute();
@@ -75,22 +60,7 @@ class PediModel extends Database
     public function obtenerPorId($id)
     {
         $db = $this->getConnection();
-        $query = "SELECT p.*, YEAR(p.fecha_creacion) AS anio_creacion,
-                         MAX(CASE WHEN pm.anio = 0 THEN pm.meta_texto END) AS linea_base,
-                         MAX(CASE WHEN pm.anio = 2024 THEN pm.meta_texto END) AS meta_2024,
-                         MAX(CASE WHEN pm.anio = 2024 THEN pm.porcentaje END) AS meta_2024_pct,
-                         MAX(CASE WHEN pm.anio = 2025 THEN pm.meta_texto END) AS meta_2025,
-                         MAX(CASE WHEN pm.anio = 2025 THEN pm.porcentaje END) AS meta_2025_pct,
-                         MAX(CASE WHEN pm.anio = 2026 THEN pm.meta_texto END) AS meta_2026,
-                         MAX(CASE WHEN pm.anio = 2026 THEN pm.porcentaje END) AS meta_2026_pct,
-                         MAX(CASE WHEN pm.anio = 2027 THEN pm.meta_texto END) AS meta_2027,
-                         MAX(CASE WHEN pm.anio = 2027 THEN pm.porcentaje END) AS meta_2027_pct,
-                         MAX(CASE WHEN pm.anio = 2028 THEN pm.meta_texto END) AS meta_2028,
-                         MAX(CASE WHEN pm.anio = 2028 THEN pm.porcentaje END) AS meta_2028_pct
-                FROM " . $this->table_name . " p
-                LEFT JOIN pedi_metas pm ON pm.pedi_id = p.id_pedi
-                WHERE p.id_pedi = ?
-                GROUP BY p.id_pedi";
+        $query = "SELECT *, YEAR(fecha_creacion) AS anio_creacion FROM " . $this->table_name . " WHERE id_pedi = ?";
 
         $stmt = $db->prepare($query);
         $stmt->execute([$id]);
@@ -103,38 +73,19 @@ class PediModel extends Database
         $db = $this->getConnection();
 
         $query = "INSERT INTO " . $this->table_name . "
-                (objetivo_estrategico, eje, objetivo_estrategia, avance, avance_estrategia, estado)
-                VALUES (?, ?, ?, ?, ?, ?)";
+                (objetivo_estrategico, avance, objetivo_estrategia, avance_estrategia, estado)
+                VALUES (?, ?, ?, ?, ?)";
 
         $stmt = $db->prepare($query);
 
         try {
-            $result = $stmt->execute([
+            return $stmt->execute([
                 $data['objetivo_estrategico'],
-                $data['eje'] ?? null,
+                $data['avance'],
                 $data['objetivo_estrategia'],
-                $data['avance'] ?? 0,
-                $data['avance_estrategia'] ?? 0,
-                $data['estado'] ?? 'activo'
+                $data['avance_estrategia'],
+                $data['estado']
             ]);
-
-            if ($result) {
-                $pediId = (int)$db->lastInsertId();
-                $ejeId = $data['eje_id'] ?? null;
-                if (isset($data['linea_base']) && $data['linea_base'] !== '') {
-                    $db->prepare("INSERT INTO pedi_metas (pedi_id, anio, meta_texto, eje_id) VALUES (?, 0, ?, ?)")->execute([$pediId, $data['linea_base'], $ejeId]);
-                }
-                for ($anio = 2024; $anio <= 2028; $anio++) {
-                    $metaVal = $data['meta_' . $anio] ?? '';
-                    $pctVal = $data['meta_' . $anio . '_pct'] ?? null;
-                    if ($metaVal !== '' || ($pctVal !== null && $pctVal > 0)) {
-                        $db->prepare("INSERT INTO pedi_metas (pedi_id, anio, meta_texto, porcentaje, eje_id) VALUES (?, ?, ?, ?, ?)")
-                            ->execute([$pediId, $anio, $metaVal, ($pctVal ? (float)$pctVal : null), $ejeId]);
-                    }
-                }
-            }
-
-            return $result;
         } catch (PDOException $e) {
             error_log("Error crear PEDI: " . $e->getMessage());
             return false;
@@ -147,9 +98,8 @@ class PediModel extends Database
 
         $query = "UPDATE " . $this->table_name . "
                 SET objetivo_estrategico = ?,
-                    eje = ?,
-                    objetivo_estrategia = ?,
                     avance = ?,
+                    objetivo_estrategia = ?,
                     avance_estrategia = ?,
                     estado = ?
                 WHERE id_pedi = ?";
@@ -157,37 +107,14 @@ class PediModel extends Database
         $stmt = $db->prepare($query);
 
         try {
-            $result = $stmt->execute([
+            return $stmt->execute([
                 $data['objetivo_estrategico'],
-                $data['eje'] ?? null,
+                $data['avance'],
                 $data['objetivo_estrategia'],
-                $data['avance'] ?? 0,
-                $data['avance_estrategia'] ?? 0,
-                $data['estado'] ?? 'activo',
+                $data['avance_estrategia'],
+                $data['estado'],
                 $id
             ]);
-
-            if ($result) {
-                $ejeId = $data['eje_id'] ?? null;
-                if (isset($data['linea_base'])) {
-                    $db->prepare("INSERT INTO pedi_metas (pedi_id, anio, meta_texto, eje_id) VALUES (?, 0, ?, ?)
-                                   ON DUPLICATE KEY UPDATE meta_texto = VALUES(meta_texto), eje_id = VALUES(eje_id)")
-                        ->execute([$id, $data['linea_base'], $ejeId]);
-                }
-                for ($anio = 2024; $anio <= 2028; $anio++) {
-                    $key = 'meta_' . $anio;
-                    $pctKey = 'meta_' . $anio . '_pct';
-                    if (isset($data[$key]) || isset($data[$pctKey])) {
-                        $metaVal = $data[$key] ?? '';
-                        $pctVal = isset($data[$pctKey]) && $data[$pctKey] > 0 ? (float)$data[$pctKey] : null;
-                        $db->prepare("INSERT INTO pedi_metas (pedi_id, anio, meta_texto, porcentaje, eje_id) VALUES (?, ?, ?, ?, ?)
-                                       ON DUPLICATE KEY UPDATE meta_texto = VALUES(meta_texto), porcentaje = VALUES(porcentaje), eje_id = VALUES(eje_id)")
-                            ->execute([$id, $anio, $metaVal, $pctVal, $ejeId]);
-                    }
-                }
-            }
-
-            return $result;
         } catch (PDOException $e) {
             error_log("Error actualizar PEDI: " . $e->getMessage());
             return false;
@@ -197,7 +124,6 @@ class PediModel extends Database
     public function eliminar($id)
     {
         $db = $this->getConnection();
-        $db->prepare("DELETE FROM pedi_metas WHERE pedi_id = ?")->execute([$id]);
         $query = "DELETE FROM " . $this->table_name . " WHERE id_pedi = ?";
         $stmt = $db->prepare($query);
 
@@ -205,33 +131,6 @@ class PediModel extends Database
             return $stmt->execute([$id]);
         } catch (PDOException $e) {
             error_log("Error eliminar PEDI: " . $e->getMessage());
-            return false;
-        }
-    }
-
-    public function actualizarMetas($id, $data)
-    {
-        $db = $this->getConnection();
-
-        try {
-            $ejeId = $data['eje_id'] ?? null;
-            if (isset($data['linea_base'])) {
-                $db->prepare("INSERT INTO pedi_metas (pedi_id, anio, meta_texto, eje_id) VALUES (?, 0, ?, ?)
-                               ON DUPLICATE KEY UPDATE meta_texto = VALUES(meta_texto), eje_id = VALUES(eje_id)")
-                    ->execute([$id, $data['linea_base'], $ejeId]);
-            }
-            for ($anio = 2024; $anio <= 2028; $anio++) {
-                $key = 'meta_' . $anio;
-                $pctKey = 'meta_' . $anio . '_pct';
-                $metaVal = $data[$key] ?? '';
-                $pctVal = isset($data[$pctKey]) && $data[$pctKey] > 0 ? (float)$data[$pctKey] : null;
-                $db->prepare("INSERT INTO pedi_metas (pedi_id, anio, meta_texto, porcentaje, eje_id) VALUES (?, ?, ?, ?, ?)
-                               ON DUPLICATE KEY UPDATE meta_texto = VALUES(meta_texto), porcentaje = VALUES(porcentaje), eje_id = VALUES(eje_id)")
-                    ->execute([$id, $anio, $metaVal, $pctVal, $ejeId]);
-            }
-            return true;
-        } catch (PDOException $e) {
-            error_log("Error actualizar metas PEDI: " . $e->getMessage());
             return false;
         }
     }

@@ -1,16 +1,16 @@
 <div class="flex flex-col items-center justify-center bg-white border border-gray-200 rounded-lg shadow-sm p-8 mt-8 mb-8 text-base" style="font-size: 80%;">
-    <?php $basePath = $data['basePath'] ?? ($basePath ?? BasePath::detect()); ?>
+    <?php $basePath = $data['basePath'] ?? ($basePath ?? '/superarseconectadosv2/public'); ?>
     <h2 class="text-xl font-bold text-center text-indigo-800 mb-2">Plan de Aprendizaje</h2>
     <p class="text-center text-gray-600 mb-4">
-        Para ingresar al plan de aprendizaje, haz clic en el siguiente enlace. SerÃ¡s redirigido al PDF.
+        Para ingresar al plan de aprendizaje, haz clic en el siguiente enlace. Serás redirigido al PDF.
     </p>
 
     <?php
-    // FunciÃ³n para normalizar texto (eliminar tildes y convertir a mayÃºsculas)
+    // Función para normalizar texto (eliminar tildes y convertir a mayúsculas)
     function normalizarTexto($texto)
     {
         $texto = strtoupper($texto);
-        $tildes = ['Ã' => 'A', 'Ã‰' => 'E', 'Ã' => 'I', 'Ã“' => 'O', 'Ãš' => 'U', 'Ã‘' => 'N'];
+        $tildes = ['Á' => 'A', 'É' => 'E', 'Í' => 'I', 'Ó' => 'O', 'Ú' => 'U', 'Ñ' => 'N'];
         return strtr($texto, $tildes);
     }
 
@@ -25,7 +25,7 @@
         'TOPOGRAFIA' => 'plan_de_aprendizaje_topografia'
     ];
 
-    // Determinar el archivo basÃ¡ndose en el programa del estudiante
+    // Determinar el archivo basándose en el programa del estudiante
     $programaEstudiante = $data['infoPersonal']['programa'] ?? '';
     $programaNormalizado = normalizarTexto($programaEstudiante);
     $fileName = null;
@@ -76,7 +76,7 @@
                 </a>
     <?php
             } else {
-                echo '<p class="text-red-600 text-center">El archivo no se encontrÃ³ en la carpeta "assets/files".</p>';
+                echo '<p class="text-red-600 text-center">El archivo no se encontró en la carpeta "assets/files".</p>';
                 echo "<p class='text-xs text-gray-500'>Programa: " . htmlspecialchars($programaEstudiante) . "</p>";
                 echo "<p class='text-xs text-gray-500'>Archivo buscado: {$fileName}.pdf</p>";
                 echo "<p class='text-xs text-gray-500'>Ruta: {$filePath}</p>";

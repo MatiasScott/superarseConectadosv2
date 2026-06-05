@@ -7,7 +7,6 @@ use Dompdf\Options;
 require_once __DIR__ . '/../Models/PasantiaModel.php';
 require_once __DIR__ . '/../Models/UserModel.php';
 require_once __DIR__ . '/../Helpers/AuthSecurity.php';
-require_once __DIR__ . '/../Helpers/BasePath.php';
 
 class PasantiaController
 {
@@ -17,7 +16,12 @@ class PasantiaController
 
     public function __construct()
     {
-        $this->basePath = BasePath::detect();
+        // Configurar basePath según el entorno
+        if (isset($_SERVER['HTTP_HOST']) && strpos($_SERVER['HTTP_HOST'], 'superarse.ec') !== false) {
+            $this->basePath = '';
+        } else {
+            $this->basePath = '/superarseconectadosv2/public';
+        }
 
         $this->pasantiaModel = new PasantiaModel();
         $this->userModel = new UserModel();
@@ -69,13 +73,13 @@ class PasantiaController
         $observacion = trim((string) ($practica['observacion'] ?? ''));
 
         if ($status === 'FINALIZADA') {
-            $message = 'Estado de PrÃ¡ctica: FINALIZADA. Estimado/a estudiante: Se le informa que ha culminado satisfactoriamente su proceso de prÃ¡cticas preprofesionales, cumpliendo con los requisitos establecidos. Felicitamos su esfuerzo y compromiso durante esta etapa de formaciÃ³n profesional.';
+            $message = 'Estado de Práctica: FINALIZADA. Estimado/a estudiante: Se le informa que ha culminado satisfactoriamente su proceso de prácticas preprofesionales, cumpliendo con los requisitos establecidos. Felicitamos su esfuerzo y compromiso durante esta etapa de formación profesional.';
         } else {
-            $message = 'Estado de PrÃ¡ctica: NO FINALIZADO. Estimado/a estudiante: Su proceso de prÃ¡cticas preprofesionales no ha finalizado. Le recomendamos ponerse en contacto a la brevedad posible con el coordinador de prÃ¡cticas preprofesionales, a fin de recibir orientaciÃ³n y completar los requisitos pendientes. Es importante regularizar su situaciÃ³n para evitar inconvenientes en su proceso acadÃ©mico.';
+            $message = 'Estado de Práctica: NO FINALIZADO. Estimado/a estudiante: Su proceso de prácticas preprofesionales no ha finalizado. Le recomendamos ponerse en contacto a la brevedad posible con el coordinador de prácticas preprofesionales, a fin de recibir orientación y completar los requisitos pendientes. Es importante regularizar su situación para evitar inconvenientes en su proceso académico.';
         }
 
         if ($observacion !== '') {
-            $message .= ' ObservaciÃ³n: ' . $observacion;
+            $message .= ' Observación: ' . $observacion;
         }
 
         return $message;
@@ -110,7 +114,7 @@ class PasantiaController
         $estudiante = $this->userModel->getUserInfoByIdentificacion($_SESSION['identificacion']);
 
         if ($practica) {
-            $_SESSION['mensaje'] = "Ya tienes un registro de prÃ¡ctica en el sistema (ID: {$practica['id_practica']}).";
+            $_SESSION['mensaje'] = "Ya tienes un registro de práctica en el sistema (ID: {$practica['id_practica']}).";
             header("Location: " . $this->basePath . "/estudiante/seguimiento");
             exit();
         }
@@ -140,7 +144,7 @@ class PasantiaController
         }
 
         if (!AuthSecurity::validateCsrfToken('student_fase_one', $_POST['csrf_token'] ?? '')) {
-            $_SESSION['mensaje'] = "Error: token de seguridad invÃ¡lido. Intenta nuevamente.";
+            $_SESSION['mensaje'] = "Error: token de seguridad inválido. Intenta nuevamente.";
             header("Location: " . $this->basePath . "/estudiante/informacion?module=pasantias");
             exit();
         }
@@ -154,7 +158,7 @@ class PasantiaController
         $estudiante = $this->userModel->getUserInfoByIdentificacion($_SESSION['identificacion']);
 
         if (!$estudiante) {
-            $_SESSION['mensaje'] = "Error interno: No se pudo obtener la informaciÃ³n completa del estudiante.";
+            $_SESSION['mensaje'] = "Error interno: No se pudo obtener la información completa del estudiante.";
             header("Location: " . $this->basePath . "/estudiante/registro2");
             exit();
         }
@@ -182,11 +186,11 @@ class PasantiaController
         $practica_id = $this->pasantiaModel->savePasantiaPhaseOne($data);
 
         if ($practica_id) {
-            $_SESSION['mensaje'] = "Registro de prÃ¡ctica (ID: {$practica_id}) creado con Ã©xito. Esperando aprobaciÃ³n.";
+            $_SESSION['mensaje'] = "Registro de práctica (ID: {$practica_id}) creado con éxito. Esperando aprobación.";
             header("Location: " . $this->basePath . "/estudiante/informacion");
             exit();
         } else {
-            $_SESSION['mensaje'] = "Error al completar el registro. IntÃ©ntalo de nuevo.";
+            $_SESSION['mensaje'] = "Error al completar el registro. Inténtalo de nuevo.";
             header("Location: " . $this->basePath . "/estudiante/registro");
             exit();
         }
@@ -234,7 +238,7 @@ class PasantiaController
         $practica = $this->pasantiaModel->getActivePracticaByUserId($userId);
 
         if (!$practica || !$practica['estado_fase_uno_completado']) {
-            $_SESSION['mensaje'] = "Acceso denegado: PrÃ¡ctica no aprobada.";
+            $_SESSION['mensaje'] = "Acceso denegado: Práctica no aprobada.";
             header("Location: " . $this->basePath . "/estudiante/seguimiento");
             exit();
         }
@@ -259,7 +263,7 @@ class PasantiaController
         ];
 
         if ($this->pasantiaModel->addProgramaTrabajo($data)) {
-            $_SESSION['mensaje'] = "Actividad planificada agregada con Ã©xito.";
+            $_SESSION['mensaje'] = "Actividad planificada agregada con éxito.";
         } else {
             $_SESSION['mensaje'] = "Error al guardar la actividad planificada.";
         }
@@ -279,7 +283,7 @@ class PasantiaController
         $practica = $this->pasantiaModel->getActivePracticaByUserId($userId);
 
         if (!$practica || !$practica['estado_fase_uno_completado']) {
-            $_SESSION['mensaje'] = "Acceso denegado: PrÃ¡ctica no aprobada.";
+            $_SESSION['mensaje'] = "Acceso denegado: Práctica no aprobada.";
             header("Location: " . $this->basePath . "/estudiante/seguimiento");
             exit();
         }
@@ -306,7 +310,7 @@ class PasantiaController
         ];
 
         if ($this->pasantiaModel->updateProgramaTrabajo($data)) {
-            $_SESSION['mensaje'] = "Actividad actualizada con Ã©xito.";
+            $_SESSION['mensaje'] = "Actividad actualizada con éxito.";
         } else {
             $_SESSION['mensaje'] = "Error al actualizar la actividad.";
         }
@@ -326,7 +330,7 @@ class PasantiaController
         $practica = $this->pasantiaModel->getActivePracticaByUserId($userId);
 
         if (!$practica || !$practica['estado_fase_uno_completado']) {
-            $_SESSION['mensaje'] = "Acceso denegado: PrÃ¡ctica no aprobada.";
+            $_SESSION['mensaje'] = "Acceso denegado: Práctica no aprobada.";
             header("Location: " . $this->basePath . "/estudiante/seguimiento");
             exit();
         }
@@ -345,7 +349,7 @@ class PasantiaController
             }
         }
 
-        header("Location: " . $this->basePath . "/estudiante/informacion");  // â† CAMBIO AQUÃ
+        header("Location: " . $this->basePath . "/estudiante/informacion");  // ← CAMBIO AQUÍ
         exit();
     }
 
@@ -380,7 +384,7 @@ class PasantiaController
         }
 
         if (!AuthSecurity::validateCsrfToken('student_actividad_form', $_POST['csrf_token'] ?? '')) {
-            $_SESSION['mensaje'] = "Error: token de seguridad invÃ¡lido. Intenta nuevamente.";
+            $_SESSION['mensaje'] = "Error: token de seguridad inválido. Intenta nuevamente.";
             $activityPage = max(1, (int) ($_POST['activity_page'] ?? 1));
             header("Location: " . $this->basePath . "/estudiante/informacion?module=pasantias&tab=actividades&activity_page=" . $activityPage);
             exit();
@@ -390,7 +394,7 @@ class PasantiaController
         $practica = $this->pasantiaModel->getActivePracticaByUserId($userId);
 
         if (!$practica || !$practica['estado_fase_uno_completado']) {
-            $_SESSION['mensaje'] = "Acceso denegado: PrÃ¡ctica no aprobada.";
+            $_SESSION['mensaje'] = "Acceso denegado: Práctica no aprobada.";
             header("Location: " . $this->basePath . "/estudiante/seguimiento");
             exit();
         }
@@ -411,15 +415,15 @@ class PasantiaController
         $fecha_actividad = $_POST['fecha_actividad'];
         $fecha_hoy = date('Y-m-d');
         if ($fecha_actividad > $fecha_hoy) {
-            $_SESSION['mensaje'] = "âŒ Error: No puedes registrar actividades con fecha futura. Hoy es " . date('d/m/Y') . ".";
+            $_SESSION['mensaje'] = "❌ Error: No puedes registrar actividades con fecha futura. Hoy es " . date('d/m/Y') . ".";
             header("Location: " . $this->basePath . "/estudiante/informacion?module=pasantias&tab=actividades&activity_page=" . $activityPage);
             exit();
         }
 
-        // Validar que no haya otra actividad el mismo dÃ­a
+        // Validar que no haya otra actividad el mismo día
         $existeActividadMismaFecha = $this->pasantiaModel->countActividadesByDateAndPractica($practica['id_practica'], $fecha_actividad);
         if ($existeActividadMismaFecha > 0) {
-            $_SESSION['mensaje'] = "âš ï¸ Error: Ya existe una actividad registrada para " . date('d/m/Y', strtotime($fecha_actividad)) . ". Solo puedes registrar una actividad por dÃ­a.";
+            $_SESSION['mensaje'] = "⚠️ Error: Ya existe una actividad registrada para " . date('d/m/Y', strtotime($fecha_actividad)) . ". Solo puedes registrar una actividad por día.";
             header("Location: " . $this->basePath . "/estudiante/informacion?module=pasantias&tab=actividades&activity_page=" . $activityPage);
             exit();
         }
@@ -441,7 +445,7 @@ class PasantiaController
         ];
 
         if ($this->pasantiaModel->addActividadDiaria($data)) {
-            $_SESSION['mensaje'] = "Actividad diaria registrada con Ã©xito.";
+            $_SESSION['mensaje'] = "Actividad diaria registrada con éxito.";
         } else {
             $_SESSION['mensaje'] = "Error al guardar la actividad diaria.";
         }
@@ -480,7 +484,7 @@ class PasantiaController
         header('Content-Type: application/json');
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            echo json_encode(['success' => false, 'message' => 'MÃ©todo no permitido']);
+            echo json_encode(['success' => false, 'message' => 'Método no permitido']);
             return;
         }
 
@@ -521,7 +525,7 @@ class PasantiaController
         $userId = $_SESSION['id_usuario'];
         $practica = $this->pasantiaModel->getActivePracticaByUserId($userId);
         if (!$practica || !$practica['estado_fase_uno_completado']) {
-            $_SESSION['mensaje'] = "Acceso denegado: PrÃ¡ctica no aprobada.";
+            $_SESSION['mensaje'] = "Acceso denegado: Práctica no aprobada.";
             header("Location: " . $this->basePath . "/estudiante/seguimiento");
             exit();
         }
@@ -559,7 +563,7 @@ class PasantiaController
         }
 
         if (!AuthSecurity::validateCsrfToken('student_actividad_form', $_POST['csrf_token'] ?? '')) {
-            $_SESSION['mensaje'] = "Error: token de seguridad invÃ¡lido. Intenta nuevamente.";
+            $_SESSION['mensaje'] = "Error: token de seguridad inválido. Intenta nuevamente.";
             $activityPage = max(1, (int) ($_POST['activity_page'] ?? 1));
             header("Location: {$this->basePath}/estudiante/informacion?module=pasantias&tab=actividades&activity_page={$activityPage}");
             exit();
@@ -569,7 +573,7 @@ class PasantiaController
         $practica = $this->pasantiaModel->getActivePracticaByUserId($userId);
 
         if (!$practica || !$practica['estado_fase_uno_completado']) {
-            $_SESSION['mensaje'] = "Acceso denegado: PrÃ¡ctica no aprobada.";
+            $_SESSION['mensaje'] = "Acceso denegado: Práctica no aprobada.";
             header("Location: {$this->basePath}/estudiante/seguimiento");
             exit();
         }
@@ -590,16 +594,16 @@ class PasantiaController
         $fecha_actividad = $_POST['fecha_actividad'];
         $fecha_hoy = date('Y-m-d');
         if ($fecha_actividad > $fecha_hoy) {
-            $_SESSION['mensaje'] = "âŒ Error: No puedes registrar actividades con fecha futura. Hoy es " . date('d/m/Y') . ".";
+            $_SESSION['mensaje'] = "❌ Error: No puedes registrar actividades con fecha futura. Hoy es " . date('d/m/Y') . ".";
             header("Location: {$this->basePath}/estudiante/informacion?module=pasantias&tab=actividades&activity_page={$activityPage}");
             exit();
         }
 
-        // Validar que no haya otra actividad el mismo dÃ­a (excluyendo la actual)
+        // Validar que no haya otra actividad el mismo día (excluyendo la actual)
         $actividadId = (int) $_POST['id'];
         $existeActividadMismaFecha = $this->pasantiaModel->countActividadesByDateAndPractica($practica['id_practica'], $fecha_actividad, $actividadId);
         if ($existeActividadMismaFecha > 0) {
-            $_SESSION['mensaje'] = "âš ï¸ Error: Ya existe otra actividad registrada para " . date('d/m/Y', strtotime($fecha_actividad)) . ". Solo puedes registrar una actividad por dÃ­a.";
+            $_SESSION['mensaje'] = "⚠️ Error: Ya existe otra actividad registrada para " . date('d/m/Y', strtotime($fecha_actividad)) . ". Solo puedes registrar una actividad por día.";
             header("Location: {$this->basePath}/estudiante/informacion?module=pasantias&tab=actividades&activity_page={$activityPage}");
             exit();
         }
@@ -622,7 +626,7 @@ class PasantiaController
         ];
 
         if ($this->pasantiaModel->updateActividadDiaria($data)) {
-            $_SESSION['mensaje'] = "Actividad diaria actualizada con Ã©xito.";
+            $_SESSION['mensaje'] = "Actividad diaria actualizada con éxito.";
         } else {
             $_SESSION['mensaje'] = "Error al actualizar la actividad diaria.";
         }
@@ -634,13 +638,13 @@ class PasantiaController
     public function deleteActividadDiaria()
     {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST' || empty($_POST['id'])) {
-            $_SESSION['mensaje'] = "Error: Solicitud invÃ¡lida para eliminar.";
+            $_SESSION['mensaje'] = "Error: Solicitud inválida para eliminar.";
             header("Location: {$this->basePath}/estudiante/actividades_diarias");
             exit();
         }
 
         if (!AuthSecurity::validateCsrfToken('student_actividad_delete', $_POST['csrf_token'] ?? '')) {
-            $_SESSION['mensaje'] = "Error: token de seguridad invÃ¡lido. Intenta nuevamente.";
+            $_SESSION['mensaje'] = "Error: token de seguridad inválido. Intenta nuevamente.";
             $activityPage = max(1, (int) ($_POST['activity_page'] ?? 1));
             header("Location: {$this->basePath}/estudiante/informacion?module=pasantias&tab=actividades&activity_page={$activityPage}");
             exit();
@@ -650,7 +654,7 @@ class PasantiaController
         $practica = $this->pasantiaModel->getActivePracticaByUserId($userId);
 
         if (!$practica || !$practica['estado_fase_uno_completado']) {
-            $_SESSION['mensaje'] = "Acceso denegado: PrÃ¡ctica no aprobada.";
+            $_SESSION['mensaje'] = "Acceso denegado: Práctica no aprobada.";
             header("Location: {$this->basePath}/estudiante/seguimiento");
             exit();
         }
@@ -661,7 +665,7 @@ class PasantiaController
         $id = (int) $_POST['id'];
 
         if ($this->pasantiaModel->deleteActividadDiaria($id, $practica['id_practica'])) {
-            $_SESSION['mensaje'] = "Actividad diaria eliminada con Ã©xito.";
+            $_SESSION['mensaje'] = "Actividad diaria eliminada con éxito.";
         } else {
             $_SESSION['mensaje'] = "Error al eliminar la actividad diaria.";
         }
@@ -676,23 +680,23 @@ class PasantiaController
         $data = $this->pasantiaModel->getPracticeFullData($id_practica);
 
         if (empty($data) || empty($data['infoPractica']['ruc'])) {
-            // Manejo de error si la prÃ¡ctica no estÃ¡ registrada o no se encuentra
+            // Manejo de error si la práctica no está registrada o no se encuentra
             // Redirigir o mostrar error 404
             http_response_code(404);
-            die('PrÃ¡ctica o datos incompletos no encontrados.');
+            die('Práctica o datos incompletos no encontrados.');
         }
 
         // 2. Generar el Contenido HTML (Usando tu vista limpia)
         $html = $this->renderPdfHtmlView('pasantias_pdf_fase1', $data);
 
-        // 3. CONFIGURACIÃ“N Y GENERACIÃ“N DEL PDF CON DOMPDF
+        // 3. CONFIGURACIÓN Y GENERACIÓN DEL PDF CON DOMPDF
 
         $options = new Options();
         $options->set('defaultFont', 'Arial');
         $options->set('isHtml5ParserEnabled', true);
-        $options->set('isRemoteEnabled', true); // Necesario si usas imÃ¡genes externas o CSS remoto
+        $options->set('isRemoteEnabled', true); // Necesario si usas imágenes externas o CSS remoto
 
-        // Â¡AquÃ­ se crea la variable $dompdf que te faltaba!
+        // ¡Aquí se crea la variable $dompdf que te faltaba!
         $dompdf = new Dompdf($options);
 
         $dompdf->loadHtml($html);
@@ -701,7 +705,7 @@ class PasantiaController
 
         // 4. Enviar el archivo para descarga
 
-        // AsegÃºrate de que infoPersonal exista antes de intentar acceder a codigo_matricula
+        // Asegúrate de que infoPersonal exista antes de intentar acceder a codigo_matricula
         $codigo = $data['infoPersonal']['codigo_matricula'] ?? $id_practica;
         $filename = 'Registro_Practica_' . $codigo . '.pdf';
 
@@ -709,12 +713,12 @@ class PasantiaController
             ob_end_clean(); // Limpiar buffer de salida
         }
 
-        // El mÃ©todo stream fuerza la descarga del PDF al navegador
+        // El método stream fuerza la descarga del PDF al navegador
         $dompdf->stream($filename, array("Attachment" => true));
         exit;
     }
 
-    // AsegÃºrate de tener esta funciÃ³n auxiliar para cargar la vista de PDF
+    // Asegúrate de tener esta función auxiliar para cargar la vista de PDF
     protected function renderPdfHtmlView(string $viewName, array $data): string
     {
         extract($data);
@@ -732,12 +736,12 @@ class PasantiaController
 
     public function generateActividadesPdf(int $id_practica)
     {
-        // Obtener informaciÃ³n de la prÃ¡ctica
+        // Obtener información de la práctica
         $practica = $this->pasantiaModel->getPracticaById($id_practica);
 
         if (!$practica) {
             http_response_code(404);
-            die('PrÃ¡ctica no encontrada.');
+            die('Práctica no encontrada.');
         }
 
         // Obtener actividades diarias
@@ -747,12 +751,12 @@ class PasantiaController
         $actividadesPorSemana = [];
         foreach ($actividades as $actividad) {
             $fecha = new DateTime($actividad['fecha_actividad']);
-            $semana = $fecha->format('W'); // NÃºmero de semana del aÃ±o
+            $semana = $fecha->format('W'); // Número de semana del año
             $anio = $fecha->format('Y');
             $claveSemana = $anio . '-S' . $semana;
 
             if (!isset($actividadesPorSemana[$claveSemana])) {
-                // Calcular primer y Ãºltimo dÃ­a de la semana
+                // Calcular primer y último día de la semana
                 $primerDia = clone $fecha;
                 $primerDia->modify('monday this week');
                 $ultimoDia = clone $primerDia;
@@ -775,7 +779,7 @@ class PasantiaController
         // Ordenar por semana
         ksort($actividadesPorSemana);
 
-        // Obtener informaciÃ³n del estudiante (compatible para estudiante y admin)
+        // Obtener información del estudiante (compatible para estudiante y admin)
         $estudiante = null;
         $identificacionSesion = $_SESSION['identificacion'] ?? null;
         if (!empty($identificacionSesion)) {
@@ -795,7 +799,7 @@ class PasantiaController
             ];
         }
 
-        // Obtener informaciÃ³n del tutor acadÃ©mico
+        // Obtener información del tutor académico
         $tutorAcademico = null;
         if (!empty($estudiante['programa'])) {
             $tutoresAcademicos = $this->userModel->getTutoresAcademicosByPrograma($estudiante['programa']);
@@ -844,7 +848,7 @@ class PasantiaController
 
         $permissionState = $_SESSION['admin_permissions'] ?? ['enabled' => false, 'matrix' => []];
         if (!empty($permissionState['enabled']) && empty($permissionState['matrix']['practicas']['view'])) {
-            $_SESSION['error'] = 'No tienes permisos para ver prÃ¡cticas.';
+            $_SESSION['error'] = 'No tienes permisos para ver prácticas.';
             header("Location: " . $this->basePath . "/admin/practicas");
             exit();
         }
@@ -852,7 +856,7 @@ class PasantiaController
         $practica = $this->pasantiaModel->getPracticaById($id_practica);
         if (!$practica) {
             http_response_code(404);
-            die('PrÃ¡ctica no encontrada.');
+            die('Práctica no encontrada.');
         }
 
         $programaTrabajo = $this->pasantiaModel->getProgramaTrabajo((int) $id_practica, 1000, 0);
@@ -886,7 +890,7 @@ class PasantiaController
         exit;
     }
 
-    // Alias de compatibilidad para evitar errores por diferencias en el nombre del mÃ©todo.
+    // Alias de compatibilidad para evitar errores por diferencias en el nombre del método.
     public function generarProgramaTrabajoPdf(int $id_practica)
     {
         $this->generateProgramaTrabajoPdf($id_practica);
@@ -902,7 +906,7 @@ class PasantiaController
 
         $permissionState = $_SESSION['admin_permissions'] ?? ['enabled' => false, 'matrix' => []];
         if (!empty($permissionState['enabled']) && empty($permissionState['matrix']['practicas']['edit'])) {
-            $_SESSION['error'] = 'No tienes permisos para editar prÃ¡cticas.';
+            $_SESSION['error'] = 'No tienes permisos para editar prácticas.';
             header("Location: " . $this->basePath . "/admin/practicas");
             exit();
         }
@@ -940,16 +944,16 @@ class PasantiaController
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $modalidadRaw = (string) ($practica['modalidad'] ?? '');
             $modalidadUpper = strtoupper(strtr($modalidadRaw, [
-                'Ã¡' => 'A',
-                'Ã©' => 'E',
-                'Ã­' => 'I',
-                'Ã³' => 'O',
-                'Ãº' => 'U',
-                'Ã' => 'A',
-                'Ã‰' => 'E',
-                'Ã' => 'I',
-                'Ã“' => 'O',
-                'Ãš' => 'U',
+                'á' => 'A',
+                'é' => 'E',
+                'í' => 'I',
+                'ó' => 'O',
+                'ú' => 'U',
+                'Á' => 'A',
+                'É' => 'E',
+                'Í' => 'I',
+                'Ó' => 'O',
+                'Ú' => 'U',
             ]));
             $esHomologableLaboral = strpos($modalidadUpper, 'HOMOLOGABLES LABORALES') !== false;
 
@@ -991,7 +995,7 @@ class PasantiaController
             exit();
         }
 
-        // Cargar vista de ediciÃ³n (ya no necesitamos cargar docentes)
+        // Cargar vista de edición (ya no necesitamos cargar docentes)
         //require_once __DIR__ . '/../Views/admin/practicas/editar_pasantia.php';
         $this->renderAdmin('admin/practicas/editar_pasantia', [
             'title' => 'Editar Practicas Pre Profesionales',
@@ -1008,15 +1012,15 @@ class PasantiaController
 
     public function eliminarPasantia($id_practica)
     {
-        error_log("=== INICIO ELIMINACIÃ“N ===");
-        error_log("ID prÃ¡ctica: " . $id_practica);
-        error_log("MÃ©todo HTTP: " . $_SERVER['REQUEST_METHOD']);
-        error_log("SesiÃ³n is_admin: " . (isset($_SESSION['is_admin']) ? json_encode($_SESSION['is_admin']) : 'NO DEFINIDA'));
-        error_log("SesiÃ³n completa: " . json_encode($_SESSION));
+        error_log("=== INICIO ELIMINACIÓN ===");
+        error_log("ID práctica: " . $id_practica);
+        error_log("Método HTTP: " . $_SERVER['REQUEST_METHOD']);
+        error_log("Sesión is_admin: " . (isset($_SESSION['is_admin']) ? json_encode($_SESSION['is_admin']) : 'NO DEFINIDA'));
+        error_log("Sesión completa: " . json_encode($_SESSION));
 
         // Verificar que sea administrador
         if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
-            error_log("âŒ ACCESO DENEGADO: Usuario no es admin");
+            error_log("❌ ACCESO DENEGADO: Usuario no es admin");
             $_SESSION['error'] = 'No autorizado para eliminar Practicas Pre Profesionales. Debes iniciar sesion como administrador.';
             header("Location: " . $this->basePath . "/admin/dashboard");
             exit();
@@ -1024,44 +1028,44 @@ class PasantiaController
 
         $permissionState = $_SESSION['admin_permissions'] ?? ['enabled' => false, 'matrix' => []];
         if (!empty($permissionState['enabled']) && empty($permissionState['matrix']['practicas']['delete'])) {
-            $_SESSION['error'] = 'No tienes permisos para eliminar prÃ¡cticas.';
+            $_SESSION['error'] = 'No tienes permisos para eliminar prácticas.';
             header("Location: " . $this->basePath . "/admin/practicas");
             exit();
         }
 
-        error_log("âœ“ Usuario admin verificado");
+        error_log("✓ Usuario admin verificado");
 
         try {
             $resultado = $this->pasantiaModel->eliminarPasantia($id_practica);
-            error_log("Resultado eliminaciÃ³n: " . ($resultado ? 'âœ“ SUCCESS' : 'âœ— FAILED'));
+            error_log("Resultado eliminación: " . ($resultado ? '✓ SUCCESS' : '✗ FAILED'));
 
             if ($resultado) {
                 $_SESSION['success'] = 'Practicas Pre Profesionales #' . $id_practica . ' eliminadas correctamente';
-                error_log("âœ“ Practicas Pre Profesionales eliminadas exitosamente");
+                error_log("✓ Practicas Pre Profesionales eliminadas exitosamente");
             } else {
                 $_SESSION['error'] = 'Error al eliminar Practicas Pre Profesionales #' . $id_practica;
-                error_log("âœ— Error en la eliminaciÃ³n");
+                error_log("✗ Error en la eliminación");
             }
         } catch (Exception $e) {
-            error_log("âœ— EXCEPCIÃ“N: " . $e->getMessage());
+            error_log("✗ EXCEPCIÓN: " . $e->getMessage());
             $_SESSION['error'] = 'Error al eliminar: ' . $e->getMessage();
         }
 
-        error_log("=== FIN ELIMINACIÃ“N ===");
+        error_log("=== FIN ELIMINACIÓN ===");
         header("Location: " . $this->basePath . "/admin/dashboard");
         exit();
     }
 
     public function showPlanDeAprendizaje($carrera = null)
     {
-        // Verificar que el estudiante estÃ© logueado
+        // Verificar que el estudiante esté logueado
         $userId = $_SESSION['id_usuario'];
 
-        // Obtener la prÃ¡ctica activa del estudiante
+        // Obtener la práctica activa del estudiante
         $practica = $this->pasantiaModel->getActivePracticaByUserId($userId);
 
         if (!$practica) {
-            $_SESSION['mensaje'] = "Debes registrar una prÃ¡ctica antes de acceder al Plan de Aprendizaje.";
+            $_SESSION['mensaje'] = "Debes registrar una práctica antes de acceder al Plan de Aprendizaje.";
             header("Location: " . $this->basePath . "/estudiante/informacion");
             exit();
         }
@@ -1074,10 +1078,10 @@ class PasantiaController
 
         $this->ensurePracticeEditableOrRedirect($practica, 'programa');
 
-        // Obtener informaciÃ³n completa del estudiante
+        // Obtener información completa del estudiante
         $estudiante = $this->userModel->getUserInfoByIdentificacion($_SESSION['identificacion']);
 
-        // Obtener informaciÃ³n del tutor acadÃ©mico
+        // Obtener información del tutor académico
         $tutorAcademico = null;
         if (!empty($estudiante['programa'])) {
             $tutoresAcademicos = $this->userModel->getTutoresAcademicosByPrograma($estudiante['programa']);
@@ -1095,7 +1099,7 @@ class PasantiaController
 
         unset($_SESSION['mensaje']);
 
-        // Determinar quÃ© vista cargar segÃºn la carrera (normalizaciÃ³n robusta)
+        // Determinar qué vista cargar según la carrera (normalización robusta)
         $programa = $carrera ?? ($estudiante['programa'] ?? '');
         $viewFile = $this->resolvePlanViewByProgram($programa);
         $viewPath = __DIR__ . '/../Views/estudiantes/' . $viewFile . '.php';
@@ -1111,7 +1115,7 @@ class PasantiaController
     {
         $text = mb_strtoupper(trim((string) $text), 'UTF-8');
         $text = str_replace(
-            ['Ã', 'Ã‰', 'Ã', 'Ã“', 'Ãš', 'Ãœ', 'Ã‘'],
+            ['Á', 'É', 'Í', 'Ó', 'Ú', 'Ü', 'Ñ'],
             ['A', 'E', 'I', 'O', 'U', 'U', 'N'],
             $text
         );
@@ -1161,13 +1165,13 @@ class PasantiaController
 
     public function generarPlanAprendizajePdf()
     {
-        // Verificar que el estudiante estÃ© logueado
+        // Verificar que el estudiante esté logueado
         if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
             header("Location: " . $this->basePath . "/login");
             exit();
         }
 
-        // Verificar que sea una peticiÃ³n POST con datos del formulario
+        // Verificar que sea una petición POST con datos del formulario
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $_SESSION['mensaje'] = "Debe enviar el formulario del plan de aprendizaje.";
             header("Location: " . $this->basePath . "/estudiante/plan-aprendizaje");
@@ -1214,7 +1218,7 @@ class PasantiaController
         if (isset($_SERVER['HTTP_HOST']) && strpos($_SERVER['HTTP_HOST'], 'superarse.ec') !== false) {
             $basePath = '';
         } else {
-            $basePath = BasePath::detect();
+            $basePath = '/superarseconectadosv2/public';
         }
 
         $nombreCompleto = $_SESSION['nombres_completos'] ?? 'Administrador';
@@ -1255,4 +1259,3 @@ class PasantiaController
         return round($diffMin / 60, 4);
     }
 }
-

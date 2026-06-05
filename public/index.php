@@ -49,9 +49,7 @@ $uri = rtrim($uri, '/');
 if (isset($_SERVER['HTTP_HOST']) && strpos($_SERVER['HTTP_HOST'], 'superarse.ec') !== false) {
     $basePath = '';
 } else {
-    $docRoot = str_replace('\\', '/', $_SERVER['DOCUMENT_ROOT']);
-    $appDir = str_replace('\\', '/', __DIR__);
-    $basePath = str_replace($docRoot, '', $appDir);
+    $basePath = '/superarseconectadosv2/public';
 }
 
 /* Quitar basePath de la URI */

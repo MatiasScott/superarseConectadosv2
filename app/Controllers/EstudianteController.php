@@ -8,7 +8,6 @@ require_once '../app/Models/CredencialModel.php';
 require_once '../app/Models/BancoModel.php';
 require_once '../app/Models/PasantiaModel.php';
 require_once '../app/Helpers/AuthSecurity.php';
-require_once '../app/Helpers/BasePath.php';
 
 class EstudianteController
 {
@@ -16,7 +15,12 @@ class EstudianteController
 
     public function __construct()
     {
-        $this->basePath = BasePath::detect();
+        // Configurar basePath según el entorno
+        if (isset($_SERVER['HTTP_HOST']) && strpos($_SERVER['HTTP_HOST'], 'superarse.ec') !== false) {
+            $this->basePath = '';
+        } else {
+            $this->basePath = '/superarseconectadosv2/public';
+        }
 
         if (session_status() == PHP_SESSION_NONE) {
             session_start();
@@ -135,4 +139,3 @@ class EstudianteController
         }
     }
 }
-

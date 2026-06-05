@@ -1,13 +1,13 @@
 <?php
-// Si no hay datos cargados, cargarlos desde la sesiÃ³n y base de datos
+// Si no hay datos cargados, cargarlos desde la sesión y base de datos
 if (!isset($estudiante) || !isset($practica)) {
     if (session_status() == PHP_SESSION_NONE) {
         session_start();
     }
 
-    // Verificar que el usuario estÃ© logueado
+    // Verificar que el usuario esté logueado
     if (!isset($_SESSION['id_usuario']) || !isset($_SESSION['identificacion'])) {
-        die('Error: Debe iniciar sesiÃ³n para acceder al Plan de Aprendizaje.');
+        die('Error: Debe iniciar sesión para acceder al Plan de Aprendizaje.');
     }
 
     require_once __DIR__ . '/../../Models/PasantiaModel.php';
@@ -20,7 +20,7 @@ if (!isset($estudiante) || !isset($practica)) {
     $practica = $pasantiaModel->getActivePracticaByUserId($userId);
 
     if (!$practica) {
-        die('Error: No tiene una prÃ¡ctica registrada. Por favor registre una prÃ¡ctica primero.');
+        die('Error: No tiene una práctica registrada. Por favor registre una práctica primero.');
     }
 
     if (!$practica['estado_fase_uno_completado']) {
@@ -29,7 +29,7 @@ if (!isset($estudiante) || !isset($practica)) {
 
     $estudiante = $userModel->getUserInfoByIdentificacion($_SESSION['identificacion']);
 
-    // Obtener tutor acadÃ©mico
+    // Obtener tutor académico
     $tutorAcademico = null;
     if (!empty($estudiante['programa'])) {
         $tutoresAcademicos = $userModel->getTutoresAcademicosByPrograma($estudiante['programa']);
@@ -39,11 +39,11 @@ if (!isset($estudiante) || !isset($practica)) {
 
 // Si no hay basePath definido, establecer por defecto
 if (!isset($basePath)) {
-    // Configurar basePath segÃºn el entorno
+    // Configurar basePath según el entorno
     if (isset($_SERVER['HTTP_HOST']) && strpos($_SERVER['HTTP_HOST'], 'superarse.ec') !== false) {
         $basePath = '';
     } else {
-        $basePath = BasePath::detect();
+        $basePath = '/superarseconectadosv2/public';
     }
 }
 
@@ -70,26 +70,26 @@ $nombreTutorEmpresarial = $practica['nombre_completo'] ?? '';
 $telefonoTutorEmpresarial = $practica['telefono'] ?? '';
 $correoTutorEmpresarial = $practica['email'] ?? '';
 
-// Datos del tutor acadÃ©mico
+// Datos del tutor académico
 $nombreTutorAcademico = $tutorAcademico['nombre_completo'] ?? '';
 $correoTutorAcademico = $tutorAcademico['email'] ?? '';
 
-// FunciÃ³n para normalizar texto (quitar tildes y convertir a mayÃºsculas)
+// Función para normalizar texto (quitar tildes y convertir a mayúsculas)
 function normalizar($texto)
 {
     $texto = strtoupper($texto);
     $texto = str_replace(
-        ['Ã', 'Ã‰', 'Ã', 'Ã“', 'Ãš', 'Ã‘'],
+        ['Á', 'É', 'Í', 'Ó', 'Ú', 'Ñ'],
         ['A', 'E', 'I', 'O', 'U', 'N'],
         $texto
     );
     return trim($texto);
 }
 
-// Normalizar programa para comparaciÃ³n
+// Normalizar programa para comparación
 $programaNormalizado = normalizar($programa);
 
-// Extraer nÃºmero del nivel (puede venir como "Nivel 1", "N1", "1", etc.)
+// Extraer número del nivel (puede venir como "Nivel 1", "N1", "1", etc.)
 $nivelNumero = '';
 if (preg_match('/\d+/', $nivel, $matches)) {
     $nivelNumero = $matches[0];
@@ -97,29 +97,29 @@ if (preg_match('/\d+/', $nivel, $matches)) {
 ?>
 
 <div class="container">
-    <!-- Mensaje de Ã©xito (oculto por defecto) -->
+    <!-- Mensaje de éxito (oculto por defecto) -->
     <div id="successMessage" class="success-message" style="display: none;">
-        âœ“ Plan de Aprendizaje enviado exitosamente. Los datos se han guardado.
+        ✓ Plan de Aprendizaje enviado exitosamente. Los datos se han guardado.
     </div>
 
     <!-- Encabezado del documento -->
     <div class="document-header">
         <div class="header-logo">
-            <img src="<?php echo $basePath; ?>/Assets/img/LOGO SUPERARSE PNG-02.png" alt="Superarse TecnolÃ³gico" style="width: 140px; height: auto;">
+            <img src="<?php echo $basePath; ?>/Assets/img/LOGO SUPERARSE PNG-02.png" alt="Superarse Tecnológico" style="width: 140px; height: auto;">
         </div>
         <div class="header-title">
-            <h1>GestiÃ³n de PrÃ¡cticas Pre Profesionales laborales9</h1>
-            <h2>Plan de Aprendizaje PrÃ¡ctico</h2>
+            <h1>Gestión de Prácticas Pre Profesionales laborales9</h1>
+            <h2>Plan de Aprendizaje Práctico</h2>
         </div>
         <div class="header-info">
-            <div><strong>VERSIÃ“N:</strong> 002</div>
-            <div><strong>CÃ“DIGO:</strong> ISTS-GIDIVS-05-004</div>
+            <div><strong>VERSIÓN:</strong> 002</div>
+            <div><strong>CÓDIGO:</strong> ISTS-GIDIVS-05-004</div>
             <div><strong>FECHA:</strong> 22/11/2025</div>
         </div>
     </div>
 
     <form action="<?php echo $basePath; ?>/estudiante/generar-plan-aprendizaje-pdf" method="POST" id="planForm">
-        <!-- SecciÃ³n 1: Datos del estudiante -->
+        <!-- Sección 1: Datos del estudiante -->
         <div class="form-section">
             <h3>1. Datos del estudiante:</h3>
             <table>
@@ -136,21 +136,21 @@ if (preg_match('/\d+/', $nivel, $matches)) {
                     <td><input type="text" name="nivel" value="<?php echo htmlspecialchars($nivel); ?>" readonly style="background-color: #f5f5f5; cursor: not-allowed;"></td>
                 </tr>
                 <tr>
-                    <td>CÃ©dula</td>
+                    <td>Cédula</td>
                     <td><input type="text" name="cedula" value="<?php echo htmlspecialchars($cedula); ?>" readonly style="background-color: #f5f5f5; cursor: not-allowed;"></td>
                 </tr>
                 <tr>
-                    <td>Correo electrÃ³nico</td>
+                    <td>Correo electrónico</td>
                     <td><input type="email" name="correo" value="<?php echo htmlspecialchars($correo); ?>" readonly style="background-color: #f5f5f5; cursor: not-allowed;"></td>
                 </tr>
                 <tr>
-                    <td>TelÃ©fono</td>
+                    <td>Teléfono</td>
                     <td><input type="text" name="telefono" value="<?php echo htmlspecialchars($telefono); ?>" required></td>
                 </tr>
             </table>
         </div>
 
-        <!-- SecciÃ³n 2: Datos de la empresa -->
+        <!-- Sección 2: Datos de la empresa -->
         <div class="form-section">
             <h3>2. Datos de la empresa:</h3>
             <table>
@@ -173,15 +173,15 @@ if (preg_match('/\d+/', $nivel, $matches)) {
                     </td>
                 </tr>
                 <tr>
-                    <td>Actividad econÃ³mica principal</td>
+                    <td>Actividad económica principal</td>
                     <td><input type="text" name="actividad_economica" required></td>
                 </tr>
                 <tr>
-                    <td>UbicaciÃ³n</td>
+                    <td>Ubicación</td>
                     <td><input type="text" name="ubicacion" value="<?php echo htmlspecialchars($direccion); ?>" readonly style="background-color: #f5f5f5; cursor: not-allowed;"></td>
                 </tr>
                 <tr>
-                    <td>Ãrea/departamento donde realizarÃ¡ la prÃ¡ctica</td>
+                    <td>Área/departamento donde realizará la práctica</td>
                     <td><input type="text" name="area_departamento" value="<?php echo htmlspecialchars($departamento); ?>" readonly style="background-color: #f5f5f5; cursor: not-allowed;"></td>
                 </tr>
                 <tr>
@@ -189,26 +189,26 @@ if (preg_match('/\d+/', $nivel, $matches)) {
                     <td><input type="text" name="nombre_tutor_empresarial" value="<?php echo htmlspecialchars($nombreTutorEmpresarial); ?>" readonly style="background-color: #f5f5f5; cursor: not-allowed;"></td>
                 </tr>
                 <tr>
-                    <td>TelÃ©fono</td>
+                    <td>Teléfono</td>
                     <td><input type="text" name="telefono_tutor_empresarial" value="<?php echo htmlspecialchars($telefonoTutorEmpresarial); ?>" readonly style="background-color: #f5f5f5; cursor: not-allowed;"></td>
                 </tr>
                 <tr>
-                    <td>Correo electrÃ³nico tutor</td>
+                    <td>Correo electrónico tutor</td>
                     <td><input type="email" name="correo_tutor_empresarial" value="<?php echo htmlspecialchars($correoTutorEmpresarial); ?>" readonly style="background-color: #f5f5f5; cursor: not-allowed;"></td>
                 </tr>
                 <tr>
-                    <td>DescripciÃ³n general de la empresa</td>
+                    <td>Descripción general de la empresa</td>
                     <td><textarea name="descripcion_empresa" required></textarea></td>
                 </tr>
             </table>
         </div>
 
-        <!-- SecciÃ³n 3: Datos del periodo de prÃ¡cticas -->
+        <!-- Sección 3: Datos del periodo de prácticas -->
         <div class="form-section">
-            <h3>3. Datos del periodo de prÃ¡cticas</h3>
+            <h3>3. Datos del periodo de prácticas</h3>
             <table>
                 <tr>
-                    <td>Periodo AcadÃ©mico</td>
+                    <td>Periodo Académico</td>
                     <td><input type="text" name="periodo_academico" value="<?php echo htmlspecialchars($periodo); ?>" readonly style="background-color: #f5f5f5; cursor: not-allowed;"></td>
                 </tr>
                 <tr>
@@ -228,7 +228,7 @@ if (preg_match('/\d+/', $nivel, $matches)) {
                                     <input type="text" name="horario" required>
                                 </td>
                                 <td style="border: none; padding: 0 0 0 10px; width: 50%;">
-                                    <strong>NÃºmero de total de horas:</strong> <span style="display: inline-block; margin-left: 5px; font-weight: 600;">240</span>
+                                    <strong>Número de total de horas:</strong> <span style="display: inline-block; margin-left: 5px; font-weight: 600;">240</span>
                                     <input type="hidden" name="total_horas" value="240">
                                 </td>
                             </tr>
@@ -241,34 +241,34 @@ if (preg_match('/\d+/', $nivel, $matches)) {
                         <select name="modalidad" required>
                             <option value="">Seleccione</option>
                             <option value="Presencial">Presencial</option>
-                            <option value="En lÃ­nea">En lÃ­nea</option>
-                            <option value="HÃ­brida">HÃ­brida</option>
+                            <option value="En línea">En línea</option>
+                            <option value="Híbrida">Híbrida</option>
                         </select>
                     </td>
                 </tr>
                 <tr>
-                    <td>Nombre del tutor acadÃ©mico</td>
+                    <td>Nombre del tutor académico</td>
                     <td><input type="text" name="nombre_tutor_academico" value="<?php echo htmlspecialchars($nombreTutorAcademico); ?>" readonly style="background-color: #f5f5f5; cursor: not-allowed;"></td>
                 </tr>
                 <tr>
-                    <td>Correo tutor acadÃ©mico institucional</td>
+                    <td>Correo tutor académico institucional</td>
                     <td><input type="email" name="correo_tutor_academico" value="<?php echo htmlspecialchars($correoTutorAcademico); ?>" readonly style="background-color: #f5f5f5; cursor: not-allowed;"></td>
                 </tr>
             </table>
         </div>
 
-        <!-- SecciÃ³n 4: Objetivo de las prÃ¡cticas preprofesionales -->
+        <!-- Sección 4: Objetivo de las prácticas preprofesionales -->
         <div class="form-section">
-            <h3>4. Objetivo de las prÃ¡cticas preprofesionales</h3>
+            <h3>4. Objetivo de las prácticas preprofesionales</h3>
             <div class="objective-text">
-                Aplicar los conocimientos de la carrera de EducaciÃ³n BÃ¡sica en un entorno educativo real, apoyando los procesos de enseÃ±anza-aprendizaje, la planificaciÃ³n y gestiÃ³n didÃ¡ctica, la evaluaciÃ³n de los aprendizajes, y la atenciÃ³n a la diversidad e inclusiÃ³n, actuando con responsabilidad social, Ã©tica y enfoque humanista, en coherencia con el perfil de egreso.
+                Aplicar los conocimientos de la carrera de Educación Básica en un entorno educativo real, apoyando los procesos de enseñanza-aprendizaje, la planificación y gestión didáctica, la evaluación de los aprendizajes, y la atención a la diversidad e inclusión, actuando con responsabilidad social, ética y enfoque humanista, en coherencia con el perfil de egreso.
             </div>
         </div>
 
-        <!-- SecciÃ³n 5: Resultados de Aprendizaje -->
+        <!-- Sección 5: Resultados de Aprendizaje -->
         <div class="form-section">
             <h3>5. Resultados de Aprendizaje</h3>
-            <p style="margin-bottom: 10px; font-size: 12px;">Al finalizar las prÃ¡cticas preprofesionales, el estudiante serÃ¡ capaz de:</p>
+            <p style="margin-bottom: 10px; font-size: 12px;">Al finalizar las prácticas preprofesionales, el estudiante será capaz de:</p>
 
             <table class="results-table">
                 <thead>
@@ -281,95 +281,95 @@ if (preg_match('/\d+/', $nivel, $matches)) {
                 <tbody>
                     <tr>
                         <td><input type="checkbox" name="ra1" value="1"></td>
-                        <td><strong>RA1.</strong> Reconocer el currÃ­culo, planes y programas oficiales aplicados en las instituciones educativas, en funciÃ³n de los distintos niveles de educaciÃ³n general bÃ¡sica.</td>
+                        <td><strong>RA1.</strong> Reconocer el currículo, planes y programas oficiales aplicados en las instituciones educativas, en función de los distintos niveles de educación general básica.</td>
                         <td>A1, A2</td>
                     </tr>
                     <tr>
                         <td><input type="checkbox" name="ra2" value="1"></td>
-                        <td><strong>RA2.</strong> Estructurar los procesos de enseÃ±anza-aprendizaje, en correlaciÃ³n entre la prÃ¡ctica pedagÃ³gica y las disciplinas considerando las diversas dimensiones de la pedagogÃ­a.</td>
+                        <td><strong>RA2.</strong> Estructurar los procesos de enseñanza-aprendizaje, en correlación entre la práctica pedagógica y las disciplinas considerando las diversas dimensiones de la pedagogía.</td>
                         <td>A1, A2, A3</td>
                     </tr>
                     <tr>
                         <td><input type="checkbox" name="ra3" value="1"></td>
-                        <td><strong>RA3.</strong> Determinar el nivel de aprendizaje de los estudiantes utilizando estrategias e instrumentos sistemÃ¡ticos de evaluaciÃ³n, evidenciando comprensiÃ³n y logros.</td>
+                        <td><strong>RA3.</strong> Determinar el nivel de aprendizaje de los estudiantes utilizando estrategias e instrumentos sistemáticos de evaluación, evidenciando comprensión y logros.</td>
                         <td>A4, A6</td>
                     </tr>
                     <tr>
                         <td><input type="checkbox" name="ra4" value="1"></td>
-                        <td><strong>RA4.</strong> Identificar los elementos del proceso didÃ¡ctico en el aula en correlaciÃ³n con una prÃ¡ctica educativa innovadora.</td>
+                        <td><strong>RA4.</strong> Identificar los elementos del proceso didáctico en el aula en correlación con una práctica educativa innovadora.</td>
                         <td>A3, A2</td>
                     </tr>
                     <tr>
                         <td><input type="checkbox" name="ra5" value="1"></td>
-                        <td><strong>RA5.</strong> Establecer las implicaciones socioeducativas de la diversidad cultural para enfrentar desafÃ­os actuales en la sociedad, la familia y la educaciÃ³n, desde un enfoque inclusivo.</td>
+                        <td><strong>RA5.</strong> Establecer las implicaciones socioeducativas de la diversidad cultural para enfrentar desafíos actuales en la sociedad, la familia y la educación, desde un enfoque inclusivo.</td>
                         <td>A5, A2, A6</td>
                     </tr>
                 </tbody>
             </table>
 
             <div class="note-box">
-                <strong>Nota.</strong> Marque con X los RA aplicables a este periodo, segÃºn el Ã¡rea asignada. Marque <strong>5 o RA.</strong> Las actividades y la evaluaciÃ³n se alinean a los <strong>RA</strong> marcados.
+                <strong>Nota.</strong> Marque con X los RA aplicables a este periodo, según el área asignada. Marque <strong>5 o RA.</strong> Las actividades y la evaluación se alinean a los <strong>RA</strong> marcados.
             </div>
         </div>
 
-        <!-- SecciÃ³n 6: Actividades prÃ¡cticas esenciales -->
+        <!-- Sección 6: Actividades prácticas esenciales -->
         <div class="form-section">
-            <h3>6. Actividades prÃ¡cticas esenciales</h3>
+            <h3>6. Actividades prácticas esenciales</h3>
             <ul class="activities-list">
-                <li><strong>A1.</strong> Apoyar en la planificaciÃ³n microcurricular (propÃ³sitos, secuencia de actividades, recursos y tiempos) conforme al currÃ­culo institucional.</li>
-                <li><strong>A2.</strong> Colaborar en la ejecuciÃ³n de actividades de aula (apoyo a grupos, acompaÃ±amiento individual, gestiÃ³n de aula y rutinas) bajo supervisiÃ³n.</li>
-                <li><strong>A3.</strong> Elaborar y/o adaptar recursos didÃ¡cticos y estrategias de aprendizaje (incluyendo propuestas lÃºdicas e innovadoras) segÃºn el contexto.</li>
-                <li><strong>A4.</strong> Apoyar en la aplicaciÃ³n de instrumentos de evaluaciÃ³n (rÃºbricas, listas de cotejo, pruebas, evidencias) y en el registro de resultados.</li>
-                <li><strong>A5.</strong> Participar en acciones de atenciÃ³n a la diversidad (apoyos, ajustes razonables y estrategias de inclusiÃ³n) segÃºn orientaciones de la instituciÃ³n receptora.</li>
-                <li><strong>A6.</strong> Registrar evidencias y avances en bitÃ¡cora, y elaborar reportes breves de actividades y hallazgos para retroalimentaciÃ³n del tutor.</li>
+                <li><strong>A1.</strong> Apoyar en la planificación microcurricular (propósitos, secuencia de actividades, recursos y tiempos) conforme al currículo institucional.</li>
+                <li><strong>A2.</strong> Colaborar en la ejecución de actividades de aula (apoyo a grupos, acompañamiento individual, gestión de aula y rutinas) bajo supervisión.</li>
+                <li><strong>A3.</strong> Elaborar y/o adaptar recursos didácticos y estrategias de aprendizaje (incluyendo propuestas lúdicas e innovadoras) según el contexto.</li>
+                <li><strong>A4.</strong> Apoyar en la aplicación de instrumentos de evaluación (rúbricas, listas de cotejo, pruebas, evidencias) y en el registro de resultados.</li>
+                <li><strong>A5.</strong> Participar en acciones de atención a la diversidad (apoyos, ajustes razonables y estrategias de inclusión) según orientaciones de la institución receptora.</li>
+                <li><strong>A6.</strong> Registrar evidencias y avances en bitácora, y elaborar reportes breves de actividades y hallazgos para retroalimentación del tutor.</li>
             </ul>
         </div>
 
-        <!-- SecciÃ³n 7: Nota de Flexibilidad -->
+        <!-- Sección 7: Nota de Flexibilidad -->
         <div class="form-section">
             <h3>7. Nota de flexibilidad</h3>
             <div class="note-box">
-                Las actividades son referenciales y podrÃ¡n ajustarse segÃºn el nivel, curso, asignatura y planificaciÃ³n de la instituciÃ³n receptora, manteniendo coherencia con los resultados de aprendizaje seleccionados y con validaciÃ³n del tutor acadÃ©mico y tutor institucional.
+                Las actividades son referenciales y podrán ajustarse según el nivel, curso, asignatura y planificación de la institución receptora, manteniendo coherencia con los resultados de aprendizaje seleccionados y con validación del tutor académico y tutor institucional.
             </div>
         </div>
 
-        <!-- SecciÃ³n 8: Seguimiento -->
+        <!-- Sección 8: Seguimiento -->
         <div class="form-section">
             <h3>8. Seguimiento</h3>
             <ul class="activities-list">
-                <li>Registro semanal en bitÃ¡cora individual del estudiante.</li>
-                <li>ValidaciÃ³n del tutor empresarial.</li>
-                <li>RevisiÃ³n y acompaÃ±amiento del tutor acadÃ©mico.</li>
+                <li>Registro semanal en bitácora individual del estudiante.</li>
+                <li>Validación del tutor empresarial.</li>
+                <li>Revisión y acompañamiento del tutor académico.</li>
             </ul>
         </div>
 
-        <!-- SecciÃ³n 9: Evidencias -->
+        <!-- Sección 9: Evidencias -->
         <div class="form-section">
             <h3>9. Evidencias</h3>
             <ul class="activities-list">
-                <li>BitÃ¡cora de prÃ¡cticas preprofesionales.</li>
-                <li>PlanificaciÃ³n(es) y/o recursos didÃ¡cticos elaborados/adaptados.</li>
-                <li>Instrumentos de evaluaciÃ³n aplicados y registros de resultados (segÃºn corresponda).</li>
-                <li>Informe final con descripciÃ³n de actividades y propuesta breve de mejora.</li>
+                <li>Bitácora de prácticas preprofesionales.</li>
+                <li>Planificación(es) y/o recursos didácticos elaborados/adaptados.</li>
+                <li>Instrumentos de evaluación aplicados y registros de resultados (según corresponda).</li>
+                <li>Informe final con descripción de actividades y propuesta breve de mejora.</li>
             </ul>
         </div>
 
-        <!-- SecciÃ³n 10: EvaluaciÃ³n -->
+        <!-- Sección 10: Evaluación -->
         <div class="form-section">
-            <h3>10. EvaluaciÃ³n</h3>
+            <h3>10. Evaluación</h3>
             <div style="padding: 10px; font-size: 12px; line-height: 1.6; text-align: justify;">
-                La evaluaciÃ³n del desempeÃ±o serÃ¡ integral. El Tutor Empresarial valorarÃ¡ cualitativamente el cumplimiento de las actividades y el comportamiento profesional mediante una rÃºbrica institucional. Con base en dicha rÃºbrica y en las evidencias presentadas, el Tutor AcadÃ©mico consolidarÃ¡ la valoraciÃ³n y asignarÃ¡ la calificaciÃ³n final en el sistema institucional, conforme a la normativa de evaluaciÃ³n estudiantil vigente en el Instituto.
+                La evaluación del desempeño será integral. El Tutor Empresarial valorará cualitativamente el cumplimiento de las actividades y el comportamiento profesional mediante una rúbrica institucional. Con base en dicha rúbrica y en las evidencias presentadas, el Tutor Académico consolidará la valoración y asignará la calificación final en el sistema institucional, conforme a la normativa de evaluación estudiantil vigente en el Instituto.
             </div>
         </div>
 
-        <!-- SecciÃ³n 11: Responsables -->
+        <!-- Sección 11: Responsables -->
         <div class="form-section">
             <h3>11. Responsables</h3>
             <table class="signatures-table">
                 <thead>
                     <tr>
                         <th style="width: 50%; text-align: center; padding: 10px; background-color: #f0f0f0; border: 1px solid #999; font-weight: 700;">Tutor empresarial</th>
-                        <th style="width: 50%; text-align: center; padding: 10px; background-color: #f0f0f0; border: 1px solid #999; font-weight: 700;">Tutor AcadÃ©mico</th>
+                        <th style="width: 50%; text-align: center; padding: 10px; background-color: #f0f0f0; border: 1px solid #999; font-weight: 700;">Tutor Académico</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -383,7 +383,7 @@ if (preg_match('/\d+/', $nivel, $matches)) {
                         <td style="width: 50%; text-align: center; padding: 20px; vertical-align: bottom; height: 120px;">
                             <div style="margin-top: 60px; padding-top: 10px; border-top: 1px solid #999;">
                                 <strong><?php echo htmlspecialchars($nombreTutorAcademico); ?></strong><br>
-                                <span style="font-size: 11px;">Tutor AcadÃ©mico</span>
+                                <span style="font-size: 11px;">Tutor Académico</span>
                             </div>
                         </td>
                     </tr>
@@ -391,7 +391,7 @@ if (preg_match('/\d+/', $nivel, $matches)) {
             </table>
         </div>
 
-        <!-- Botones de EnvÃ­o y Descarga -->
+        <!-- Botones de Envío y Descarga -->
         <div class="submit-section">
             <button type="submit" class="btn-submit" id="btnEnviar">Enviar Plan de Aprendizaje</button>
             <button type="button" class="btn-pdf" id="btnPDF" onclick="descargarPDF()" style="display: none;">Descargar PDF</button>
@@ -400,10 +400,10 @@ if (preg_match('/\d+/', $nivel, $matches)) {
 
     <!-- Footer -->
     <div class="footer">
-        <p>DirecciÃ³n: Av. General RumiÃ±ahui e Isla Pinta 1111, a media cuadra del San Luis Shopping</p>
-        <p>TelÃ©fono: (02) 393-0980</p>
+        <p>Dirección: Av. General Rumiñahui e Isla Pinta 1111, a media cuadra del San Luis Shopping</p>
+        <p>Teléfono: (02) 393-0980</p>
         <p>www.superarse.edu.ec</p>
-        <p style="margin-top: 10px;">PÃ¡gina 1 de 3</p>
+        <p style="margin-top: 10px;">Página 1 de 3</p>
     </div>
 </div>
 
@@ -411,7 +411,7 @@ if (preg_match('/\d+/', $nivel, $matches)) {
     // Variables para guardar datos del formulario
     let formDataSaved = null;
 
-    // ValidaciÃ³n del formulario
+    // Validación del formulario
     document.querySelector('#planForm').addEventListener('submit', function(e) {
         e.preventDefault();
 
@@ -429,10 +429,10 @@ if (preg_match('/\d+/', $nivel, $matches)) {
         // Deshabilitar todos los campos del formulario
         disableFormFields();
 
-        // Mostrar mensaje de Ã©xito
+        // Mostrar mensaje de éxito
         document.getElementById('successMessage').style.display = 'block';
 
-        // Ocultar botÃ³n de enviar y mostrar botÃ³n de PDF
+        // Ocultar botón de enviar y mostrar botón de PDF
         document.getElementById('btnEnviar').style.display = 'none';
         document.getElementById('btnPDF').style.display = 'inline-block';
 
@@ -442,13 +442,13 @@ if (preg_match('/\d+/', $nivel, $matches)) {
             behavior: 'smooth'
         });
 
-        // Disparar de inmediato la generaciÃ³n/descarga para persistir en servidor
+        // Disparar de inmediato la generación/descarga para persistir en servidor
         descargarPDF();
 
         return false;
     });
 
-    // FunciÃ³n para deshabilitar todos los campos del formulario
+    // Función para deshabilitar todos los campos del formulario
     function disableFormFields() {
         // Deshabilitar inputs de texto, email, date, number
         const inputs = document.querySelectorAll('input[type="text"], input[type="email"], input[type="date"], input[type="number"]');
@@ -478,7 +478,7 @@ if (preg_match('/\d+/', $nivel, $matches)) {
         });
     }
 
-    // FunciÃ³n para descargar PDF
+    // Función para descargar PDF
     function descargarPDF() {
         const data = sessionStorage.getItem('planAprendizaje');
         if (!data) {
@@ -489,7 +489,7 @@ if (preg_match('/\d+/', $nivel, $matches)) {
         // Detectar la URL base correcta
         let actionURL;
 
-        // Si estamos en producciÃ³n (superarse.ec)
+        // Si estamos en producción (superarse.ec)
         if (window.location.hostname === 'superarse.ec') {
             actionURL = window.location.origin + '/estudiante/generar-plan-aprendizaje-pdf';
         }
@@ -521,7 +521,7 @@ if (preg_match('/\d+/', $nivel, $matches)) {
         document.body.removeChild(tempForm);
     }
 
-    // Verificar si hay datos guardados al cargar la pÃ¡gina
+    // Verificar si hay datos guardados al cargar la página
     window.addEventListener('load', function() {
         const savedData = sessionStorage.getItem('planAprendizaje');
         if (savedData) {

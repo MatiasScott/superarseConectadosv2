@@ -1,7 +1,6 @@
 <?php
 require_once '../app/Models/PaymentModel.php';
 require_once '../app/Helpers/AuthSecurity.php';
-require_once '../app/Helpers/BasePath.php';
 
 class PagoController
 {
@@ -11,7 +10,12 @@ class PagoController
 
     public function __construct()
     {
-        $this->basePath = BasePath::detect();
+        // Configurar basePath según el entorno
+        if (isset($_SERVER['HTTP_HOST']) && strpos($_SERVER['HTTP_HOST'], 'superarse.ec') !== false) {
+            $this->basePath = '';
+        } else {
+            $this->basePath = '/superarseconectadosv2/public';
+        }
 
         if (session_status() == PHP_SESSION_NONE) {
             session_start();
@@ -78,7 +82,7 @@ class PagoController
             $recipientEmail = trim((string) getenv('CORREO_MATRICULAS'));
 
             if ($senderEmail === '' || $senderPassword === '' || $smtpHost === '' || $recipientEmail === '') {
-                error_log('Variables SMTP incompletas para notificaciÃ³n de comprobantes.');
+                error_log('Variables SMTP incompletas para notificación de comprobantes.');
                 $this->redirectToPagos('error=mail_failed');
             }
 
@@ -95,7 +99,7 @@ class PagoController
                 $mail->CharSet = 'UTF-8';
 
                 $mail->setFrom($senderEmail, 'Sistema de Estudiantes Superarse');
-                $mail->addAddress($recipientEmail, 'Departamento de MatrÃ­culas');
+                $mail->addAddress($recipientEmail, 'Departamento de Matrículas');
                 $mail->isHTML(true);
                 $mail->Subject = 'Nuevo comprobante de pago - ' . $studentIdentification;
 
@@ -103,14 +107,14 @@ class PagoController
                     <html>
                     <head><title>Comprobante de Pago Recibido</title></head>
                     <body>
-                        <p>Estimado Departamento de MatrÃ­culas,</p>
-                        <p>Se ha recibido un nuevo comprobante de pago para revisiÃ³n.</p>
+                        <p>Estimado Departamento de Matrículas,</p>
+                        <p>Se ha recibido un nuevo comprobante de pago para revisión.</p>
                         <p><strong>ID de Estudiante:</strong> ' . htmlspecialchars((string) $userId, ENT_QUOTES, 'UTF-8') . '</p>
-                        <p><strong>CÃ©dula:</strong> ' . htmlspecialchars($studentIdentification, ENT_QUOTES, 'UTF-8') . '</p>
+                        <p><strong>Cédula:</strong> ' . htmlspecialchars($studentIdentification, ENT_QUOTES, 'UTF-8') . '</p>
                         <p><strong>Nombre:</strong> ' . htmlspecialchars($studentName, ENT_QUOTES, 'UTF-8') . '</p>
                         <p><strong>Banco Seleccionado:</strong> ' . htmlspecialchars($bancoSeleccionado, ENT_QUOTES, 'UTF-8') . '</p>
                         <p><strong>Tipo de archivo:</strong> ' . htmlspecialchars($safeMime, ENT_QUOTES, 'UTF-8') . '</p>
-                        <p>El comprobante se adjunta a este correo para su validaciÃ³n.</p>
+                        <p>El comprobante se adjunta a este correo para su validación.</p>
                     </body>
                     </html>';
 
@@ -123,7 +127,7 @@ class PagoController
                 $this->redirectToPagos('error=mail_failed');
             }
         } catch (RuntimeException $exception) {
-            error_log('Error de validaciÃ³n/almacenamiento del comprobante: ' . $exception->getMessage());
+            error_log('Error de validación/almacenamiento del comprobante: ' . $exception->getMessage());
             $errorCode = $exception->getCode();
 
             if ($errorCode === 1001) {
@@ -186,7 +190,7 @@ class PagoController
             require __DIR__ . '/../Views/Layouts/auth_layout.php';
             return;
         } else {
-            header("Location: /superarseConectadosv2-master/estudiante/pagos");
+            header("Location: /superarseconectadosv2/public/estudiante/pagos");
             exit();
         }
     }
@@ -213,7 +217,7 @@ class PagoController
     {
         $size = (int) ($file['size'] ?? 0);
         if ($size <= 0) {
-            throw new RuntimeException('Archivo vacÃ­o.', 1002);
+            throw new RuntimeException('Archivo vacío.', 1002);
         }
 
         if ($size > $this->maxUploadSize) {
@@ -222,13 +226,13 @@ class PagoController
 
         $tmpName = $file['tmp_name'] ?? '';
         if ($tmpName === '' || !is_uploaded_file($tmpName)) {
-            throw new RuntimeException('Archivo temporal invÃ¡lido.', 1002);
+            throw new RuntimeException('Archivo temporal inválido.', 1002);
         }
 
         $allowedExtensions = ['pdf', 'jpg', 'jpeg', 'png'];
         $originalExtension = strtolower((string) pathinfo((string) ($file['name'] ?? ''), PATHINFO_EXTENSION));
         if (!in_array($originalExtension, $allowedExtensions, true)) {
-            throw new RuntimeException('ExtensiÃ³n no permitida.', 1002);
+            throw new RuntimeException('Extensión no permitida.', 1002);
         }
 
         $finfo = new finfo(FILEINFO_MIME_TYPE);
@@ -244,15 +248,15 @@ class PagoController
         }
 
         if ($mime === 'application/pdf' && $originalExtension !== 'pdf') {
-            throw new RuntimeException('La extensiÃ³n no coincide con el archivo PDF.', 1002);
+            throw new RuntimeException('La extensión no coincide con el archivo PDF.', 1002);
         }
 
         if ($mime === 'image/jpeg' && !in_array($originalExtension, ['jpg', 'jpeg'], true)) {
-            throw new RuntimeException('La extensiÃ³n no coincide con la imagen JPEG.', 1002);
+            throw new RuntimeException('La extensión no coincide con la imagen JPEG.', 1002);
         }
 
         if ($mime === 'image/png' && $originalExtension !== 'png') {
-            throw new RuntimeException('La extensiÃ³n no coincide con la imagen PNG.', 1002);
+            throw new RuntimeException('La extensión no coincide con la imagen PNG.', 1002);
         }
 
         return [$allowedMimeMap[$mime], $mime];
@@ -263,4 +267,3 @@ class PagoController
         return dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'comprobantes';
     }
 }
-

@@ -1,7 +1,6 @@
 <?php
 $moduleTitle = $moduleTitle ?? 'Módulo';
 $sections = $sections ?? [];
-$areas = $areas ?? [];
 ?>
 
 <div class="space-y-6">
@@ -25,16 +24,8 @@ $areas = $areas ?? [];
                         <h3 class="text-base font-semibold text-gray-800"><?= htmlspecialchars((string) ($section['label'] ?? ''), ENT_QUOTES, 'UTF-8') ?></h3>
                         <p class="text-xs text-gray-500 mt-1"><?= htmlspecialchars((string) ($section['description'] ?? ''), ENT_QUOTES, 'UTF-8') ?></p>
 
-                        <form method="GET" action="<?= $basePath ?>/admin/reportes/export/modulo" class="mt-3 flex flex-wrap items-center gap-2">
+                        <form method="GET" action="<?= $basePath ?>/admin/reportes/export/modulo" class="mt-3 flex items-center gap-2">
                             <input type="hidden" name="module" value="<?= htmlspecialchars((string) ($section['key'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
-                            <?php if (in_array($section['key'] ?? '', ['planificacion_poa', 'planificacion_poa_actividades'], true)): ?>
-                            <select name="area_id" class="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-700">
-                                <option value="">Todas las áreas</option>
-                                <?php foreach ($areas as $area): ?>
-                                <option value="<?= (int)$area['id'] ?>"><?= htmlspecialchars((string)($area['nombre'] ?? ''), ENT_QUOTES, 'UTF-8') ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                            <?php endif; ?>
                             <select name="format" class="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-700">
                                 <option value="excel">Excel</option>
                                 <option value="pdf">PDF</option>

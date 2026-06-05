@@ -108,7 +108,7 @@
                 Guardar
             </button>
 
-            <a href="<?= $basePath ?>/admin/poa"
+            <a href="<?= $basePath ?>/admin/plan-estrategico"
                 class="bg-gray-400 hover:bg-gray-500 text-white px-6 py-2 rounded-lg">
                 Cancelar
             </a>

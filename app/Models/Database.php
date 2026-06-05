@@ -79,6 +79,7 @@ class Database
                 'DB_HOST' => $this->host,
                 'DB_NAME' => $this->db_name,
                 'DB_USER' => $this->username,
+                'DB_PASS' => $this->password,
             ] as $key => $value
         ) {
             if ($value === '') {
