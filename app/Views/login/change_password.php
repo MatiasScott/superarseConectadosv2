@@ -31,18 +31,22 @@ $messages = [
             <form action="<?php echo $basePath; ?>/password/change" method="POST" class="space-y-5">
                 <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken); ?>">
 
-                <div>
+                <div class="relative">
                     <label for="current_password" class="block text-gray-700 text-sm font-semibold mb-2">Contraseña actual</label>
                     <input type="password" id="current_password" name="current_password" required autocomplete="current-password"
-                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-superarse-morado-medio"
+                        class="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-superarse-morado-medio"
                         placeholder="Tu contraseña temporal actual">
+                    <button type="button" onclick="togglePassword('current_password', this)" tabindex="-1"
+                        class="absolute right-3 top-[38px] text-gray-500 hover:text-gray-700 text-lg leading-none">👁</button>
                 </div>
 
-                <div>
+                <div class="relative">
                     <label for="new_password" class="block text-gray-700 text-sm font-semibold mb-2">Nueva contraseña</label>
                     <input type="password" id="new_password" name="new_password" required maxlength="12" autocomplete="new-password"
-                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-superarse-morado-medio"
+                        class="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-superarse-morado-medio"
                         placeholder="Crea una contraseña segura">
+                    <button type="button" onclick="togglePassword('new_password', this)" tabindex="-1"
+                        class="absolute right-3 top-[38px] text-gray-500 hover:text-gray-700 text-lg leading-none">👁</button>
                 </div>
 
                 <div class="mb-6 rounded-lg border border-superarse-morado-medio/20 bg-superarse-morado-medio/5 p-4 text-sm text-gray-700">
@@ -56,11 +60,13 @@ $messages = [
                     </ul>
                 </div>
 
-                <div>
+                <div class="relative">
                     <label for="confirm_password" class="block text-gray-700 text-sm font-semibold mb-2">Confirmar nueva contraseña</label>
                     <input type="password" id="confirm_password" name="confirm_password" required maxlength="12" autocomplete="new-password"
-                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-superarse-morado-medio"
+                        class="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-superarse-morado-medio"
                         placeholder="Repite la nueva contraseña">
+                    <button type="button" onclick="togglePassword('confirm_password', this)" tabindex="-1"
+                        class="absolute right-3 top-[38px] text-gray-500 hover:text-gray-700 text-lg leading-none">👁</button>
 
                     <div id="match_message" class="text-sm mt-1 text-gray-500">
                         • Las contraseñas deben coincidir
@@ -83,6 +89,17 @@ $messages = [
 </main>
 
 <script>
+    function togglePassword(inputId, btn) {
+        const input = document.getElementById(inputId);
+        if (input.type === 'password') {
+            input.type = 'text';
+            btn.textContent = '🙈';
+        } else {
+            input.type = 'password';
+            btn.textContent = '👁';
+        }
+    }
+
     const passwordInput = document.getElementById('new_password');
     const confirmInput = document.getElementById('confirm_password');
     const matchMessage = document.getElementById('match_message');

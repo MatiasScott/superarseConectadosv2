@@ -5,6 +5,7 @@ require_once '../app/Models/UserModel.php';
 require_once '../app/Models/AuthAccountModel.php';
 require_once '../app/Models/PasswordResetModel.php';
 require_once '../app/Helpers/AuthSecurity.php';
+require_once '../app/Helpers/BasePath.php';
 
 class LoginController
 {
@@ -15,12 +16,7 @@ class LoginController
 
     public function __construct()
     {
-        // Configurar basePath según el entorno
-        if (isset($_SERVER['HTTP_HOST']) && strpos($_SERVER['HTTP_HOST'], 'superarse.ec') !== false) {
-            $this->basePath = '';
-        } else {
-            $this->basePath = '/superarseconectadosv2/public';
-        }
+        $this->basePath = BasePath::detect();
 
         $this->userModel = new UserModel();
         $this->authAccountModel = new AuthAccountModel();
@@ -222,7 +218,7 @@ class LoginController
         unset($_SESSION['admin_email']);
     }
 
-    /* === OLVIDÉ MI CONTRASEÑA (estudiante) === */
+    /* === OLVID�? MI CONTRASE�'A (estudiante) === */
 
     public function showForgotPasswordForm()
     {
@@ -282,3 +278,4 @@ class LoginController
         exit();
     }
 }
+
