@@ -9,14 +9,14 @@ class PoaActividadModel extends Database
     {
         $db = $this->getConnection();
 
-        $query = "SELECT COALESCE(SUM(presupuesto_actividad), 0) AS total
+        $query = "SELECT COALESCE(SUM(presupuesto_asignado), 0) AS total
                 FROM " . $this->table_name . "
-                WHERE id_poa = ?";
+                WHERE poa_id = ?";
 
         $params = [(int) $idPoa];
 
         if ($excluirActividadId !== null) {
-            $query .= " AND id_actividad <> ?";
+            $query .= " AND id <> ?";
             $params[] = (int) $excluirActividadId;
         }
 
@@ -28,83 +28,38 @@ class PoaActividadModel extends Database
         return (float) ($row['total'] ?? 0);
     }
 
-    public function calcularAvanceEstrategiaPorPedi($idPedi)
-    {
-        $db = $this->getConnection();
-
-        $query = "SELECT
-                    COALESCE(SUM(COALESCE(a.presupuesto_actividad, 0)), 0) AS suma_presupuesto,
-                    COALESCE(
-                        SUM(COALESCE(a.avance, 0) * COALESCE(a.presupuesto_actividad, 0)),
-                        0
-                    ) AS suma_ponderada,
-                    AVG(COALESCE(a.avance, 0)) AS promedio_simple
-                FROM poa p
-                LEFT JOIN " . $this->table_name . " a ON a.id_poa = p.id_poa
-                WHERE p.id_pedi = ?";
-
-        $stmt = $db->prepare($query);
-        $stmt->execute([(int) $idPedi]);
-
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        if (!$row) {
-            return 0.0;
-        }
-
-        $sumaPresupuesto = (float) ($row['suma_presupuesto'] ?? 0);
-        $sumaPonderada = (float) ($row['suma_ponderada'] ?? 0);
-        $promedioSimple = (float) ($row['promedio_simple'] ?? 0);
-
-        if ($sumaPresupuesto > 0) {
-            return round($sumaPonderada / $sumaPresupuesto, 2);
-        }
-
-        return round($promedioSimple, 2);
-    }
-
     public function obtenerTodos()
     {
         $db = $this->getConnection();
 
-        $query = "SELECT a.*, p.nombre_area
+        $query = "SELECT a.*, p.anio_planificacion, s.nombre AS sede_nombre
                 FROM poa_actividades a
-                LEFT JOIN poa p ON a.id_poa = p.id_poa
-                ORDER BY a.id_actividad DESC";
-
+                INNER JOIN poa p ON p.id = a.poa_id
+                INNER JOIN sedes s ON s.id = p.sede_id
+                ORDER BY a.id DESC";
         $stmt = $db->prepare($query);
         $stmt->execute();
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function obtenerTodosVinculacion()
+    public function obtenerPorPoaId($poaId)
     {
         $db = $this->getConnection();
 
-        $query = "SELECT a.*, p.nombre_area
+        $query = "SELECT a.*,
+                    COALESCE(cr.promedio_avance, 0) AS avance_cronograma
                 FROM poa_actividades a
-                LEFT JOIN poa p ON a.id_poa = p.id_poa
-                where tipo_proyecto = 'VINCULACION'
-                ORDER BY a.id_actividad DESC";
+                LEFT JOIN (
+                    SELECT poa_actividad_id, AVG(avance) AS promedio_avance
+                    FROM cronogramas
+                    GROUP BY poa_actividad_id
+                ) cr ON cr.poa_actividad_id = a.id
+                WHERE a.poa_id = ?
+                ORDER BY a.id DESC";
 
         $stmt = $db->prepare($query);
-        $stmt->execute();
-
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
-
-    public function obtenerTodosInvestigacion()
-    {
-        $db = $this->getConnection();
-
-        $query = "SELECT a.*, p.nombre_area
-                FROM poa_actividades a
-                LEFT JOIN poa p ON a.id_poa = p.id_poa
-                where tipo_proyecto = 'INVESTIGACION'
-                ORDER BY a.id_actividad DESC";
-
-        $stmt = $db->prepare($query);
-        $stmt->execute();
+        $stmt->execute([(int) $poaId]);
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
@@ -113,10 +68,14 @@ class PoaActividadModel extends Database
     {
         $db = $this->getConnection();
 
-        $query = "SELECT * FROM " . $this->table_name . " WHERE id_actividad = ?";
+        $query = "SELECT a.*, p.anio_planificacion, p.presupuesto_total_aprobado, s.nombre AS sede_nombre
+                FROM " . $this->table_name . " a
+                INNER JOIN poa p ON p.id = a.poa_id
+                INNER JOIN sedes s ON s.id = p.sede_id
+                WHERE a.id = ?";
 
         $stmt = $db->prepare($query);
-        $stmt->execute([$id]);
+        $stmt->execute([(int) $id]);
 
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
@@ -126,25 +85,34 @@ class PoaActividadModel extends Database
         $db = $this->getConnection();
 
         $query = "INSERT INTO " . $this->table_name . "
-                (id_poa, nombre_actividad, presupuesto_actividad, fecha_inicio, fecha_fin, avance, observacion_actividad, estado)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+                (poa_id, tipo_registro, nombre, descripcion, laboratorio, meta, presupuesto_asignado, presupuesto_ejecutado, avance_actividad, estado, observaciones)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         $stmt = $db->prepare($query);
 
         try {
-            return $stmt->execute([
-                $data['id_poa'],
-                $data['nombre_actividad'],
-                $data['presupuesto_actividad'],
-                $data['fecha_inicio'],
-                $data['fecha_fin'],
-                $data['avance'],
-                $data['observacion_actividad'],
-                $data['estado']
+            $ok = $stmt->execute([
+                (int) $data['poa_id'],
+                (string) $data['tipo_registro'],
+                (string) $data['nombre'],
+                (string) ($data['descripcion'] ?? ''),
+                (string) ($data['laboratorio'] ?? ''),
+                (string) $data['meta'],
+                (float) $data['presupuesto_asignado'],
+                (float) $data['presupuesto_ejecutado'],
+                (float) ($data['avance_actividad'] ?? 0),
+                !empty($data['estado']) ? 1 : 0,
+                (string) ($data['observaciones'] ?? ''),
             ]);
+
+            if (!$ok) {
+                return 0;
+            }
+
+            return (int) $db->lastInsertId();
         } catch (PDOException $e) {
             error_log("Error crear actividad: " . $e->getMessage());
-            return false;
+            return 0;
         }
     }
 
@@ -153,29 +121,35 @@ class PoaActividadModel extends Database
         $db = $this->getConnection();
 
         $query = "UPDATE " . $this->table_name . "
-                SET id_poa = ?,
-                    nombre_actividad = ?,
-                    presupuesto_actividad = ?,
-                    fecha_inicio = ?,
-                    fecha_fin = ?,
-                    avance = ?,
-                    observacion_actividad = ?,
+                SET poa_id = ?,
+                    tipo_registro = ?,
+                    nombre = ?,
+                    descripcion = ?,
+                    laboratorio = ?,
+                    meta = ?,
+                    presupuesto_asignado = ?,
+                    presupuesto_ejecutado = ?,
+                    avance_actividad = ?,
+                    observaciones = ?,
                     estado = ?
-                WHERE id_actividad = ?";
+                WHERE id = ?";
 
         $stmt = $db->prepare($query);
 
         try {
             return $stmt->execute([
-                $data['id_poa'],
-                $data['nombre_actividad'],
-                $data['presupuesto_actividad'],
-                $data['fecha_inicio'],
-                $data['fecha_fin'],
-                $data['avance'],
-                $data['observacion_actividad'],
-                $data['estado'],
-                $id
+                (int) $data['poa_id'],
+                (string) $data['tipo_registro'],
+                (string) $data['nombre'],
+                (string) ($data['descripcion'] ?? ''),
+                (string) ($data['laboratorio'] ?? ''),
+                (string) $data['meta'],
+                (float) $data['presupuesto_asignado'],
+                (float) $data['presupuesto_ejecutado'],
+                (float) ($data['avance_actividad'] ?? 0),
+                (string) ($data['observaciones'] ?? ''),
+                !empty($data['estado']) ? 1 : 0,
+                (int) $id,
             ]);
         } catch (PDOException $e) {
             error_log("Error actualizar actividad: " . $e->getMessage());
@@ -186,13 +160,79 @@ class PoaActividadModel extends Database
     public function eliminar($id)
     {
         $db = $this->getConnection();
-        $query = "DELETE FROM " . $this->table_name . " WHERE id_actividad = ?";
+        $query = "DELETE FROM " . $this->table_name . " WHERE id = ?";
         $stmt = $db->prepare($query);
 
         try {
             return $stmt->execute([$id]);
         } catch (PDOException $e) {
             error_log("Error eliminar actividad POA: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function obtenerCronogramaPorActividad($actividadId)
+    {
+        $db = $this->getConnection();
+        $sql = "SELECT mes, avance, estado_semaforo, observaciones
+                FROM cronogramas
+                WHERE poa_actividad_id = ?
+                ORDER BY mes ASC";
+        $stmt = $db->prepare($sql);
+        $stmt->execute([(int) $actividadId]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $indexed = [];
+        foreach ($rows as $row) {
+            $mes = (int) ($row['mes'] ?? 0);
+            if ($mes >= 1 && $mes <= 12) {
+                $indexed[$mes] = $row;
+            }
+        }
+
+        return $indexed;
+    }
+
+    public function guardarCronogramaActividad($actividadId, array $cronogramaPorMes)
+    {
+        $db = $this->getConnection();
+        $db->beginTransaction();
+        try {
+            $stmt = $db->prepare("INSERT INTO cronogramas (poa_actividad_id, mes, avance, estado_semaforo, estado, observaciones)
+                VALUES (?, ?, ?, ?, 1, ?)
+                ON DUPLICATE KEY UPDATE
+                    avance = VALUES(avance),
+                    estado_semaforo = VALUES(estado_semaforo),
+                    observaciones = VALUES(observaciones),
+                    estado = 1,
+                    fecha_actualizacion = CURRENT_TIMESTAMP");
+
+            foreach ($cronogramaPorMes as $mes => $item) {
+                $mesNumero = (int) $mes;
+                if ($mesNumero < 1 || $mesNumero > 12) {
+                    continue;
+                }
+
+                $avance = max(0, min(100, (float) ($item['avance'] ?? 0)));
+                $semaforo = (string) ($item['estado_semaforo'] ?? 'no_cumple');
+                if (!in_array($semaforo, ['no_cumple', 'cumple_parcialmente', 'cumple_segun_planificado'], true)) {
+                    $semaforo = 'no_cumple';
+                }
+
+                $stmt->execute([
+                    (int) $actividadId,
+                    $mesNumero,
+                    $avance,
+                    $semaforo,
+                    (string) ($item['observaciones'] ?? ''),
+                ]);
+            }
+
+            $db->commit();
+            return true;
+        } catch (Throwable $e) {
+            $db->rollBack();
+            error_log('Error guardar cronograma actividad: ' . $e->getMessage());
             return false;
         }
     }

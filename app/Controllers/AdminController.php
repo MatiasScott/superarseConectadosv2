@@ -2954,265 +2954,203 @@ class AdminController
 
     public function planEstrategicoIndex()
     {
-        if (!isset($_SESSION['is_admin'])) {
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
             header("Location: " . $this->basePath . "/admin/login");
             exit();
         }
 
-        $pedi = $this->pediModel->obtenerTodos() ?? [];
         $poa = $this->poaModel->obtenerTodos() ?? [];
-        $actividades = $this->actividadModel->obtenerTodos() ?? [];
+        $estrategias = $this->poaModel->obtenerEstrategiasCatalogo() ?? [];
+        $sedes = $this->poaModel->obtenerSedes() ?? [];
+        $procesos = $this->poaModel->obtenerProcesos() ?? [];
+
+        $selectedPoaId = (int) ($_GET['poa'] ?? 0);
+        $selectedPoa = null;
+        $selectedPoaActividades = [];
+        if ($selectedPoaId > 0) {
+            $selectedPoa = $this->poaModel->obtenerPorId($selectedPoaId);
+            if ($selectedPoa) {
+                $selectedPoaActividades = $this->actividadModel->obtenerPorPoaId($selectedPoaId) ?? [];
+            }
+        }
 
         $this->render('admin/plan_estrategico/pedi_poa_index', [
             'title' => 'Planificación Estratégica',
-            'pedi' => $pedi,
             'poa' => $poa,
-            'actividades' => $actividades
-        ]);
-    }
-
-    public function crearPedi()
-    {
-        $this->render('admin/plan_estrategico/crear_pedi', [
-            'title' => 'Crear PEDI'
-        ]);
-    }
-
-    public function guardarPedi()
-    {
-        $model = new PediModel();
-
-        $data = [
-            'objetivo_estrategico' => $_POST['objetivo_estrategico'] ?? '',
-            'objetivo_estrategia' => $_POST['objetivo_estrategia'] ?? '',
-            'avance' => 0,
-            'avance_estrategia' => 0,
-            'estado' => $_POST['estado'] ?? 'ACTIVO'
-        ];
-
-        $creado = $model->crear($data);
-
-        if ($creado) {
-            $db = $this->pediModel->getConnection();
-            $nuevoId = (int)$db->lastInsertId();
-            if ($nuevoId > 0) {
-                $this->pediModel->recalcularAvanceObjetivoPorPediId($nuevoId);
-            }
-        }
-
-        header("Location: " . $this->basePath . "/admin/plan-estrategico");
-        exit();
-    }
-
-    public function editarPedi($id)
-    {
-        $model = new PediModel();
-        $pedi = $model->obtenerPorId($id);
-
-        $this->render('admin/plan_estrategico/editar_pedi', [
-            'title' => 'Editar PEDI',
-            'pedi' => $pedi
-        ]);
-    }
-
-    public function actualizarPedi()
-    {
-        $model = new PediModel();
-
-        $id = (int)($_POST['id_pedi'] ?? 0);
-        $pediAnterior = $model->obtenerPorId($id);
-
-        $data = [
-            'objetivo_estrategico' => $_POST['objetivo_estrategico'],
-            'objetivo_estrategia' => $_POST['objetivo_estrategia'],
-            'avance' => (float)($pediAnterior['avance'] ?? 0),
-            'avance_estrategia' => (float)($pediAnterior['avance_estrategia'] ?? 0),
-            'estado' => $_POST['estado']
-        ];
-
-        $model->actualizar($id, $data);
-
-        if ($id > 0) {
-            $this->pediModel->recalcularAvanceObjetivoPorPediId($id);
-            if (!empty($pediAnterior['id_pedi'])) {
-                $this->pediModel->recalcularAvanceObjetivoPorPediId((int)$pediAnterior['id_pedi']);
-            }
-        }
-
-        header("Location: " . $this->basePath . "/admin/plan-estrategico");
-        exit();
-    }
-
-    public function crearPoa()
-    {
-        $pediModel = new PediModel();
-        $pedi = $pediModel->obtenerTodos();
-
-        $this->render('admin/plan_estrategico/crear_poa', [
-            'title' => 'Crear POA',
-            'pedi' => $pedi
+            'estrategias' => $estrategias,
+            'sedes' => $sedes,
+            'procesos' => $procesos,
+            'selectedPoaId' => $selectedPoaId,
+            'selectedPoa' => $selectedPoa,
+            'selectedPoaActividades' => $selectedPoaActividades,
         ]);
     }
 
     public function guardarPoa()
     {
-        $model = new PoaModel();
-
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             header("Location: " . $this->basePath . "/admin/plan-estrategico");
             exit();
         }
 
+        $estrategiaId = (int) ($_POST['estrategia_id'] ?? 0);
+        $sedeId = (int) ($_POST['sede_id'] ?? 0);
+        $anioPlanificacion = (int) ($_POST['anio_planificacion'] ?? date('Y'));
+        $presupuestoTotal = (float) ($_POST['presupuesto_total_aprobado'] ?? 0);
+        $procesosIds = array_map('intval', (array) ($_POST['procesos_ids'] ?? []));
+
+        if ($estrategiaId <= 0 || $sedeId <= 0 || $anioPlanificacion <= 0) {
+            $_SESSION['error'] = 'Debe completar estrategia, sede y año para crear el POA.';
+            header("Location: " . $this->basePath . "/admin/plan-estrategico");
+            exit();
+        }
+
+        if (empty($procesosIds)) {
+            $_SESSION['error'] = 'Debe seleccionar al menos un proceso o área responsable.';
+            header("Location: " . $this->basePath . "/admin/plan-estrategico");
+            exit();
+        }
+
         $data = [
-            'id_pedi' => $_POST['id_pedi'] ?? null,
-            'nombre_area' => $_POST['nombre_area'] ?? '',
-            'presupuesto_anual' => $_POST['presupuesto_anual'] ?? 0,
-            'estado_actividad' => $_POST['estado_actividad'] ?? 'no ejecutada',
+            'estrategia_id' => $estrategiaId,
+            'sede_id' => $sedeId,
+            'anio_planificacion' => $anioPlanificacion,
+            'presupuesto_total_aprobado' => $presupuestoTotal,
+            'estado_aprobacion' => $_POST['estado_aprobacion'] ?? 'borrador',
+            'estado' => true,
             'observaciones' => $_POST['observaciones'] ?? '',
-            'estado' => $_POST['estado'] ?? 'activo'
+            'procesos_ids' => $procesosIds,
         ];
 
-        $model->crear($data);
+        $nuevoId = (int) $this->poaModel->crear($data);
+        if ($nuevoId <= 0) {
+            $_SESSION['error'] = 'No se pudo crear el POA. Verifique si ya existe esa combinación de estrategia, sede y año.';
+            header("Location: " . $this->basePath . "/admin/plan-estrategico");
+            exit();
+        }
 
-        header("Location: " . $this->basePath . "/admin/plan-estrategico");
+        $_SESSION['success'] = 'Cabecera POA creada correctamente. Ahora puede agregar actividades/proyectos.';
+        header("Location: " . $this->basePath . "/admin/plan-estrategico?poa=" . $nuevoId);
         exit();
-    }
-
-    public function editarPoa($id)
-    {
-        $poaModel = new PoaModel();
-        $pediModel = new PediModel();
-
-        $poa = $poaModel->obtenerPorId($id);
-        $pedi = $pediModel->obtenerTodos();
-
-        $this->render('admin/plan_estrategico/editar_poa', [
-            'title' => 'Editar POA',
-            'poa' => $poa,
-            'pedi' => $pedi
-        ]);
     }
 
     public function actualizarPoa()
     {
-        $model = new PoaModel();
-        $actividadModel = new PoaActividadModel();
+        $id = (int) ($_POST['id'] ?? 0);
+        if ($id <= 0) {
+            $_SESSION['error'] = 'POA inválido.';
+            header("Location: " . $this->basePath . "/admin/plan-estrategico");
+            exit();
+        }
 
-        $id = (int) ($_POST['id_poa'] ?? 0);
-        $poaActual = $model->obtenerPorId($id);
-
+        $poaActual = $this->poaModel->obtenerPorId($id);
         if (!$poaActual) {
             $_SESSION['error'] = 'POA no encontrado.';
             header("Location: " . $this->basePath . "/admin/plan-estrategico");
             exit();
         }
 
-        $presupuestoAnual = (float) ($_POST['presupuesto_anual'] ?? 0);
-        $presupuestoUsado = $actividadModel->obtenerPresupuestoUsadoPorPoa($id);
-        if ($presupuestoAnual < $presupuestoUsado) {
-            $_SESSION['error'] = 'El presupuesto anual del POA no puede ser menor al presupuesto ya asignado en actividades.';
-            header("Location: " . $this->basePath . "/admin/poa/edit/" . $id);
+        $presupuestoTotal = (float) ($_POST['presupuesto_total_aprobado'] ?? 0);
+        $presupuestoUsado = $this->actividadModel->obtenerPresupuestoUsadoPorPoa($id);
+        if ($presupuestoTotal < $presupuestoUsado) {
+            $_SESSION['error'] = 'El presupuesto total aprobado no puede ser menor al presupuesto ya asignado en actividades.';
+            header("Location: " . $this->basePath . "/admin/plan-estrategico?poa=" . $id);
+            exit();
+        }
+
+        $procesosIds = array_map('intval', (array) ($_POST['procesos_ids'] ?? []));
+        if (empty($procesosIds)) {
+            $_SESSION['error'] = 'Debe seleccionar al menos un proceso o área responsable.';
+            header("Location: " . $this->basePath . "/admin/plan-estrategico?poa=" . $id);
             exit();
         }
 
         $data = [
-            'id_pedi' => (int) ($_POST['id_pedi'] ?? 0),
-            'nombre_area' => $_POST['nombre_area'] ?? '',
-            'presupuesto_anual' => $presupuestoAnual,
-            'estado_actividad' => $_POST['estado_actividad'] ?? 'no ejecutada',
+            'estrategia_id' => (int) ($_POST['estrategia_id'] ?? 0),
+            'sede_id' => (int) ($_POST['sede_id'] ?? 0),
+            'anio_planificacion' => (int) ($_POST['anio_planificacion'] ?? date('Y')),
+            'presupuesto_total_aprobado' => $presupuestoTotal,
+            'estado_aprobacion' => $_POST['estado_aprobacion'] ?? 'borrador',
             'observaciones' => $_POST['observaciones'] ?? '',
-            'estado' => $_POST['estado'] ?? 'ACTIVO'
+            'estado' => true,
+            'procesos_ids' => $procesosIds,
         ];
 
-        $model->actualizar($id, $data);
+        $ok = $this->poaModel->actualizar($id, $data);
+        $_SESSION[$ok ? 'success' : 'error'] = $ok
+            ? 'Cabecera POA actualizada correctamente.'
+            : 'No se pudo actualizar el POA.';
 
-        $this->recalcularAvanceEstrategiaPedi((int) $data['id_pedi']);
-        if ((int) $poaActual['id_pedi'] !== (int) $data['id_pedi']) {
-            $this->recalcularAvanceEstrategiaPedi((int) $poaActual['id_pedi']);
-        }
-
-        header("Location: " . $this->basePath . "/admin/plan-estrategico");
+        header("Location: " . $this->basePath . "/admin/plan-estrategico?poa=" . $id);
         exit();
-    }
-
-    public function crearActividad()
-    {
-        $poaModel = new PoaModel();
-        $poa = $poaModel->obtenerTodos();
-
-        $this->render('admin/plan_estrategico/crear_actividad', [
-            'title' => 'Crear Actividad',
-            'poa' => $poa
-        ]);
     }
 
     public function guardarActividad()
     {
-        $model = new PoaActividadModel();
-        $poaModel = new PoaModel();
-
-        $idPoa = (int) ($_POST['id_poa'] ?? 0);
-        $presupuestoActividad = (float) ($_POST['presupuesto_actividad'] ?? 0);
-
-        $poa = $poaModel->obtenerPorId($idPoa);
-        if (!$poa) {
-            $_SESSION['error'] = 'Debe seleccionar un POA valido.';
-            header("Location: " . $this->basePath . "/admin/actividad/create");
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header("Location: " . $this->basePath . "/admin/plan-estrategico");
             exit();
         }
 
-        $presupuestoUsado = $model->obtenerPresupuestoUsadoPorPoa($idPoa);
-        $presupuestoDisponible = (float) ($poa['presupuesto_anual'] ?? 0) - $presupuestoUsado;
+        $idPoa = (int) ($_POST['poa_id'] ?? 0);
+        $presupuestoActividad = (float) ($_POST['presupuesto_asignado'] ?? 0);
+
+        $poa = $this->poaModel->obtenerPorId($idPoa);
+        if (!$poa) {
+            $_SESSION['error'] = 'Debe seleccionar un POA válido.';
+            header("Location: " . $this->basePath . "/admin/plan-estrategico");
+            exit();
+        }
+
+        $presupuestoUsado = $this->actividadModel->obtenerPresupuestoUsadoPorPoa($idPoa);
+        $presupuestoDisponible = (float) ($poa['presupuesto_total_aprobado'] ?? 0) - $presupuestoUsado;
 
         if ($presupuestoActividad > $presupuestoDisponible) {
             $_SESSION['error'] = 'El presupuesto de la actividad supera el disponible del POA seleccionado.';
-            header("Location: " . $this->basePath . "/admin/actividad/create");
+            header("Location: " . $this->basePath . "/admin/plan-estrategico?poa=" . $idPoa);
             exit();
         }
 
         $data = [
-            'id_poa' => $idPoa,
-            'nombre_actividad' => $_POST['nombre_actividad'] ?? '',
-            'presupuesto_actividad' => $presupuestoActividad,
-            'fecha_inicio' => $_POST['fecha_inicio'] ?? null,
-            'fecha_fin' => $_POST['fecha_fin'] ?? null,
-            'avance' => (float) ($_POST['avance'] ?? 0),
-            'observacion_actividad' => $_POST['observacion_actividad'] ?? '',
-            'estado' => $_POST['estado'] ?? 'ACTIVO'
+            'poa_id' => $idPoa,
+            'tipo_registro' => $_POST['tipo_registro'] ?? 'Actividad',
+            'nombre' => trim((string) ($_POST['nombre'] ?? '')),
+            'descripcion' => trim((string) ($_POST['descripcion'] ?? '')),
+            'laboratorio' => trim((string) ($_POST['laboratorio'] ?? '')),
+            'meta' => trim((string) ($_POST['meta'] ?? '')),
+            'presupuesto_asignado' => $presupuestoActividad,
+            'presupuesto_ejecutado' => (float) ($_POST['presupuesto_ejecutado'] ?? 0),
+            'avance_actividad' => (float) ($_POST['avance_actividad'] ?? 0),
+            'observaciones' => trim((string) ($_POST['observaciones'] ?? '')),
+            'estado' => true,
         ];
 
-        $creado = $model->crear($data);
-
-        if ($creado) {
-            $this->recalcularAvanceEstrategiaPedi((int) ($poa['id_pedi'] ?? 0));
+        if ($data['nombre'] === '' || $data['meta'] === '') {
+            $_SESSION['error'] = 'Nombre y meta son obligatorios para la actividad/proyecto.';
+            header("Location: " . $this->basePath . "/admin/plan-estrategico?poa=" . $idPoa);
+            exit();
         }
 
-        header("Location: " . $this->basePath . "/admin/plan-estrategico");
+        if (!in_array($data['tipo_registro'], ['Proyecto', 'Actividad'], true)) {
+            $data['tipo_registro'] = 'Actividad';
+        }
+
+        $nuevoId = $this->actividadModel->crear($data);
+        if ($nuevoId <= 0) {
+            $_SESSION['error'] = 'No se pudo registrar la actividad/proyecto.';
+            header("Location: " . $this->basePath . "/admin/plan-estrategico?poa=" . $idPoa);
+            exit();
+        }
+
+        $_SESSION['success'] = 'Actividad/proyecto registrado correctamente.';
+        header("Location: " . $this->basePath . "/admin/plan-estrategico?poa=" . $idPoa);
         exit();
-    }
-
-    public function editarActividad($id)
-    {
-        $actividadModel = new PoaActividadModel();
-        $poaModel = new PoaModel();
-
-        $actividad = $actividadModel->obtenerPorId($id);
-        $poa = $poaModel->obtenerTodos();
-
-        $this->render('admin/plan_estrategico/editar_actividad', [
-            'title' => 'Editar Actividad',
-            'actividad' => $actividad,
-            'poa' => $poa
-        ]);
     }
 
     public function actualizarActividad()
     {
-        $model = new PoaActividadModel();
-        $poaModel = new PoaModel();
-
-        $id = (int) ($_POST['id_actividad'] ?? 0);
-        $actividadAnterior = $model->obtenerPorId($id);
+        $id = (int) ($_POST['id'] ?? 0);
+        $actividadAnterior = $this->actividadModel->obtenerPorId($id);
 
         if (!$actividadAnterior) {
             $_SESSION['error'] = 'Actividad no encontrada.';
@@ -3220,51 +3158,212 @@ class AdminController
             exit();
         }
 
-        $idPoaNuevo = (int) ($_POST['id_poa'] ?? 0);
-        $poaNuevo = $poaModel->obtenerPorId($idPoaNuevo);
+        $idPoaNuevo = (int) ($_POST['poa_id'] ?? 0);
+        $poaNuevo = $this->poaModel->obtenerPorId($idPoaNuevo);
 
         if (!$poaNuevo) {
-            $_SESSION['error'] = 'Debe seleccionar un POA valido.';
-            header("Location: " . $this->basePath . "/admin/actividad/edit/" . $id);
+            $_SESSION['error'] = 'Debe seleccionar un POA válido.';
+            header("Location: " . $this->basePath . "/admin/plan-estrategico?poa=" . (int) ($actividadAnterior['poa_id'] ?? 0));
             exit();
         }
 
-        $presupuestoActividad = (float) ($_POST['presupuesto_actividad'] ?? 0);
-        $presupuestoUsadoSinActual = $model->obtenerPresupuestoUsadoPorPoa($idPoaNuevo, $id);
-        $presupuestoDisponible = (float) ($poaNuevo['presupuesto_anual'] ?? 0) - $presupuestoUsadoSinActual;
+        $presupuestoActividad = (float) ($_POST['presupuesto_asignado'] ?? 0);
+        $presupuestoUsadoSinActual = $this->actividadModel->obtenerPresupuestoUsadoPorPoa($idPoaNuevo, $id);
+        $presupuestoDisponible = (float) ($poaNuevo['presupuesto_total_aprobado'] ?? 0) - $presupuestoUsadoSinActual;
 
         if ($presupuestoActividad > $presupuestoDisponible) {
             $_SESSION['error'] = 'El presupuesto de la actividad supera el disponible del POA seleccionado.';
-            header("Location: " . $this->basePath . "/admin/actividad/edit/" . $id);
+            header("Location: " . $this->basePath . "/admin/plan-estrategico?poa=" . $idPoaNuevo);
             exit();
         }
 
         $data = [
-            'id_poa' => $idPoaNuevo,
-            'nombre_actividad' => $_POST['nombre_actividad'] ?? '',
-            'presupuesto_actividad' => $presupuestoActividad,
-            'fecha_inicio' => $_POST['fecha_inicio'] ?? null,
-            'fecha_fin' => $_POST['fecha_fin'] ?? null,
-            'avance' => (float) ($_POST['avance'] ?? 0),
-            'observacion_actividad' => $_POST['observacion_actividad'] ?? '',
-            'estado' => $_POST['estado'] ?? 'ACTIVO'
+            'poa_id' => $idPoaNuevo,
+            'tipo_registro' => $_POST['tipo_registro'] ?? 'Actividad',
+            'nombre' => trim((string) ($_POST['nombre'] ?? '')),
+            'descripcion' => trim((string) ($_POST['descripcion'] ?? '')),
+            'laboratorio' => trim((string) ($_POST['laboratorio'] ?? '')),
+            'meta' => trim((string) ($_POST['meta'] ?? '')),
+            'presupuesto_asignado' => $presupuestoActividad,
+            'presupuesto_ejecutado' => (float) ($_POST['presupuesto_ejecutado'] ?? 0),
+            'avance_actividad' => (float) ($_POST['avance_actividad'] ?? 0),
+            'observaciones' => trim((string) ($_POST['observaciones'] ?? '')),
+            'estado' => true,
         ];
 
-        $actualizado = $model->actualizar($id, $data);
-
-        if ($actualizado) {
-            $poaAnterior = $poaModel->obtenerPorId((int) ($actividadAnterior['id_poa'] ?? 0));
-            $idPediAnterior = (int) ($poaAnterior['id_pedi'] ?? 0);
-            $idPediNuevo = (int) ($poaNuevo['id_pedi'] ?? 0);
-
-            $this->recalcularAvanceEstrategiaPedi($idPediNuevo);
-            if ($idPediAnterior !== $idPediNuevo) {
-                $this->recalcularAvanceEstrategiaPedi($idPediAnterior);
-            }
+        if (!in_array($data['tipo_registro'], ['Proyecto', 'Actividad'], true)) {
+            $data['tipo_registro'] = 'Actividad';
         }
+
+        $actualizado = $this->actividadModel->actualizar($id, $data);
+        $_SESSION[$actualizado ? 'success' : 'error'] = $actualizado
+            ? 'Actividad/proyecto actualizado correctamente.'
+            : 'No se pudo actualizar la actividad/proyecto.';
+
+        header("Location: " . $this->basePath . "/admin/plan-estrategico?poa=" . $idPoaNuevo);
+        exit();
+    }
+
+    public function cronogramaActividad($id)
+    {
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $actividad = $this->actividadModel->obtenerPorId((int) $id);
+        if (!$actividad) {
+            $_SESSION['error'] = 'Actividad no encontrada para cronograma.';
+            header("Location: " . $this->basePath . "/admin/plan-estrategico");
+            exit();
+        }
+
+        $cronograma = $this->actividadModel->obtenerCronogramaPorActividad((int) $id);
+
+        $this->render('admin/plan_estrategico/cronograma_actividad', [
+            'title' => 'Cronograma mensual de actividad',
+            'actividad' => $actividad,
+            'cronograma' => $cronograma,
+        ]);
+    }
+
+    public function guardarCronogramaActividad($id)
+    {
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $actividad = $this->actividadModel->obtenerPorId((int) $id);
+        if (!$actividad) {
+            $_SESSION['error'] = 'Actividad no encontrada para guardar cronograma.';
+            header("Location: " . $this->basePath . "/admin/plan-estrategico");
+            exit();
+        }
+
+        $entradas = [];
+        for ($mes = 1; $mes <= 12; $mes++) {
+            $entradas[$mes] = [
+                'avance' => $_POST['avance'][$mes] ?? 0,
+                'estado_semaforo' => $_POST['estado_semaforo'][$mes] ?? 'no_cumple',
+                'observaciones' => $_POST['observaciones'][$mes] ?? '',
+            ];
+        }
+
+        $ok = $this->actividadModel->guardarCronogramaActividad((int) $id, $entradas);
+        $_SESSION[$ok ? 'success' : 'error'] = $ok
+            ? 'Cronograma mensual actualizado correctamente.'
+            : 'No se pudo actualizar el cronograma mensual.';
+
+        header("Location: " . $this->basePath . "/admin/actividad/cronograma/" . (int) $id);
+        exit();
+    }
+
+    public function crearPoa()
+    {
+        header("Location: " . $this->basePath . "/admin/plan-estrategico");
+        exit();
+    }
+
+    public function editarPoa($id)
+    {
+        header("Location: " . $this->basePath . "/admin/plan-estrategico?poa=" . (int) $id);
+        exit();
+    }
+
+    public function crearActividad()
+    {
+        header("Location: " . $this->basePath . "/admin/plan-estrategico");
+        exit();
+    }
+
+    public function editarActividad($id)
+    {
+        $actividad = $this->actividadModel->obtenerPorId((int) $id);
+        if (!$actividad) {
+            header("Location: " . $this->basePath . "/admin/plan-estrategico");
+            exit();
+        }
+
+        header("Location: " . $this->basePath . "/admin/plan-estrategico?poa=" . (int) ($actividad['poa_id'] ?? 0));
+        exit();
+    }
+
+    public function crearPedi()
+    {
+        header("Location: " . $this->basePath . "/admin/plan-estrategico");
+        exit();
+    }
+
+    public function guardarPedi()
+    {
+        $_SESSION['error'] = 'El mantenimiento de PEDI se realiza ahora desde catálogo estratégico.';
+        header("Location: " . $this->basePath . "/admin/plan-estrategico");
+        exit();
+    }
+
+    public function editarPedi($id)
+    {
+        header("Location: " . $this->basePath . "/admin/plan-estrategico");
+        exit();
+    }
+
+    public function actualizarPedi()
+    {
+        $_SESSION['error'] = 'El mantenimiento de PEDI se realiza ahora desde catálogo estratégico.';
+        header("Location: " . $this->basePath . "/admin/plan-estrategico");
+        exit();
+    }
+
+    public function eliminarPedi($id)
+    {
+        $_SESSION['error'] = 'El mantenimiento de PEDI se realiza ahora desde catálogo estratégico.';
+        header("Location: " . $this->basePath . "/admin/plan-estrategico");
+        exit();
+    }
+
+    public function eliminarPoa($id)
+    {
+        if (!isset($_SESSION['is_admin']) || $_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $eliminado = $this->poaModel->eliminar((int) $id);
+        $_SESSION[$eliminado ? 'success' : 'error'] = $eliminado
+            ? 'POA eliminado correctamente.'
+            : 'No se pudo eliminar el POA.';
 
         header("Location: " . $this->basePath . "/admin/plan-estrategico");
         exit();
+    }
+
+    public function eliminarActividadPoa($id)
+    {
+        if (!isset($_SESSION['is_admin']) || $_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $actividad = $this->actividadModel->obtenerPorId((int) $id);
+        $poaId = (int) ($actividad['poa_id'] ?? 0);
+
+        $eliminado = $this->actividadModel->eliminar((int) $id);
+        $_SESSION[$eliminado ? 'success' : 'error'] = $eliminado
+            ? 'Actividad/proyecto eliminado correctamente.'
+            : 'No se pudo eliminar la actividad/proyecto.';
+
+        $target = $this->basePath . '/admin/plan-estrategico';
+        if ($poaId > 0) {
+            $target .= '?poa=' . $poaId;
+        }
+        header("Location: " . $target);
+        exit();
+    }
+
+    private function recalcularAvanceEstrategiaPedi($idPedi)
+    {
+        return;
     }
 
     public function eliminarProyectoInvestigacion($id)
@@ -3361,119 +3460,6 @@ class AdminController
 
         header("Location: " . $this->basePath . "/admin/vinculacion");
         exit();
-    }
-
-    public function eliminarPedi($id)
-    {
-        if (!isset($_SESSION['is_admin']) || $_SERVER['REQUEST_METHOD'] !== 'POST') {
-            header("Location: " . $this->basePath . "/admin/login");
-            exit();
-        }
-
-        $pedi = $this->pediModel->obtenerPorId((int)$id);
-        $eliminado = $this->pediModel->eliminar($id);
-
-        if ($eliminado && !empty($pedi['objetivo_estrategico'])) {
-            $idReferencia = null;
-            $db = $this->pediModel->getConnection();
-            $sql = "SELECT id_pedi FROM pedi
-                    WHERE objetivo_estrategico = :objetivo
-                      AND YEAR(fecha_creacion) = :anio
-                    ORDER BY id_pedi DESC
-                    LIMIT 1";
-            $stmt = $db->prepare($sql);
-            $stmt->execute([
-                ':objetivo' => $pedi['objetivo_estrategico'],
-                ':anio' => (int)($pedi['anio_creacion'] ?? 0)
-            ]);
-            $idReferencia = (int)$stmt->fetchColumn();
-
-            if ($idReferencia > 0) {
-                $this->pediModel->recalcularAvanceObjetivoPorPediId($idReferencia);
-            }
-        }
-
-        $_SESSION[$eliminado ? 'success' : 'error'] = $eliminado
-            ? 'PEDI eliminado correctamente'
-            : 'No se pudo eliminar el PEDI';
-
-        header("Location: " . $this->basePath . "/admin/plan-estrategico");
-        exit();
-    }
-
-    public function eliminarPoa($id)
-    {
-        if (!isset($_SESSION['is_admin']) || $_SERVER['REQUEST_METHOD'] !== 'POST') {
-            header("Location: " . $this->basePath . "/admin/login");
-            exit();
-        }
-
-        $poa = $this->poaModel->obtenerPorId((int) $id);
-
-        $eliminado = $this->poaModel->eliminar($id);
-
-        if ($eliminado && $poa) {
-            $this->recalcularAvanceEstrategiaPedi((int) ($poa['id_pedi'] ?? 0));
-        }
-
-        $_SESSION[$eliminado ? 'success' : 'error'] = $eliminado
-            ? 'POA eliminado correctamente'
-            : 'No se pudo eliminar el POA';
-
-        header("Location: " . $this->basePath . "/admin/plan-estrategico");
-        exit();
-    }
-
-    public function eliminarActividadPoa($id)
-    {
-        if (!isset($_SESSION['is_admin']) || $_SERVER['REQUEST_METHOD'] !== 'POST') {
-            header("Location: " . $this->basePath . "/admin/login");
-            exit();
-        }
-
-        $actividad = $this->actividadModel->obtenerPorId((int) $id);
-        $poa = null;
-        if ($actividad && !empty($actividad['id_poa'])) {
-            $poa = $this->poaModel->obtenerPorId((int) $actividad['id_poa']);
-        }
-
-        $eliminado = $this->actividadModel->eliminar($id);
-
-        if ($eliminado && $poa) {
-            $this->recalcularAvanceEstrategiaPedi((int) ($poa['id_pedi'] ?? 0));
-        }
-
-        $_SESSION[$eliminado ? 'success' : 'error'] = $eliminado
-            ? 'Actividad eliminada correctamente'
-            : 'No se pudo eliminar la actividad';
-
-        header("Location: " . $this->basePath . "/admin/plan-estrategico");
-        exit();
-    }
-
-    private function recalcularAvanceEstrategiaPedi($idPedi)
-    {
-        $idPedi = (int) $idPedi;
-        if ($idPedi <= 0) {
-            return;
-        }
-
-        $pedi = $this->pediModel->obtenerPorId($idPedi);
-        if (!$pedi) {
-            return;
-        }
-
-        $avanceCalculado = $this->actividadModel->calcularAvanceEstrategiaPorPedi($idPedi);
-
-        $this->pediModel->actualizar($idPedi, [
-            'objetivo_estrategico' => $pedi['objetivo_estrategico'] ?? '',
-            'avance' => $pedi['avance'] ?? 0,
-            'objetivo_estrategia' => $pedi['objetivo_estrategia'] ?? '',
-            'avance_estrategia' => $avanceCalculado,
-            'estado' => $pedi['estado'] ?? 'ACTIVO'
-        ]);
-
-        $this->pediModel->recalcularAvanceObjetivoPorPediId($idPedi);
     }
 
     /* Convenios */

@@ -330,8 +330,39 @@ if (preg_match('#^/admin#', $uri)) {
             break;
 
         case $uri === '/admin/plan-estrategico':
-        case preg_match('/^\/admin\/(pedi|poa|actividad)\/.+$/', $uri):
-            $controller->planificacionEnMantenimiento();
+            $controller->planEstrategicoIndex();
+            break;
+
+        case $uri === '/admin/poa/store' && $method === 'POST':
+            $controller->guardarPoa();
+            break;
+
+        case $uri === '/admin/poa/update' && $method === 'POST':
+            $controller->actualizarPoa();
+            break;
+
+        case preg_match('/^\/admin\/poa\/eliminar\/(\d+)$/', $uri, $matches) && $method === 'POST':
+            $controller->eliminarPoa((int)$matches[1]);
+            break;
+
+        case $uri === '/admin/actividad/store' && $method === 'POST':
+            $controller->guardarActividad();
+            break;
+
+        case $uri === '/admin/actividad/update' && $method === 'POST':
+            $controller->actualizarActividad();
+            break;
+
+        case preg_match('/^\/admin\/actividad\/eliminar\/(\d+)$/', $uri, $matches) && $method === 'POST':
+            $controller->eliminarActividadPoa((int)$matches[1]);
+            break;
+
+        case preg_match('/^\/admin\/actividad\/cronograma\/(\d+)$/', $uri, $matches) && $method === 'GET':
+            $controller->cronogramaActividad((int)$matches[1]);
+            break;
+
+        case preg_match('/^\/admin\/actividad\/cronograma\/(\d+)$/', $uri, $matches) && $method === 'POST':
+            $controller->guardarCronogramaActividad((int)$matches[1]);
             break;
 
         case $uri === '/admin/logout':
