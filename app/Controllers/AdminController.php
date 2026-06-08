@@ -628,6 +628,21 @@ class AdminController
         ]);
     }
 
+    public function planificacionEnMantenimiento()
+    {
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        http_response_code(503);
+        $this->render('admin/mantenimiento', [
+            'title' => 'Planificación en mantenimiento',
+            'moduleTitle' => 'Planificación',
+            'maintenanceMessage' => 'Este módulo está en mantenimiento. Pronto estará disponible nuevamente.',
+        ]);
+    }
+
     public function exportReporteModulo()
     {
         if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
@@ -647,10 +662,6 @@ class AdminController
             'investigacion_publicaciones',
             'investigacion_ponencias',
             'investigacion_proyectos_carrera',
-            'planificacion',
-            'planificacion_pedi',
-            'planificacion_poa',
-            'planificacion_poa_actividades',
         ];
         if (!in_array($module, $allowedModules, true)) {
             $module = 'practicas';

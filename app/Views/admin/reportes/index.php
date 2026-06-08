@@ -10,11 +10,6 @@ $modulosConPagina = [
         'path' => '/admin/reportes/investigacion',
         'description' => 'Proyectos, publicaciones, ponencias y proyectos por carrera.',
     ],
-    [
-        'label' => 'Planificación',
-        'path' => '/admin/reportes/planificacion',
-        'description' => 'PEDI, POA y actividades de POA.',
-    ],
 ];
 
 $modulosDirectos = [
@@ -34,7 +29,7 @@ $modulosDirectos = [
 <div class="space-y-6">
     <section class="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
         <h2 class="text-lg font-semibold text-gray-800">Centro De Reportes</h2>
-        <p class="text-sm text-gray-500 mt-1">Vinculación, Investigación y Planificación están divididos en páginas con reportes separados.</p>
+        <p class="text-sm text-gray-500 mt-1">Vinculación e Investigación están divididos en páginas con reportes separados.</p>
 
         <div class="mt-5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             <?php foreach ($modulosConPagina as $item): ?>

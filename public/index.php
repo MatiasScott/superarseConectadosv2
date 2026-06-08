@@ -310,7 +310,7 @@ if (preg_match('#^/admin#', $uri)) {
             break;
 
         case $uri === '/admin/reportes/planificacion':
-            $controller->reportesPlanificacion();
+            $controller->planificacionEnMantenimiento();
             break;
 
         case $uri === '/admin/reportes/export/modulo':
@@ -330,67 +330,8 @@ if (preg_match('#^/admin#', $uri)) {
             break;
 
         case $uri === '/admin/plan-estrategico':
-            $controller->planEstrategicoIndex();
-            break;
-
-        case $uri === '/admin/pedi/create':
-            $controller->crearPedi();
-            break;
-
-        case $uri === '/admin/pedi/store' && $method === 'POST':
-            $controller->guardarPedi();
-            break;
-
-        case preg_match('/^\/admin\/pedi\/edit\/(\d+)$/', $uri, $matches):
-            $controller->editarPedi((int)$matches[1]);
-            break;
-
-        case $uri === '/admin/pedi/update' && $method === 'POST':
-            $controller->actualizarPedi();
-            break;
-
-        case preg_match('/^\/admin\/pedi\/eliminar\/(\d+)$/', $uri, $matches) && $method === 'POST':
-            $controller->eliminarPedi((int)$matches[1]);
-            break;
-
-        case $uri === '/admin/poa/create':
-            $controller->crearPoa();
-            break;
-
-        case $uri === '/admin/poa/store' && $method === 'POST':
-            $controller->guardarPoa();
-            break;
-
-        case preg_match('/^\/admin\/poa\/edit\/(\d+)$/', $uri, $matches):
-            $controller->editarPoa((int)$matches[1]);
-            break;
-
-        case $uri === '/admin/poa/update' && $method === 'POST':
-            $controller->actualizarPoa();
-            break;
-
-        case preg_match('/^\/admin\/poa\/eliminar\/(\d+)$/', $uri, $matches) && $method === 'POST':
-            $controller->eliminarPoa((int)$matches[1]);
-            break;
-
-        case $uri === '/admin/actividad/create':
-            $controller->crearActividad();
-            break;
-
-        case $uri === '/admin/actividad/store' && $method === 'POST':
-            $controller->guardarActividad();
-            break;
-
-        case preg_match('/^\/admin\/actividad\/edit\/(\d+)$/', $uri, $matches):
-            $controller->editarActividad((int)$matches[1]);
-            break;
-
-        case $uri === '/admin/actividad/update' && $method === 'POST':
-            $controller->actualizarActividad();
-            break;
-
-        case preg_match('/^\/admin\/actividad\/eliminar\/(\d+)$/', $uri, $matches) && $method === 'POST':
-            $controller->eliminarActividadPoa((int)$matches[1]);
+        case preg_match('/^\/admin\/(pedi|poa|actividad)\/.+$/', $uri):
+            $controller->planificacionEnMantenimiento();
             break;
 
         case $uri === '/admin/logout':
