@@ -153,6 +153,26 @@ if (preg_match('#^/admin#', $uri)) {
             $controller->practicas();
             break;
 
+        case $uri === '/admin/entidades' && $method === 'GET':
+            $controller->entidades();
+            break;
+
+        case $uri === '/admin/entidades/crear' && $method === 'GET':
+            $controller->crearEntidad();
+            break;
+
+        case $uri === '/admin/entidades/guardar' && $method === 'POST':
+            $controller->guardarEntidad();
+            break;
+
+        case preg_match('/^\/admin\/entidades\/editar\/(\d+)$/', $uri, $matches) && $method === 'GET':
+            $controller->editarEntidad((int)$matches[1]);
+            break;
+
+        case preg_match('/^\/admin\/entidades\/actualizar\/(\d+)$/', $uri, $matches) && $method === 'POST':
+            $controller->actualizarEntidad((int)$matches[1]);
+            break;
+
         case $uri === '/admin/vinculacion':
             $controller->vinculacion();
             break;
@@ -327,6 +347,58 @@ if (preg_match('#^/admin#', $uri)) {
 
         case $uri === '/admin/reportes/export/estudiantes-fase':
             $controller->exportReporteEstudiantesFaseCsv();
+            break;
+
+        case $uri === '/admin/configuracion':
+            $controller->configuracionPlanificacion();
+            break;
+
+        case $uri === '/admin/configuracion/proceso/store' && $method === 'POST':
+            $controller->guardarProcesoConfiguracion();
+            break;
+
+        case $uri === '/admin/configuracion/proceso/update' && $method === 'POST':
+            $controller->actualizarProcesoConfiguracion();
+            break;
+
+        case preg_match('/^\/admin\/configuracion\/proceso\/eliminar\/(\d+)$/', $uri, $matches) && $method === 'POST':
+            $controller->eliminarProcesoConfiguracion((int)$matches[1]);
+            break;
+
+        case $uri === '/admin/configuracion/eje/store' && $method === 'POST':
+            $controller->guardarEjeConfiguracion();
+            break;
+
+        case $uri === '/admin/configuracion/eje/update' && $method === 'POST':
+            $controller->actualizarEjeConfiguracion();
+            break;
+
+        case preg_match('/^\/admin\/configuracion\/eje\/eliminar\/(\d+)$/', $uri, $matches) && $method === 'POST':
+            $controller->eliminarEjeConfiguracion((int)$matches[1]);
+            break;
+
+        case $uri === '/admin/configuracion/objetivo/store' && $method === 'POST':
+            $controller->guardarObjetivoConfiguracion();
+            break;
+
+        case $uri === '/admin/configuracion/objetivo/update' && $method === 'POST':
+            $controller->actualizarObjetivoConfiguracion();
+            break;
+
+        case preg_match('/^\/admin\/configuracion\/objetivo\/eliminar\/(\d+)$/', $uri, $matches) && $method === 'POST':
+            $controller->eliminarObjetivoConfiguracion((int)$matches[1]);
+            break;
+
+        case $uri === '/admin/configuracion/estrategia/store' && $method === 'POST':
+            $controller->guardarEstrategiaConfiguracion();
+            break;
+
+        case $uri === '/admin/configuracion/estrategia/update' && $method === 'POST':
+            $controller->actualizarEstrategiaConfiguracion();
+            break;
+
+        case preg_match('/^\/admin\/configuracion\/estrategia\/eliminar\/(\d+)$/', $uri, $matches) && $method === 'POST':
+            $controller->eliminarEstrategiaConfiguracion((int)$matches[1]);
             break;
 
         case $uri === '/admin/plan-estrategico':

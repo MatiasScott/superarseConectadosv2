@@ -29,6 +29,7 @@ $adminMainNavItems = [
 $adminManagementNavItems = [
     ['module' => 'auditoria', 'label' => 'Auditoría', 'path' => '/admin/auditoria-general'],
     ['module' => 'cuentas', 'label' => 'Cuentas', 'path' => '/admin/accounts'],
+    ['module' => 'configuracion', 'label' => 'Configuración', 'path' => '/admin/configuracion'],
     ['module' => 'solicitudes', 'label' => 'Solicitudes', 'path' => '/admin/reset-requests', 'badge' => true],
 ];
 

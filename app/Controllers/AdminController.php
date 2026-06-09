@@ -9,6 +9,7 @@ require_once __DIR__ . '/../Models/Ponencia.php';
 require_once __DIR__ . '/../Models/PediModel.php';
 require_once __DIR__ . '/../Models/PoaModel.php';
 require_once __DIR__ . '/../Models/PoaActividadModel.php';
+require_once __DIR__ . '/../Models/ConfiguracionPlanificacionModel.php';
 require_once __DIR__ . '/../Models/ConvenioModel.php';
 require_once __DIR__ . '/../Models/AdminDashboardModel.php';
 require_once __DIR__ . '/../Models/AuthAccountModel.php';
@@ -16,6 +17,7 @@ require_once __DIR__ . '/../Models/PasswordResetModel.php';
 require_once __DIR__ . '/../Models/AdminPermissionModel.php';
 require_once __DIR__ . '/../Models/AuditLogModel.php';
 require_once __DIR__ . '/../Models/AdminReportesModel.php';
+require_once __DIR__ . '/../Models/EntidadModel.php';
 require_once __DIR__ . '/../Helpers/AuthSecurity.php';
 
 class AdminController
@@ -32,11 +34,13 @@ class AdminController
     private $pediModel;
     private $poaModel;
     private $actividadModel;
+    private $configPlanModel;
     private $convenioModel;
     private $dashboardModel;
     private $permissionModel;
     private $auditLogModel;
     private $reportesModel;
+    private $entidadModel;
 
     public function __construct()
     {
@@ -60,6 +64,7 @@ class AdminController
         $this->pediModel = new PediModel();
         $this->poaModel = new PoaModel();
         $this->actividadModel = new PoaActividadModel();
+        $this->configPlanModel = new ConfiguracionPlanificacionModel();
         $this->convenioModel = new ConvenioModel();
         $this->dashboardModel = new AdminDashboardModel();
         $this->authAccountModel = new AuthAccountModel();
@@ -67,6 +72,7 @@ class AdminController
         $this->permissionModel = new AdminPermissionModel();
         $this->auditLogModel = new AuditLogModel();
         $this->reportesModel = new AdminReportesModel();
+        $this->entidadModel = new EntidadModel();
 
         $this->enforcePasswordChangeRedirect();
         $this->enforceRoutePermission();
@@ -1508,6 +1514,299 @@ class AdminController
         ]);
     }
 
+    public function entidades()
+    {
+        if (!isset($_SESSION['is_admin'])) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $search = trim((string) ($_GET['buscar'] ?? ''));
+        $entidades = $this->entidadModel->getEntidades($search);
+
+        $this->render('admin/entidades/index', [
+            'title' => 'Gestión de Entidades',
+            'entidades' => $entidades,
+            'buscar' => $search,
+        ]);
+    }
+
+    public function crearEntidad()
+    {
+        if (!isset($_SESSION['is_admin'])) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $csrfToken = AuthSecurity::generateCsrfToken('admin_entidad_create');
+        $programas = $this->entidadModel->getProgramas();
+        $tutores = $this->entidadModel->getTutoresEmpresariales();
+
+        $this->render('admin/entidades/form', [
+            'title' => 'Crear Entidad',
+            'modo' => 'crear',
+            'csrfToken' => $csrfToken,
+            'entidad' => [
+                'nombre_empresa' => '',
+                'ruc' => '',
+                'razon_social' => '',
+                'persona_contacto' => '',
+                'telefono_contacto' => '',
+                'email_contacto' => '',
+                'plazas_disponibles' => 0,
+                'estado' => 'Disponible',
+                'direccion' => '',
+                'id_programa' => '',
+                'id_tutor_empresarial' => '',
+                'tutor_cedula' => '',
+                'tutor_nombre_completo' => '',
+                'tutor_funcion' => '',
+                'tutor_telefono' => '',
+                'tutor_email' => '',
+                'tutor_departamento' => '',
+            ],
+            'programas' => $programas,
+            'tutores' => $tutores,
+            'errors' => [],
+        ]);
+    }
+
+    public function guardarEntidad()
+    {
+        if (!isset($_SESSION['is_admin'])) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        if (!AuthSecurity::validateCsrfToken('admin_entidad_create', $_POST['csrf_token'] ?? '')) {
+            $_SESSION['error'] = 'Token CSRF inválido. Intenta nuevamente.';
+            header('Location: ' . $this->basePath . '/admin/entidades/crear');
+            exit();
+        }
+
+        $payload = $this->sanitizeEntidadPayload($_POST);
+        $errors = $this->validateEntidadPayload($payload, null);
+
+        if (!empty($errors)) {
+            $csrfToken = AuthSecurity::generateCsrfToken('admin_entidad_create');
+            $programas = $this->entidadModel->getProgramas();
+            $tutores = $this->entidadModel->getTutoresEmpresariales();
+
+            $this->render('admin/entidades/form', [
+                'title' => 'Crear Entidad',
+                'modo' => 'crear',
+                'csrfToken' => $csrfToken,
+                'entidad' => $payload,
+                'programas' => $programas,
+                'tutores' => $tutores,
+                'errors' => $errors,
+            ]);
+            return;
+        }
+
+        try {
+            $idEntidad = $this->entidadModel->crearEntidad($payload);
+            $_SESSION['success'] = 'Entidad creada correctamente (ID: ' . $idEntidad . ').';
+            header('Location: ' . $this->basePath . '/admin/entidades');
+            exit();
+        } catch (Throwable $e) {
+            error_log('Error al crear entidad: ' . $e->getMessage());
+            $_SESSION['error'] = 'No se pudo crear la entidad. Revisa los datos e intenta nuevamente.';
+            header('Location: ' . $this->basePath . '/admin/entidades/crear');
+            exit();
+        }
+    }
+
+    public function editarEntidad($idEntidad)
+    {
+        if (!isset($_SESSION['is_admin'])) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $idEntidad = (int) $idEntidad;
+        if ($idEntidad <= 0) {
+            $_SESSION['error'] = 'ID de entidad inválido.';
+            header('Location: ' . $this->basePath . '/admin/entidades');
+            exit();
+        }
+
+        $entidad = $this->entidadModel->getEntidadById($idEntidad);
+        if (!$entidad) {
+            $_SESSION['error'] = 'Entidad no encontrada.';
+            header('Location: ' . $this->basePath . '/admin/entidades');
+            exit();
+        }
+
+        $csrfToken = AuthSecurity::generateCsrfToken('admin_entidad_update_' . $idEntidad);
+        $programas = $this->entidadModel->getProgramas();
+        $tutores = $this->entidadModel->getTutoresEmpresariales();
+
+        $entidad['tutor_cedula'] = $entidad['tutor_cedula'] ?? '';
+        $entidad['tutor_nombre_completo'] = $entidad['tutor_nombre'] ?? '';
+        $entidad['tutor_funcion'] = $entidad['tutor_funcion'] ?? '';
+        $entidad['tutor_telefono'] = $entidad['tutor_telefono'] ?? '';
+        $entidad['tutor_email'] = $entidad['tutor_email'] ?? '';
+        $entidad['tutor_departamento'] = $entidad['tutor_departamento'] ?? '';
+
+        $this->render('admin/entidades/form', [
+            'title' => 'Editar Entidad',
+            'modo' => 'editar',
+            'csrfToken' => $csrfToken,
+            'entidad' => $entidad,
+            'programas' => $programas,
+            'tutores' => $tutores,
+            'errors' => [],
+        ]);
+    }
+
+    public function actualizarEntidad($idEntidad)
+    {
+        if (!isset($_SESSION['is_admin'])) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $idEntidad = (int) $idEntidad;
+        if ($idEntidad <= 0) {
+            $_SESSION['error'] = 'ID de entidad inválido.';
+            header('Location: ' . $this->basePath . '/admin/entidades');
+            exit();
+        }
+
+        if (!AuthSecurity::validateCsrfToken('admin_entidad_update_' . $idEntidad, $_POST['csrf_token'] ?? '')) {
+            $_SESSION['error'] = 'Token CSRF inválido. Intenta nuevamente.';
+            header('Location: ' . $this->basePath . '/admin/entidades/editar/' . $idEntidad);
+            exit();
+        }
+
+        $entidadActual = $this->entidadModel->getEntidadById($idEntidad);
+        if (!$entidadActual) {
+            $_SESSION['error'] = 'Entidad no encontrada.';
+            header('Location: ' . $this->basePath . '/admin/entidades');
+            exit();
+        }
+
+        $payload = $this->sanitizeEntidadPayload($_POST);
+        $errors = $this->validateEntidadPayload($payload, $idEntidad);
+
+        if (!empty($errors)) {
+            $csrfToken = AuthSecurity::generateCsrfToken('admin_entidad_update_' . $idEntidad);
+            $programas = $this->entidadModel->getProgramas();
+            $tutores = $this->entidadModel->getTutoresEmpresariales();
+
+            $payload['id_entidad'] = $idEntidad;
+
+            $this->render('admin/entidades/form', [
+                'title' => 'Editar Entidad',
+                'modo' => 'editar',
+                'csrfToken' => $csrfToken,
+                'entidad' => $payload,
+                'programas' => $programas,
+                'tutores' => $tutores,
+                'errors' => $errors,
+            ]);
+            return;
+        }
+
+        try {
+            $this->entidadModel->actualizarEntidad($idEntidad, $payload);
+            $_SESSION['success'] = 'Entidad actualizada correctamente.';
+            header('Location: ' . $this->basePath . '/admin/entidades');
+            exit();
+        } catch (Throwable $e) {
+            error_log('Error al actualizar entidad: ' . $e->getMessage());
+            $_SESSION['error'] = 'No se pudo actualizar la entidad. Revisa los datos e intenta nuevamente.';
+            header('Location: ' . $this->basePath . '/admin/entidades/editar/' . $idEntidad);
+            exit();
+        }
+    }
+
+    private function sanitizeEntidadPayload(array $input): array
+    {
+        return [
+            'nombre_empresa' => trim((string) ($input['nombre_empresa'] ?? '')),
+            'ruc' => preg_replace('/\D+/', '', (string) ($input['ruc'] ?? '')),
+            'razon_social' => trim((string) ($input['razon_social'] ?? '')),
+            'persona_contacto' => trim((string) ($input['persona_contacto'] ?? '')),
+            'telefono_contacto' => trim((string) ($input['telefono_contacto'] ?? '')),
+            'email_contacto' => trim((string) ($input['email_contacto'] ?? '')),
+            'plazas_disponibles' => (string) ($input['plazas_disponibles'] ?? '0'),
+            'estado' => trim((string) ($input['estado'] ?? 'Disponible')),
+            'direccion' => trim((string) ($input['direccion'] ?? '')),
+            'id_programa' => (int) ($input['id_programa'] ?? 0),
+            'id_tutor_empresarial' => (int) ($input['id_tutor_empresarial'] ?? 0),
+            'tutor_cedula' => trim((string) ($input['tutor_cedula'] ?? '')),
+            'tutor_nombre_completo' => trim((string) ($input['tutor_nombre_completo'] ?? '')),
+            'tutor_funcion' => trim((string) ($input['tutor_funcion'] ?? '')),
+            'tutor_telefono' => trim((string) ($input['tutor_telefono'] ?? '')),
+            'tutor_email' => trim((string) ($input['tutor_email'] ?? '')),
+            'tutor_departamento' => trim((string) ($input['tutor_departamento'] ?? '')),
+        ];
+    }
+
+    private function validateEntidadPayload(array &$payload, ?int $idEntidad): array
+    {
+        $errors = [];
+
+        if ($payload['nombre_empresa'] === '') {
+            $errors['nombre_empresa'] = 'El nombre de la entidad es obligatorio.';
+        }
+
+        if ($payload['ruc'] === '') {
+            $errors['ruc'] = 'El RUC es obligatorio.';
+        } elseif (!preg_match('/^\d{10,13}$/', $payload['ruc'])) {
+            $errors['ruc'] = 'El RUC debe contener entre 10 y 13 dígitos.';
+        } elseif ($this->entidadModel->existeRuc($payload['ruc'], $idEntidad)) {
+            $errors['ruc'] = 'Ya existe una entidad registrada con ese RUC.';
+        }
+
+        $plazas = filter_var($payload['plazas_disponibles'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]);
+        if ($plazas === false) {
+            $errors['plazas_disponibles'] = 'Las plazas disponibles deben ser un número entero mayor o igual a 0.';
+        } else {
+            $payload['plazas_disponibles'] = (int) $plazas;
+        }
+
+        $estadoPermitido = ['Disponible', 'No Disponible'];
+        if (!in_array($payload['estado'], $estadoPermitido, true)) {
+            $errors['estado'] = 'El estado seleccionado no es válido.';
+        }
+
+        if ($payload['email_contacto'] !== '' && !filter_var($payload['email_contacto'], FILTER_VALIDATE_EMAIL)) {
+            $errors['email_contacto'] = 'El correo de contacto no es válido.';
+        }
+
+        if ($payload['id_programa'] > 0 && !$this->entidadModel->existePrograma((int) $payload['id_programa'])) {
+            $errors['id_programa'] = 'El programa seleccionado no existe.';
+        }
+
+        if ($payload['id_tutor_empresarial'] > 0 && !$this->entidadModel->existeTutor((int) $payload['id_tutor_empresarial'])) {
+            $errors['id_tutor_empresarial'] = 'El tutor empresarial seleccionado no existe.';
+        }
+
+        $hayDatosTutor = ($payload['tutor_cedula'] !== ''
+            || $payload['tutor_nombre_completo'] !== ''
+            || $payload['tutor_funcion'] !== ''
+            || $payload['tutor_telefono'] !== ''
+            || $payload['tutor_email'] !== ''
+            || $payload['tutor_departamento'] !== '');
+
+        if ($hayDatosTutor) {
+            if ($payload['tutor_cedula'] === '') {
+                $errors['tutor_cedula'] = 'La cédula del tutor es obligatoria cuando se ingresan datos del tutor.';
+            }
+            if ($payload['tutor_nombre_completo'] === '') {
+                $errors['tutor_nombre_completo'] = 'El nombre del tutor es obligatorio cuando se ingresan datos del tutor.';
+            }
+            if ($payload['tutor_email'] !== '' && !filter_var($payload['tutor_email'], FILTER_VALIDATE_EMAIL)) {
+                $errors['tutor_email'] = 'El correo del tutor no es válido.';
+            }
+        }
+
+        return $errors;
+    }
+
     public function vinculacion()
     {
         if (!isset($_SESSION['is_admin'])) {
@@ -1655,6 +1954,7 @@ class AdminController
             'auditoria' => 'Auditoría',
             'reportes' => 'Reportes',
             'cuentas' => 'Cuentas',
+            'configuracion' => 'Configuración',
             'solicitudes' => 'Solicitudes de Restablecimiento',
         ];
     }
@@ -1736,6 +2036,16 @@ class AdminController
             return ['practicas', $method === 'POST' ? 'edit' : 'view'];
         }
 
+        if ($uri === '/admin/entidades') {
+            return ['practicas', 'view'];
+        }
+        if (in_array($uri, ['/admin/entidades/crear', '/admin/entidades/guardar'], true)) {
+            return ['practicas', 'create'];
+        }
+        if (preg_match('#^/admin/entidades/editar/\d+$#', $uri) || preg_match('#^/admin/entidades/actualizar/\d+$#', $uri)) {
+            return ['practicas', 'edit'];
+        }
+
         if ($uri === '/admin/vinculacion') {
             return ['vinculacion', 'view'];
         }
@@ -1773,6 +2083,32 @@ class AdminController
         }
         if (preg_match('#^/admin/pedi/eliminar/\d+$#', $uri) || preg_match('#^/admin/poa/eliminar/\d+$#', $uri) || preg_match('#^/admin/actividad/eliminar/\d+$#', $uri)) {
             return ['plan_estrategico', 'delete'];
+        }
+
+        if ($uri === '/admin/configuracion') {
+            return ['configuracion', 'view'];
+        }
+        if (in_array($uri, [
+            '/admin/configuracion/proceso/store',
+            '/admin/configuracion/eje/store',
+            '/admin/configuracion/objetivo/store',
+            '/admin/configuracion/estrategia/store',
+        ], true)) {
+            return ['configuracion', 'create'];
+        }
+        if (in_array($uri, [
+            '/admin/configuracion/proceso/update',
+            '/admin/configuracion/eje/update',
+            '/admin/configuracion/objetivo/update',
+            '/admin/configuracion/estrategia/update',
+        ], true)) {
+            return ['configuracion', 'edit'];
+        }
+        if (preg_match('#^/admin/configuracion/proceso/eliminar/\d+$#', $uri)
+            || preg_match('#^/admin/configuracion/eje/eliminar/\d+$#', $uri)
+            || preg_match('#^/admin/configuracion/objetivo/eliminar/\d+$#', $uri)
+            || preg_match('#^/admin/configuracion/estrategia/eliminar/\d+$#', $uri)) {
+            return ['configuracion', 'delete'];
         }
 
         if ($uri === '/admin/convenio') {
@@ -2948,6 +3284,391 @@ class AdminController
             header("Location: " . $this->basePath . "/admin/vinculacion");
             exit();
         }
+    }
+
+    public function configuracionPlanificacion()
+    {
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $tab = (string) ($_GET['tab'] ?? 'procesos');
+        if (!in_array($tab, ['procesos', 'ejes', 'objetivos', 'estrategias'], true)) {
+            $tab = 'procesos';
+        }
+
+        $editProcesoId = (int) ($_GET['edit_proceso'] ?? 0);
+        $editEjeId = (int) ($_GET['edit_eje'] ?? 0);
+        $editObjetivoId = (int) ($_GET['edit_objetivo'] ?? 0);
+        $editEstrategiaId = (int) ($_GET['edit_estrategia'] ?? 0);
+
+        $estrategias = $this->configPlanModel->obtenerEstrategias();
+        foreach ($estrategias as &$estrategiaItem) {
+            $estrategiaItem['metas'] = $this->configPlanModel->obtenerMetasPorEstrategia((int) ($estrategiaItem['id'] ?? 0));
+        }
+        unset($estrategiaItem);
+
+        $this->render('admin/plan_estrategico/configuracion', [
+            'title' => 'Configuracion de Planificacion',
+            'activeTab' => $tab,
+            'procesos' => $this->configPlanModel->obtenerProcesos(),
+            'ejes' => $this->configPlanModel->obtenerEjes(),
+            'objetivos' => $this->configPlanModel->obtenerObjetivos(),
+            'estrategias' => $estrategias,
+            'editProceso' => $editProcesoId > 0 ? $this->configPlanModel->obtenerProcesoPorId($editProcesoId) : null,
+            'editEje' => $editEjeId > 0 ? $this->configPlanModel->obtenerEjePorId($editEjeId) : null,
+            'editObjetivo' => $editObjetivoId > 0 ? $this->configPlanModel->obtenerObjetivoPorId($editObjetivoId) : null,
+            'editEstrategia' => $editEstrategiaId > 0 ? $this->configPlanModel->obtenerEstrategiaDetallePorId($editEstrategiaId) : null,
+        ]);
+    }
+
+    public function guardarProcesoConfiguracion()
+    {
+        $nombre = trim((string) ($_POST['nombre'] ?? ''));
+        if ($nombre === '') {
+            $_SESSION['error'] = 'El nombre del proceso es obligatorio.';
+            $this->redirectConfiguracion('procesos');
+        }
+
+        $ok = $this->configPlanModel->crearProceso($nombre, $this->toBoolEstado($_POST['estado'] ?? '1'));
+        $_SESSION[$ok ? 'success' : 'error'] = $ok
+            ? 'Proceso creado correctamente.'
+            : 'No se pudo crear el proceso.';
+
+        $this->redirectConfiguracion('procesos');
+    }
+
+    public function actualizarProcesoConfiguracion()
+    {
+        $id = (int) ($_POST['id'] ?? 0);
+        $nombre = trim((string) ($_POST['nombre'] ?? ''));
+
+        if ($id <= 0 || $nombre === '') {
+            $_SESSION['error'] = 'Datos invalidos para actualizar el proceso.';
+            $this->redirectConfiguracion('procesos');
+        }
+
+        $ok = $this->configPlanModel->actualizarProceso($id, $nombre, $this->toBoolEstado($_POST['estado'] ?? '1'));
+        $_SESSION[$ok ? 'success' : 'error'] = $ok
+            ? 'Proceso actualizado correctamente.'
+            : 'No se pudo actualizar el proceso.';
+
+        $this->redirectConfiguracion('procesos');
+    }
+
+    public function eliminarProcesoConfiguracion($id)
+    {
+        $id = (int) $id;
+        if ($id <= 0) {
+            $_SESSION['error'] = 'Proceso invalido.';
+            $this->redirectConfiguracion('procesos');
+        }
+
+        if ($this->configPlanModel->procesoEnUso($id)) {
+            $_SESSION['error'] = 'No se puede eliminar el proceso porque ya se usa en POA. Marquelo como inactivo.';
+            $this->redirectConfiguracion('procesos');
+        }
+
+        $ok = $this->configPlanModel->eliminarProceso($id);
+        $_SESSION[$ok ? 'success' : 'error'] = $ok
+            ? 'Proceso eliminado correctamente.'
+            : 'No se pudo eliminar el proceso.';
+
+        $this->redirectConfiguracion('procesos');
+    }
+
+    public function guardarEjeConfiguracion()
+    {
+        $nombre = trim((string) ($_POST['nombre'] ?? ''));
+        if ($nombre === '') {
+            $_SESSION['error'] = 'El nombre del eje es obligatorio.';
+            $this->redirectConfiguracion('ejes');
+        }
+
+        $ok = $this->configPlanModel->crearEje([
+            'nombre' => $nombre,
+            'observaciones' => (string) ($_POST['observaciones'] ?? ''),
+            'estado' => $this->toBoolEstado($_POST['estado'] ?? '1'),
+        ]);
+
+        $_SESSION[$ok ? 'success' : 'error'] = $ok
+            ? 'Eje estrategico registrado correctamente.'
+            : 'No se pudo registrar el eje estrategico.';
+
+        $this->redirectConfiguracion('ejes');
+    }
+
+    public function actualizarEjeConfiguracion()
+    {
+        $id = (int) ($_POST['id'] ?? 0);
+        $nombre = trim((string) ($_POST['nombre'] ?? ''));
+        if ($id <= 0 || $nombre === '') {
+            $_SESSION['error'] = 'Datos invalidos para actualizar el eje.';
+            $this->redirectConfiguracion('ejes');
+        }
+
+        $ok = $this->configPlanModel->actualizarEje($id, [
+            'nombre' => $nombre,
+            'observaciones' => (string) ($_POST['observaciones'] ?? ''),
+            'estado' => $this->toBoolEstado($_POST['estado'] ?? '1'),
+        ]);
+
+        $_SESSION[$ok ? 'success' : 'error'] = $ok
+            ? 'Eje estrategico actualizado correctamente.'
+            : 'No se pudo actualizar el eje estrategico.';
+
+        $this->redirectConfiguracion('ejes');
+    }
+
+    public function eliminarEjeConfiguracion($id)
+    {
+        $id = (int) $id;
+        if ($id <= 0) {
+            $_SESSION['error'] = 'Eje invalido.';
+            $this->redirectConfiguracion('ejes');
+        }
+
+        if ($this->configPlanModel->ejeEnUsoEnPoaActivo($id)) {
+            $_SESSION['error'] = 'No se puede eliminar el eje porque esta referenciado por POA activos. Marquelo como inactivo.';
+            $this->redirectConfiguracion('ejes');
+        }
+
+        $ok = $this->configPlanModel->eliminarEje($id);
+        $_SESSION[$ok ? 'success' : 'error'] = $ok
+            ? 'Eje estrategico eliminado correctamente.'
+            : 'No se pudo eliminar el eje estrategico.';
+
+        $this->redirectConfiguracion('ejes');
+    }
+
+    public function guardarObjetivoConfiguracion()
+    {
+        $codigo = trim((string) ($_POST['codigo'] ?? ''));
+        $nombre = trim((string) ($_POST['nombre'] ?? ''));
+        $ejeId = (int) ($_POST['eje_id'] ?? 0);
+
+        if ($codigo === '' || $nombre === '' || $ejeId <= 0) {
+            $_SESSION['error'] = 'Complete codigo, nombre y eje para registrar el objetivo.';
+            $this->redirectConfiguracion('objetivos');
+        }
+
+        $ok = $this->configPlanModel->crearObjetivo([
+            'codigo' => $codigo,
+            'nombre' => $nombre,
+            'eje_id' => $ejeId,
+            'observaciones' => (string) ($_POST['observaciones'] ?? ''),
+            'estado' => $this->toBoolEstado($_POST['estado'] ?? '1'),
+        ]);
+
+        $_SESSION[$ok ? 'success' : 'error'] = $ok
+            ? 'Objetivo estrategico registrado correctamente.'
+            : 'No se pudo registrar el objetivo estrategico. Verifique que el codigo no este duplicado.';
+
+        $this->redirectConfiguracion('objetivos');
+    }
+
+    public function actualizarObjetivoConfiguracion()
+    {
+        $id = (int) ($_POST['id'] ?? 0);
+        $codigo = trim((string) ($_POST['codigo'] ?? ''));
+        $nombre = trim((string) ($_POST['nombre'] ?? ''));
+        $ejeId = (int) ($_POST['eje_id'] ?? 0);
+
+        if ($id <= 0 || $codigo === '' || $nombre === '' || $ejeId <= 0) {
+            $_SESSION['error'] = 'Datos invalidos para actualizar el objetivo.';
+            $this->redirectConfiguracion('objetivos');
+        }
+
+        $ok = $this->configPlanModel->actualizarObjetivo($id, [
+            'codigo' => $codigo,
+            'nombre' => $nombre,
+            'eje_id' => $ejeId,
+            'observaciones' => (string) ($_POST['observaciones'] ?? ''),
+            'estado' => $this->toBoolEstado($_POST['estado'] ?? '1'),
+        ]);
+
+        $_SESSION[$ok ? 'success' : 'error'] = $ok
+            ? 'Objetivo estrategico actualizado correctamente.'
+            : 'No se pudo actualizar el objetivo estrategico.';
+
+        $this->redirectConfiguracion('objetivos');
+    }
+
+    public function eliminarObjetivoConfiguracion($id)
+    {
+        $id = (int) $id;
+        if ($id <= 0) {
+            $_SESSION['error'] = 'Objetivo invalido.';
+            $this->redirectConfiguracion('objetivos');
+        }
+
+        if ($this->configPlanModel->objetivoEnUsoEnPoaActivo($id)) {
+            $_SESSION['error'] = 'No se puede eliminar el objetivo porque esta referenciado por POA activos. Marquelo como inactivo.';
+            $this->redirectConfiguracion('objetivos');
+        }
+
+        $ok = $this->configPlanModel->eliminarObjetivo($id);
+        $_SESSION[$ok ? 'success' : 'error'] = $ok
+            ? 'Objetivo estrategico eliminado correctamente.'
+            : 'No se pudo eliminar el objetivo estrategico.';
+
+        $this->redirectConfiguracion('objetivos');
+    }
+
+    public function guardarEstrategiaConfiguracion()
+    {
+        $payload = $this->buildEstrategiaPayloadFromPost();
+        if (!empty($payload['error'])) {
+            $_SESSION['error'] = $payload['error'];
+            $this->redirectConfiguracion('estrategias');
+        }
+
+        $ok = $this->configPlanModel->crearEstrategiaConDetalle(
+            $payload['estrategia'],
+            $payload['linea_base'],
+            $payload['metas']
+        );
+
+        $_SESSION[$ok ? 'success' : 'error'] = $ok
+            ? 'Estrategia, linea base y metas registradas correctamente.'
+            : 'No se pudo registrar la estrategia. Verifique codigo unico y metas por anio no duplicadas.';
+
+        $this->redirectConfiguracion('estrategias');
+    }
+
+    public function actualizarEstrategiaConfiguracion()
+    {
+        $id = (int) ($_POST['id'] ?? 0);
+        if ($id <= 0) {
+            $_SESSION['error'] = 'Estrategia invalida para actualizar.';
+            $this->redirectConfiguracion('estrategias');
+        }
+
+        $payload = $this->buildEstrategiaPayloadFromPost();
+        if (!empty($payload['error'])) {
+            $_SESSION['error'] = $payload['error'];
+            $this->redirectConfiguracion('estrategias');
+        }
+
+        $ok = $this->configPlanModel->actualizarEstrategiaConDetalle(
+            $id,
+            $payload['estrategia'],
+            $payload['linea_base'],
+            $payload['metas']
+        );
+
+        $_SESSION[$ok ? 'success' : 'error'] = $ok
+            ? 'Estrategia y detalle actualizados correctamente.'
+            : 'No se pudo actualizar la estrategia.';
+
+        $this->redirectConfiguracion('estrategias');
+    }
+
+    public function eliminarEstrategiaConfiguracion($id)
+    {
+        $id = (int) $id;
+        if ($id <= 0) {
+            $_SESSION['error'] = 'Estrategia invalida.';
+            $this->redirectConfiguracion('estrategias');
+        }
+
+        if ($this->configPlanModel->estrategiaEnUsoEnPoaActivo($id)) {
+            $_SESSION['error'] = 'No se puede eliminar la estrategia porque esta en uso por POA activos. Marquela como inactiva.';
+            $this->redirectConfiguracion('estrategias');
+        }
+
+        $ok = $this->configPlanModel->eliminarEstrategia($id);
+        $_SESSION[$ok ? 'success' : 'error'] = $ok
+            ? 'Estrategia eliminada correctamente.'
+            : 'No se pudo eliminar la estrategia.';
+
+        $this->redirectConfiguracion('estrategias');
+    }
+
+    private function buildEstrategiaPayloadFromPost(): array
+    {
+        $objetivoId = (int) ($_POST['objetivo_estrategico_id'] ?? 0);
+        $codigo = trim((string) ($_POST['codigo'] ?? ''));
+        $nombre = trim((string) ($_POST['nombre'] ?? ''));
+        $porcentajePartida = (float) ($_POST['porcentaje_partida'] ?? 0);
+
+        if ($objetivoId <= 0 || $codigo === '' || $nombre === '') {
+            return ['error' => 'Complete objetivo, codigo y nombre de la estrategia.'];
+        }
+
+        $metas = $this->parseMetasFromPost();
+        if (isset($metas['error'])) {
+            return ['error' => $metas['error']];
+        }
+
+        if (empty($metas)) {
+            return ['error' => 'Debe agregar al menos una meta anual.'];
+        }
+
+        return [
+            'estrategia' => [
+                'objetivo_estrategico_id' => $objetivoId,
+                'codigo' => $codigo,
+                'nombre' => $nombre,
+                'observaciones' => (string) ($_POST['observaciones'] ?? ''),
+                'estado' => $this->toBoolEstado($_POST['estado'] ?? '1'),
+            ],
+            'linea_base' => [
+                'porcentaje_partida' => $porcentajePartida,
+                'observaciones' => (string) ($_POST['linea_base_observaciones'] ?? ''),
+            ],
+            'metas' => $metas,
+        ];
+    }
+
+    private function parseMetasFromPost(): array
+    {
+        $anios = (array) ($_POST['meta_anio'] ?? []);
+        $porcentajes = (array) ($_POST['meta_porcentaje'] ?? []);
+        $observaciones = (array) ($_POST['meta_observaciones'] ?? []);
+
+        $metas = [];
+        $aniosVista = [];
+
+        $total = max(count($anios), count($porcentajes), count($observaciones));
+        for ($i = 0; $i < $total; $i++) {
+            $anio = (int) ($anios[$i] ?? 0);
+            $porcentaje = (float) ($porcentajes[$i] ?? 0);
+            $obs = trim((string) ($observaciones[$i] ?? ''));
+
+            if ($anio <= 0 && $porcentaje <= 0 && $obs === '') {
+                continue;
+            }
+
+            if ($anio <= 0) {
+                return ['error' => 'Cada meta anual debe tener un anio valido.'];
+            }
+
+            if (isset($aniosVista[$anio])) {
+                return ['error' => 'No puede registrar dos metas con el mismo anio para una estrategia.'];
+            }
+
+            $aniosVista[$anio] = true;
+            $metas[] = [
+                'anio' => $anio,
+                'porcentaje_esperado' => $porcentaje,
+                'observaciones' => $obs,
+            ];
+        }
+
+        return $metas;
+    }
+
+    private function toBoolEstado($value): bool
+    {
+        return (string) $value !== '0';
+    }
+
+    private function redirectConfiguracion(string $tab): void
+    {
+        header('Location: ' . $this->basePath . '/admin/configuracion?tab=' . urlencode($tab));
+        exit();
     }
 
     /* Metodos del Plan Estrategico */
