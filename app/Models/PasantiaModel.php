@@ -1195,6 +1195,11 @@ class PasantiaModel extends Database
                 $nuevoEstado = 'ACTIVA';
             }
 
+            $faseActualizada = (int) ($datos['estado_fase_uno_completado'] ?? 0);
+            if (in_array($nuevoEstado, ['FINALIZADA', 'NO FINALIZADO'], true)) {
+                $faseActualizada = 2;
+            }
+
             $fechaFin = $datos['fecha_fin_actual'] ?? null;
             if ($nuevoEstado === 'ACTIVA') {
                 $fechaFin = null;
@@ -1213,7 +1218,7 @@ class PasantiaModel extends Database
                     WHERE id_practica = :id_practica";
             $stmtPractica = $this->db->prepare($queryPractica);
             $paramsPractica = [
-                ':estado_fase_uno_completado' => (int) ($datos['estado_fase_uno_completado'] ?? 0),
+                ':estado_fase_uno_completado' => $faseActualizada,
                 ':afiliacion_iess' => trim((string) ($datos['afiliacion_iess'] ?? '')),
                 ':estado' => $nuevoEstado,
                 ':fecha_fin' => $fechaFin,

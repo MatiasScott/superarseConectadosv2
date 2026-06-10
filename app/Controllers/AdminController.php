@@ -762,7 +762,14 @@ class AdminController
             $html .= '<table border="1" cellpadding="6" cellspacing="0" width="100%">';
             $html .= '<tr><th>Empresa</th><th>RUC</th><th>Estudiante</th><th>Cédula</th><th>Carrera</th><th>Modalidad</th><th>Fase</th></tr>';
             foreach ($rows as $row) {
-                $fase = ((int) ($row['estado_fase_uno_completado'] ?? 0) === 1) ? 'Fase 2' : 'Fase 1';
+                $estadoFase = (int) ($row['estado_fase_uno_completado'] ?? 0);
+                if ($estadoFase === 2) {
+                    $fase = 'Práctica Finalizada';
+                } elseif ($estadoFase === 1) {
+                    $fase = 'Fase 2';
+                } else {
+                    $fase = 'Fase 1';
+                }
                 $html .= '<tr>';
                 $html .= '<td>' . htmlspecialchars((string) ($row['empresa'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
                 $html .= '<td>' . htmlspecialchars((string) ($row['ruc'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
@@ -790,7 +797,9 @@ class AdminController
                 'estudiante' => trim((string) ($row['estudiante'] ?? '')),
                 'carrera' => (string) ($row['carrera'] ?? ''),
                 'modalidad' => (string) ($row['modalidad'] ?? ''),
-                'fase' => ((int) ($row['estado_fase_uno_completado'] ?? 0) === 1) ? 'Fase 2' : 'Fase 1',
+                'fase' => ((int) ($row['estado_fase_uno_completado'] ?? 0) === 2
+                    ? 'Práctica Finalizada'
+                    : (((int) ($row['estado_fase_uno_completado'] ?? 0) === 1) ? 'Fase 2' : 'Fase 1')),
                 'fecha_registro' => (string) ($row['fecha_registro'] ?? ''),
             ];
         }

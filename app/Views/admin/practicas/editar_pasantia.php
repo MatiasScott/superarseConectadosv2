@@ -391,6 +391,7 @@
                                         class="block w-full px-4 py-3 text-base border-2 border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition">
                                         <option value="0" <?php echo ((int)$practica['estado_fase_uno_completado'] === 0) ? 'selected' : ''; ?>>Fase 1</option>
                                         <option value="1" <?php echo ((int)$practica['estado_fase_uno_completado'] === 1) ? 'selected' : ''; ?>>Fase 2</option>
+                                        <option value="2" <?php echo ((int)$practica['estado_fase_uno_completado'] === 2) ? 'selected' : ''; ?>>Práctica Finalizada</option>
                                     </select>
                                 </div>
 

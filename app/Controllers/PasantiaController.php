@@ -957,8 +957,26 @@ class PasantiaController
             ]));
             $esHomologableLaboral = strpos($modalidadUpper, 'HOMOLOGABLES LABORALES') !== false;
 
+            $estadoEditadoRaw = trim((string) ($_POST['estado'] ?? ($practica['estado'] ?? 'ACTIVA')));
+            $estadoEditadoUpper = strtoupper(strtr($estadoEditadoRaw, [
+                'á' => 'A',
+                'é' => 'E',
+                'í' => 'I',
+                'ó' => 'O',
+                'ú' => 'U',
+                'Á' => 'A',
+                'É' => 'E',
+                'Í' => 'I',
+                'Ó' => 'O',
+                'Ú' => 'U',
+            ]));
+            $estadoFaseUnoCompletado = (int) ($_POST['estado_fase_uno_completado'] ?? $practica['estado_fase_uno_completado']);
+            if (in_array($estadoEditadoUpper, ['FINALIZADO', 'FINALIZADA', 'NO FINALIZADO'], true)) {
+                $estadoFaseUnoCompletado = 2;
+            }
+
             $datos = [
-                'estado_fase_uno_completado' => $_POST['estado_fase_uno_completado'] ?? $practica['estado_fase_uno_completado'],
+                'estado_fase_uno_completado' => $estadoFaseUnoCompletado,
                 'entidad_id' => $practica['entidad_id'] ?? null,
                 'tutor_empresarial_id' => $practica['tutor_empresarial_id'] ?? null,
                 'entidad_nombre_empresa' => $_POST['entidad_nombre_empresa'] ?? $practica['entidad_nombre_empresa'],
@@ -970,7 +988,7 @@ class PasantiaController
                 'entidad_direccion' => $_POST['entidad_direccion'] ?? $practica['direccion'],
                 'plazas_disponibles' => $_POST['plazas_disponibles'] ?? $practica['plazas_disponibles'],
                 'afiliacion_iess' => $practica['afiliacion_iess'] ?? null,
-                'estado' => $_POST['estado'] ?? ($practica['estado'] ?? 'ACTIVA'),
+                'estado' => $estadoEditadoRaw,
                 'estado_actual' => $practica['estado'] ?? 'ACTIVA',
                 'fecha_fin_actual' => $practica['fecha_fin'] ?? null,
                 'observacion' => $_POST['observacion'] ?? ($practica['observacion'] ?? ''),

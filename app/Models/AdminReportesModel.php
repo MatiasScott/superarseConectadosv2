@@ -75,7 +75,11 @@ class AdminReportesModel extends Database
                         WHEN UPPER(TRIM(COALESCE(pe.estado, 'ACTIVA'))) IN ('CANCELADA', 'NO FINALIZADO') THEN 'NO FINALIZADO'
                         ELSE UPPER(TRIM(COALESCE(pe.estado, 'ACTIVA')))
                     END AS estado_practica,
-                    CASE WHEN pe.estado_fase_uno_completado = 1 THEN 'Fase 2' ELSE 'Fase 1' END AS fase,
+                    CASE
+                        WHEN pe.estado_fase_uno_completado = 2 THEN 'Práctica Finalizada'
+                        WHEN pe.estado_fase_uno_completado = 1 THEN 'Fase 2'
+                        ELSE 'Fase 1'
+                    END AS fase,
                     pe.fecha_registro,
                     pe.fecha_fin,
                     {$selectObservacion}
@@ -147,7 +151,11 @@ class AdminReportesModel extends Database
                         WHEN UPPER(TRIM(COALESCE(pe.estado, 'ACTIVA'))) IN ('CANCELADA', 'NO FINALIZADO') THEN 'NO FINALIZADO'
                         ELSE UPPER(TRIM(COALESCE(pe.estado, 'ACTIVA')))
                     END AS estado_practica,
-                    CASE WHEN pe.estado_fase_uno_completado = 1 THEN 'Fase 2' ELSE 'Fase 1' END AS fase,
+                    CASE
+                        WHEN pe.estado_fase_uno_completado = 2 THEN 'Práctica Finalizada'
+                        WHEN pe.estado_fase_uno_completado = 1 THEN 'Fase 2'
+                        ELSE 'Fase 1'
+                    END AS fase,
                     pe.fecha_registro,
                     pe.fecha_fin,
                     {$selectObservacion}
@@ -281,7 +289,11 @@ class AdminReportesModel extends Database
                     pe.id_practica,
                     pe.fecha_registro,
                     COALESCE(NULLIF(TRIM(pe.modalidad), ''), 'Sin modalidad') AS modalidad,
-                    CASE WHEN pe.estado_fase_uno_completado = 1 THEN 'Fase 2' ELSE 'Fase 1' END AS fase,
+                    CASE
+                        WHEN pe.estado_fase_uno_completado = 2 THEN 'Práctica Finalizada'
+                        WHEN pe.estado_fase_uno_completado = 1 THEN 'Fase 2'
+                        ELSE 'Fase 1'
+                    END AS fase,
                     COALESCE(NULLIF(TRIM(e.nombre_empresa), ''), 'Sin empresa') AS empresa,
                     COALESCE(NULLIF(TRIM(e.ruc), ''), 'N/A') AS ruc,
                     COALESCE(NULLIF(TRIM(u.numero_identificacion), ''), 'N/A') AS identificacion,

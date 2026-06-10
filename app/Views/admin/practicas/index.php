@@ -74,6 +74,7 @@
             <option value="">Todas las fases</option>
             <option value="0" <?= ($estado === "0") ? 'selected' : '' ?>>Fase 1</option>
             <option value="1" <?= ($estado === "1") ? 'selected' : '' ?>>Fase 2</option>
+            <option value="2" <?= ($estado === "2") ? 'selected' : '' ?>>Práctica Finalizada</option>
 
         </select>
 
@@ -136,7 +137,11 @@
                         </td>
 
                         <td class="px-6 py-4">
-                            <?php if ($p['estado_fase_uno_completado'] == 1): ?>
+                            <?php if ((int) $p['estado_fase_uno_completado'] === 2): ?>
+                                <span class="px-3 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-700">
+                                    Finalizada
+                                </span>
+                            <?php elseif ($p['estado_fase_uno_completado'] == 1): ?>
                                 <span class="px-3 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-700">
                                     Fase 2
                                 </span>
