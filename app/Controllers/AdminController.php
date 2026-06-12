@@ -4552,7 +4552,7 @@ class AdminController
         $estrategias = $db->query("SELECT id, nombre, objetivo_estrategico_id FROM estrategias ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
         $sedes = $db->query("SELECT id, nombre FROM sedes ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
         $procesos = $db->query("SELECT id, nombre FROM procesos ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
-        $metasPedi = $this->obtenerMetasPediPorEstrategia($db);
+        /*$metasPedi = $this->obtenerMetasPediPorEstrategia($db);*/
 
         $cronograma = $this->actividadModel->obtenerCronogramaPorActividad((int) $id);
         $meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -4565,7 +4565,7 @@ class AdminController
             'estrategias' => $estrategias,
             'sedes' => $sedes,
             'procesos' => $procesos,
-            'metasPedi' => $metasPedi,
+            /*'metasPedi' => $metasPedi,*/
             'poas' => [],
             'cronograma' => $cronograma,
             'meses' => $meses,

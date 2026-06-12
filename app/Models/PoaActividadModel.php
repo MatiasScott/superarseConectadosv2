@@ -40,7 +40,7 @@ class PoaActividadModel extends Database
                     a.descripcion, a.descripcion AS observacion_actividad,
                     a.laboratorio,
                     a.meta,
-                    COALESCE(NULLIF(TRIM(a.meta), ''), CAST(ml.porcentaje_esperado AS CHAR), pm.meta_texto) AS meta_pedi,
+                    COALESCE(NULLIF(TRIM(a.meta), ''), CAST(ml.porcentaje_esperado AS CHAR)) AS meta_pedi,
                     a.presupuesto_asignado, a.presupuesto_asignado AS presupuesto_planificado,
                     a.presupuesto_ejecutado,
                     a.avance_actividad, a.avance_actividad AS avance_ejecutado,
@@ -53,8 +53,8 @@ class PoaActividadModel extends Database
                     obj.nombre AS objetivo_estrategico,
                     est.nombre AS objetivo_estrategia,
                     COALESCE(NULLIF(TRIM(a.observaciones), ''), '') AS observaciones_avance,
-                    COALESCE(ml.porcentaje_esperado, pm.porcentaje) AS meta_pedi_pct,
-                    COALESCE(ml.anio, ptab.anio_planificacion) AS anio_meta_pedi,
+                    ml.porcentaje_esperado AS meta_pedi_pct,
+                    ptab.anio_planificacion AS anio_meta_pedi,
                     est.nombre AS estrategia_meta_pedi,
                     proc.nombre_area,
                     COALESCE(cr.ene_pct, 0) AS ene_pct,
@@ -85,26 +85,6 @@ class PoaActividadModel extends Database
                     FROM metas_linea_base
                     GROUP BY linea_base_id, anio
                 ) ml ON ml.linea_base_id = lb.linea_base_id AND ml.anio = ptab.anio_planificacion
-                LEFT JOIN (
-                    SELECT
-                        m.eje_id,
-                        SUBSTRING_INDEX(GROUP_CONCAT(m.meta_texto ORDER BY m.anio DESC SEPARATOR '||'), '||', 1) AS meta_texto,
-                        CAST(SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(m.porcentaje, 0) ORDER BY m.anio DESC SEPARATOR ','), ',', 1) AS DECIMAL(10,2)) AS porcentaje
-                    FROM (
-                        SELECT pm.eje_id, pm.anio, pm.meta_texto, pm.porcentaje
-                        FROM pedi_metas pm
-                        WHERE pm.eje_id IS NOT NULL
-
-                        UNION ALL
-
-                        SELECT e.id AS eje_id, pm.anio, pm.meta_texto, pm.porcentaje
-                        FROM pedi_metas pm
-                        INNER JOIN pedi p ON pm.pedi_id = p.id_pedi
-                        INNER JOIN ejes_estrategicos e ON e.nombre = p.eje
-                        WHERE pm.eje_id IS NULL
-                    ) m
-                    GROUP BY m.eje_id
-                ) pm ON pm.eje_id = eje.id
                 LEFT JOIN (
                     SELECT pp.poa_id, GROUP_CONCAT(p2.nombre SEPARATOR ', ') AS nombre_area
                     FROM poa_procesos pp
@@ -153,7 +133,7 @@ class PoaActividadModel extends Database
                     a.descripcion, a.descripcion AS observacion_actividad,
                     a.laboratorio,
                     a.meta,
-                    COALESCE(NULLIF(TRIM(a.meta), ''), CAST(ml.porcentaje_esperado AS CHAR), pm.meta_texto) AS meta_pedi,
+                    COALESCE(NULLIF(TRIM(a.meta), ''), CAST(ml.porcentaje_esperado AS CHAR)) AS meta_pedi,
                     a.presupuesto_asignado, a.presupuesto_asignado AS presupuesto_planificado,
                     a.presupuesto_ejecutado,
                     a.avance_actividad, a.avance_actividad AS avance_ejecutado,
@@ -166,8 +146,8 @@ class PoaActividadModel extends Database
                     obj.nombre AS objetivo_estrategico,
                     est.nombre AS objetivo_estrategia,
                     COALESCE(NULLIF(TRIM(a.observaciones), ''), '') AS observaciones_avance,
-                    COALESCE(ml.porcentaje_esperado, pm.porcentaje) AS meta_pedi_pct,
-                    COALESCE(ml.anio, ptab.anio_planificacion) AS anio_meta_pedi,
+                    ml.porcentaje_esperado AS meta_pedi_pct,
+                    ptab.anio_planificacion AS anio_meta_pedi,
                     est.nombre AS estrategia_meta_pedi,
                     proc.nombre_area,
                     COALESCE(cr.ene_pct, 0) AS ene_pct,
@@ -198,26 +178,6 @@ class PoaActividadModel extends Database
                     FROM metas_linea_base
                     GROUP BY linea_base_id, anio
                 ) ml ON ml.linea_base_id = lb.linea_base_id AND ml.anio = ptab.anio_planificacion
-                LEFT JOIN (
-                    SELECT
-                        m.eje_id,
-                        SUBSTRING_INDEX(GROUP_CONCAT(m.meta_texto ORDER BY m.anio DESC SEPARATOR '||'), '||', 1) AS meta_texto,
-                        CAST(SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(m.porcentaje, 0) ORDER BY m.anio DESC SEPARATOR ','), ',', 1) AS DECIMAL(10,2)) AS porcentaje
-                    FROM (
-                        SELECT pm.eje_id, pm.anio, pm.meta_texto, pm.porcentaje
-                        FROM pedi_metas pm
-                        WHERE pm.eje_id IS NOT NULL
-
-                        UNION ALL
-
-                        SELECT e.id AS eje_id, pm.anio, pm.meta_texto, pm.porcentaje
-                        FROM pedi_metas pm
-                        INNER JOIN pedi p ON pm.pedi_id = p.id_pedi
-                        INNER JOIN ejes_estrategicos e ON e.nombre = p.eje
-                        WHERE pm.eje_id IS NULL
-                    ) m
-                    GROUP BY m.eje_id
-                ) pm ON pm.eje_id = eje.id
                 LEFT JOIN (
                     SELECT pp.poa_id, GROUP_CONCAT(p2.nombre SEPARATOR ', ') AS nombre_area
                     FROM poa_procesos pp
@@ -259,7 +219,81 @@ class PoaActividadModel extends Database
     {
         $db = $this->getConnection();
 
+        // Consulta con JOINs reales pero sin las tablas potencialmente ausentes
+        // en producción (cronogramas, lineas_base, metas_linea_base, pedi_metas).
         $query = "SELECT
+                    a.id,
+                    a.id AS id_actividad,
+                    a.poa_id,
+                    COALESCE(a.tipo_registro, '') AS tipo_registro,
+                    COALESCE(a.nombre, '') AS nombre,
+                    COALESCE(a.nombre, '') AS nombre_actividad,
+                    COALESCE(a.descripcion, '') AS descripcion,
+                    COALESCE(a.descripcion, '') AS observacion_actividad,
+                    COALESCE(a.laboratorio, '') AS laboratorio,
+                    COALESCE(a.meta, '') AS meta,
+                    COALESCE(a.meta, '') AS meta_pedi,
+                    COALESCE(a.presupuesto_asignado, 0) AS presupuesto_asignado,
+                    COALESCE(a.presupuesto_asignado, 0) AS presupuesto_planificado,
+                    COALESCE(a.presupuesto_ejecutado, 0) AS presupuesto_ejecutado,
+                    COALESCE(a.avance_actividad, 0) AS avance_actividad,
+                    COALESCE(a.avance_actividad, 0) AS avance_ejecutado,
+                    COALESCE(a.estado, 0) AS estado_tinyint,
+                    COALESCE(a.observaciones, '') AS observaciones,
+                    CASE WHEN COALESCE(a.estado, 0) = 1 THEN 'activo' ELSE 'inactivo' END AS estado,
+                    COALESCE(s.nombre, '') AS nombre_sede,
+                    COALESCE(s.nombre, '') AS sede,
+                    COALESCE(eje.nombre, '') AS eje,
+                    COALESCE(obj.nombre, '') AS objetivo_estrategico,
+                    COALESCE(est.nombre, '') AS objetivo_estrategia,
+                    COALESCE(a.observaciones, '') AS observaciones_avance,
+                    NULL AS meta_pedi_pct,
+                    ptab.anio_planificacion AS anio_meta_pedi,
+                    COALESCE(est.nombre, '') AS estrategia_meta_pedi,
+                    COALESCE(proc.nombre_area, '') AS nombre_area,
+                    0 AS ene_pct,
+                    0 AS feb_pct,
+                    0 AS mar_pct,
+                    0 AS abr_pct,
+                    0 AS may_pct,
+                    0 AS jun_pct,
+                    0 AS jul_pct,
+                    0 AS ago_pct,
+                    0 AS sep_pct,
+                    0 AS oct_pct,
+                    0 AS nov_pct,
+                    0 AS dic_pct
+                FROM " . $this->table_name . " a
+                INNER JOIN poa ptab ON ptab.id = a.poa_id
+                LEFT JOIN sedes s ON s.id = ptab.sede_id
+                LEFT JOIN estrategias est ON est.id = ptab.estrategia_id
+                LEFT JOIN objetivos_estrategicos obj ON obj.id = est.objetivo_estrategico_id
+                LEFT JOIN ejes_estrategicos eje ON eje.id = obj.eje_id
+                LEFT JOIN (
+                    SELECT pp.poa_id, GROUP_CONCAT(p2.nombre SEPARATOR ', ') AS nombre_area
+                    FROM poa_procesos pp
+                    INNER JOIN procesos p2 ON p2.id = pp.proceso_id
+                    GROUP BY pp.poa_id
+                ) proc ON proc.poa_id = a.poa_id";
+
+        $params = [];
+        if ($poaId !== null) {
+            $query .= " WHERE a.poa_id = ?";
+            $params[] = (int) $poaId;
+        }
+
+        $query .= " ORDER BY a.id DESC";
+
+        try {
+            $stmt = $db->prepare($query);
+            $stmt->execute($params);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log('PoaActividadModel::obtenerFallbackSimplificado falló: ' . $e->getMessage());
+        }
+
+        // Último recurso: solo poa_actividades sin ningún join
+        $minQuery = "SELECT
                     a.id,
                     a.id AS id_actividad,
                     a.poa_id,
@@ -279,41 +313,23 @@ class PoaActividadModel extends Database
                     COALESCE(a.estado, 0) AS estado_tinyint,
                     COALESCE(a.observaciones, '') AS observaciones,
                     CASE WHEN COALESCE(a.estado, 0) = 1 THEN 'activo' ELSE 'inactivo' END AS estado,
-                    '' AS nombre_sede,
-                    '' AS sede,
-                    '' AS eje,
-                    '' AS objetivo_estrategico,
-                    '' AS objetivo_estrategia,
+                    '' AS nombre_sede, '' AS sede, '' AS eje,
+                    '' AS objetivo_estrategico, '' AS objetivo_estrategia,
                     COALESCE(a.observaciones, '') AS observaciones_avance,
-                    NULL AS meta_pedi_pct,
-                    NULL AS anio_meta_pedi,
-                    '' AS estrategia_meta_pedi,
+                    NULL AS meta_pedi_pct, NULL AS anio_meta_pedi, '' AS estrategia_meta_pedi,
                     '' AS nombre_area,
-                    0 AS ene_pct,
-                    0 AS feb_pct,
-                    0 AS mar_pct,
-                    0 AS abr_pct,
-                    0 AS may_pct,
-                    0 AS jun_pct,
-                    0 AS jul_pct,
-                    0 AS ago_pct,
-                    0 AS sep_pct,
-                    0 AS oct_pct,
-                    0 AS nov_pct,
-                    0 AS dic_pct
+                    0 AS ene_pct, 0 AS feb_pct, 0 AS mar_pct, 0 AS abr_pct,
+                    0 AS may_pct, 0 AS jun_pct, 0 AS jul_pct, 0 AS ago_pct,
+                    0 AS sep_pct, 0 AS oct_pct, 0 AS nov_pct, 0 AS dic_pct
                 FROM " . $this->table_name . " a";
 
-        $params = [];
         if ($poaId !== null) {
-            $query .= " WHERE a.poa_id = ?";
-            $params[] = (int) $poaId;
+            $minQuery .= " WHERE a.poa_id = ?";
         }
+        $minQuery .= " ORDER BY a.id DESC";
 
-        $query .= " ORDER BY a.id DESC";
-
-        $stmt = $db->prepare($query);
+        $stmt = $db->prepare($minQuery);
         $stmt->execute($params);
-
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
