@@ -4077,7 +4077,14 @@ class AdminController
             exit();
         }
 
-        $pedi = $this->pediModel->obtenerTodos() ?? [];
+        $pedi = [];
+        try {
+            $pedi = $this->pediModel->obtenerTodos() ?? [];
+        } catch (Throwable $e) {
+            error_log('AdminController::pediIndex error: ' . $e->getMessage());
+            $_SESSION['error'] = 'No fue posible cargar PEDI. Revise la configuración de base de datos en producción.';
+        }
+
         $canCreatePedi = $this->hasPermission('pedi', 'create');
         $canEditPedi = $this->hasPermission('pedi', 'edit');
         $canDeletePedi = $this->hasPermission('pedi', 'delete');
@@ -4098,7 +4105,14 @@ class AdminController
             exit();
         }
 
-        $poa = $this->actividadModel->obtenerTodos() ?? [];
+        $poa = [];
+        try {
+            $poa = $this->actividadModel->obtenerTodos() ?? [];
+        } catch (Throwable $e) {
+            error_log('AdminController::poaIndex error: ' . $e->getMessage());
+            $_SESSION['error'] = 'No fue posible cargar POA. Revise la configuración de base de datos en producción.';
+        }
+
         $canCreatePoa = $this->hasPermission('poa', 'create');
         $canEditPoa = $this->hasPermission('poa', 'edit');
         $canDeletePoa = $this->hasPermission('poa', 'delete');
