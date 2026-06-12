@@ -4493,7 +4493,7 @@ class AdminController
         $estrategias = $db->query("SELECT id, nombre, objetivo_estrategico_id FROM estrategias ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
         $sedes = $db->query("SELECT id, nombre FROM sedes ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
         $procesos = $db->query("SELECT id, nombre FROM procesos ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
-        $metasPedi = $this->obtenerMetasPediPorEstrategia($db);
+        /*$metasPedi = $this->obtenerMetasPediPorEstrategia($db);*/
         $poas = $this->poaModel->obtenerTodos();
         $meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
@@ -4526,7 +4526,7 @@ class AdminController
             'estrategias' => $estrategias,
             'sedes' => $sedes,
             'procesos' => $procesos,
-            'metasPedi' => $metasPedi,
+            /*'metasPedi' => $metasPedi,*/
             'poas' => $poas,
             'cronograma' => [],
             'meses' => $meses,
@@ -4572,7 +4572,7 @@ class AdminController
         ]);
     }
 
-    private function obtenerMetasPediPorEstrategia(PDO $db): array
+    /*private function obtenerMetasPediPorEstrategia(PDO $db): array
     {
         $anioActual = (int) date('Y');
         $fallbackSql = "SELECT
@@ -4665,7 +4665,7 @@ class AdminController
         }
 
         return $map;
-    }
+    }*/
 
     public function crearPedi()
     {

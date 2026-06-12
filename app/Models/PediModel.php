@@ -74,9 +74,62 @@ class PediModel extends Database
                 GROUP BY e.id, oe.id, es.id
                 ORDER BY e.nombre, oe.nombre, es.nombre";
 
-        $stmt = $db->prepare($query);
-        $stmt->execute();
+        try {
+            $stmt = $db->prepare($query);
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log('PediModel::obtenerTodos consulta extendida no disponible: ' . $e->getMessage());
+        }
 
+        $legacyQuery = "SELECT
+                            eje,
+                            objetivo_estrategico,
+                            objetivo_estrategia,
+                            COALESCE(estado, 'activo') AS estado,
+                            COALESCE(linea_base, '') AS linea_base,
+                            COALESCE(meta_2024, '') AS meta_2024,
+                            NULL AS meta_2024_pct,
+                            COALESCE(meta_2025, '') AS meta_2025,
+                            NULL AS meta_2025_pct,
+                            COALESCE(meta_2026, '') AS meta_2026,
+                            NULL AS meta_2026_pct,
+                            COALESCE(meta_2027, '') AS meta_2027,
+                            NULL AS meta_2027_pct,
+                            COALESCE(meta_2028, '') AS meta_2028,
+                            NULL AS meta_2028_pct
+                        FROM " . $this->table_name . "
+                        ORDER BY id_pedi DESC";
+
+        try {
+            $stmt = $db->prepare($legacyQuery);
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log('PediModel::obtenerTodos fallback legacy falló: ' . $e->getMessage());
+        }
+
+        $minimumQuery = "SELECT
+                            '' AS eje,
+                            '' AS objetivo_estrategico,
+                            '' AS objetivo_estrategia,
+                            'activo' AS estado,
+                            '' AS linea_base,
+                            '' AS meta_2024,
+                            NULL AS meta_2024_pct,
+                            '' AS meta_2025,
+                            NULL AS meta_2025_pct,
+                            '' AS meta_2026,
+                            NULL AS meta_2026_pct,
+                            '' AS meta_2027,
+                            NULL AS meta_2027_pct,
+                            '' AS meta_2028,
+                            NULL AS meta_2028_pct
+                        FROM " . $this->table_name . "
+                        LIMIT 0";
+
+        $stmt = $db->prepare($minimumQuery);
+        $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 

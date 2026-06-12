@@ -130,10 +130,15 @@ class PoaActividadModel extends Database
                 ) cr ON cr.poa_actividad_id = a.id
                 ORDER BY a.id DESC";
 
-        $stmt = $db->prepare($query);
-        $stmt->execute();
+        try {
+            $stmt = $db->prepare($query);
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log('PoaActividadModel::obtenerTodos consulta extendida no disponible: ' . $e->getMessage());
+        }
 
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        return $this->obtenerFallbackSimplificado();
     }
 
     public function obtenerPorPoaId($poaId)
@@ -239,8 +244,75 @@ class PoaActividadModel extends Database
                 WHERE a.poa_id = ?
                 ORDER BY a.id DESC";
 
+        try {
+            $stmt = $db->prepare($query);
+            $stmt->execute([(int) $poaId]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log('PoaActividadModel::obtenerPorPoaId consulta extendida no disponible: ' . $e->getMessage());
+        }
+
+        return $this->obtenerFallbackSimplificado((int) $poaId);
+    }
+
+    private function obtenerFallbackSimplificado($poaId = null)
+    {
+        $db = $this->getConnection();
+
+        $query = "SELECT
+                    a.id,
+                    a.id AS id_actividad,
+                    a.poa_id,
+                    '' AS tipo_registro,
+                    COALESCE(a.nombre, '') AS nombre,
+                    COALESCE(a.nombre, '') AS nombre_actividad,
+                    COALESCE(a.descripcion, '') AS descripcion,
+                    COALESCE(a.descripcion, '') AS observacion_actividad,
+                    '' AS laboratorio,
+                    COALESCE(a.meta, '') AS meta,
+                    COALESCE(a.meta, '') AS meta_pedi,
+                    COALESCE(a.presupuesto_asignado, 0) AS presupuesto_asignado,
+                    COALESCE(a.presupuesto_asignado, 0) AS presupuesto_planificado,
+                    0 AS presupuesto_ejecutado,
+                    0 AS avance_actividad,
+                    0 AS avance_ejecutado,
+                    COALESCE(a.estado, 0) AS estado_tinyint,
+                    COALESCE(a.observaciones, '') AS observaciones,
+                    CASE WHEN COALESCE(a.estado, 0) = 1 THEN 'activo' ELSE 'inactivo' END AS estado,
+                    '' AS nombre_sede,
+                    '' AS sede,
+                    '' AS eje,
+                    '' AS objetivo_estrategico,
+                    '' AS objetivo_estrategia,
+                    COALESCE(a.observaciones, '') AS observaciones_avance,
+                    NULL AS meta_pedi_pct,
+                    NULL AS anio_meta_pedi,
+                    '' AS estrategia_meta_pedi,
+                    '' AS nombre_area,
+                    0 AS ene_pct,
+                    0 AS feb_pct,
+                    0 AS mar_pct,
+                    0 AS abr_pct,
+                    0 AS may_pct,
+                    0 AS jun_pct,
+                    0 AS jul_pct,
+                    0 AS ago_pct,
+                    0 AS sep_pct,
+                    0 AS oct_pct,
+                    0 AS nov_pct,
+                    0 AS dic_pct
+                FROM " . $this->table_name . " a";
+
+        $params = [];
+        if ($poaId !== null) {
+            $query .= " WHERE a.poa_id = ?";
+            $params[] = (int) $poaId;
+        }
+
+        $query .= " ORDER BY a.id DESC";
+
         $stmt = $db->prepare($query);
-        $stmt->execute([(int) $poaId]);
+        $stmt->execute($params);
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
