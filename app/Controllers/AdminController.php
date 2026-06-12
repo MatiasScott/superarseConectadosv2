@@ -48,12 +48,8 @@ class AdminController
             session_start();
         }
 
-        // Configurar basePath según el entorno
-        if (isset($_SERVER['HTTP_HOST']) && strpos($_SERVER['HTTP_HOST'], 'superarse.ec') !== false) {
-            $this->basePath = '';
-        } else {
-            $this->basePath = '/superarseConectadosv2-master1/public';
-        }
+        $detectedBasePath = rtrim(dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '')), '/');
+        $this->basePath = ($detectedBasePath === '' || $detectedBasePath === '.') ? '' : $detectedBasePath;
 
         $this->pasantiaModel = new PasantiaModel();
         $this->userModel = new UserModel();

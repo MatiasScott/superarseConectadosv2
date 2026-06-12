@@ -39,12 +39,8 @@ if (!isset($estudiante) || !isset($practica)) {
 
 // Si no hay basePath definido, establecer por defecto
 if (!isset($basePath)) {
-    // Configurar basePath según el entorno
-    if (isset($_SERVER['HTTP_HOST']) && strpos($_SERVER['HTTP_HOST'], 'superarse.ec') !== false) {
-        $basePath = '';
-    } else {
-        $basePath = '/superarseconectadosv2/public';
-    }
+    $detectedBasePath = rtrim(dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '')), '/');
+    $basePath = ($detectedBasePath === '' || $detectedBasePath === '.') ? '' : $detectedBasePath;
 }
 
 // Preparar datos del estudiante

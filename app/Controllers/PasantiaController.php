@@ -16,12 +16,8 @@ class PasantiaController
 
     public function __construct()
     {
-        // Configurar basePath según el entorno
-        if (isset($_SERVER['HTTP_HOST']) && strpos($_SERVER['HTTP_HOST'], 'superarse.ec') !== false) {
-            $this->basePath = '';
-        } else {
-            $this->basePath = '/superarseConectadosv2-master1/public';
-        }
+        $detectedBasePath = rtrim(dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '')), '/');
+        $this->basePath = ($detectedBasePath === '' || $detectedBasePath === '.') ? '' : $detectedBasePath;
 
         $this->pasantiaModel = new PasantiaModel();
         $this->userModel = new UserModel();
@@ -1233,11 +1229,7 @@ class PasantiaController
     {
         extract($data);
 
-        if (isset($_SERVER['HTTP_HOST']) && strpos($_SERVER['HTTP_HOST'], 'superarse.ec') !== false) {
-            $basePath = '';
-        } else {
-            $basePath = '/superarseConectadosv2-master1/public';
-        }
+        $basePath = $this->basePath;
 
         $nombreCompleto = $_SESSION['nombres_completos'] ?? 'Administrador';
 

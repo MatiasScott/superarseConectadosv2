@@ -1,5 +1,9 @@
 <div class="flex flex-col items-center justify-center bg-white border border-gray-200 rounded-lg shadow-sm p-8 mt-8 mb-8 text-base" style="font-size: 80%;">
-    <?php $basePath = $data['basePath'] ?? ($basePath ?? '/superarseconectadosv2/public'); ?>
+    <?php
+    $detectedBasePath = rtrim(dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '')), '/');
+    $detectedBasePath = ($detectedBasePath === '' || $detectedBasePath === '.') ? '' : $detectedBasePath;
+    $basePath = $data['basePath'] ?? ($basePath ?? $detectedBasePath);
+    ?>
     <h2 class="text-xl font-bold text-center text-indigo-800 mb-2">Plan de Aprendizaje</h2>
     <p class="text-center text-gray-600 mb-4">
         Para ingresar al plan de aprendizaje, haz clic en el siguiente enlace. Serás redirigido al PDF.

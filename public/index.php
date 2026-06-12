@@ -46,11 +46,8 @@ if (session_status() == PHP_SESSION_NONE) {
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $uri = rtrim($uri, '/');
 
-if (isset($_SERVER['HTTP_HOST']) && strpos($_SERVER['HTTP_HOST'], 'superarse.ec') !== false) {
-    $basePath = '';
-} else {
-    $basePath = '/superarseConectadosv2-master1/public';
-}
+$detectedBasePath = rtrim(dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '')), '/');
+$basePath = ($detectedBasePath === '' || $detectedBasePath === '.') ? '' : $detectedBasePath;
 
 /* Quitar basePath de la URI */
 if ($basePath !== '' && strpos($uri, $basePath) === 0) {

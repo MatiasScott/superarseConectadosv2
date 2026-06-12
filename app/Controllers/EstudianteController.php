@@ -15,12 +15,8 @@ class EstudianteController
 
     public function __construct()
     {
-        // Configurar basePath según el entorno
-        if (isset($_SERVER['HTTP_HOST']) && strpos($_SERVER['HTTP_HOST'], 'superarse.ec') !== false) {
-            $this->basePath = '';
-        } else {
-            $this->basePath = '/superarseConectadosv2-master1/public';
-        }
+        $detectedBasePath = rtrim(dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '')), '/');
+        $this->basePath = ($detectedBasePath === '' || $detectedBasePath === '.') ? '' : $detectedBasePath;
 
         if (session_status() == PHP_SESSION_NONE) {
             session_start();

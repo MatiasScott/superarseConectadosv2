@@ -2,7 +2,11 @@
 <html lang="es">
 
 <?php
-$basePath = $basePath ?? '/superarseconectadosv2/public';
+$detectedBasePath = rtrim(dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '')), '/');
+if ($detectedBasePath === '' || $detectedBasePath === '.') {
+    $detectedBasePath = '';
+}
+$basePath = $basePath ?? $detectedBasePath;
 $title = $title ?? 'Superarse Conectados';
 $moduleCss = $moduleCss ?? [];
 $moduleJs = $moduleJs ?? [];
