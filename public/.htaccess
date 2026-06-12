@@ -1,5 +1,5 @@
 RewriteEngine On
-RewriteBase /superarseconectadosv2/public/
+RewriteBase /superarseConectadosv2-master1/public/
 
 # Si el archivo o directorio no existe, redirige todo a index.php
 RewriteCond %{REQUEST_FILENAME} !-f

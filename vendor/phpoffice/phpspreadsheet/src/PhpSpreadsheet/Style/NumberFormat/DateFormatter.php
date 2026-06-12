@@ -133,7 +133,7 @@ class DateFormatter
 
         // OpenOffice.org uses upper-case number formats, e.g. 'YYYY', convert to lower-case;
         //    but we don't want to change any quoted strings
-        $format = Preg::replaceCallback('/(?:^|")([^"]*)(?:$|")/', self::setLowerCaseCallback(...), $format);
+        $format = Preg::replaceCallback('/(?:^|")([^"]*)(?:$|")/', [self::class, 'setLowerCaseCallback'], $format);
 
         // Only process the non-quoted blocks for date format characters
 
@@ -161,7 +161,7 @@ class DateFormatter
         $format = implode('"', $blocks);
 
         // escape any quoted characters so that DateTime format() will render them correctly
-        $format = Preg::replaceCallback('/"(.*)"/U', self::escapeQuotesCallback(...), $format);
+        $format = Preg::replaceCallback('/"(.*)"/U', [self::class, 'escapeQuotesCallback'], $format);
 
         try {
             $dateObj = Date::excelToDateTimeObject($value);

@@ -161,7 +161,11 @@ class PoaModel extends Database
             if (!empty($data['procesos_ids']) && is_array($data['procesos_ids'])) {
                 $insertProceso = $db->prepare("INSERT INTO poa_procesos (poa_id, proceso_id) VALUES (?, ?)");
                 foreach ($data['procesos_ids'] as $procesoId) {
-                    $insertProceso->execute([$poaId, (int) $procesoId]);
+                    $procesoId = (int) $procesoId;
+                    if ($procesoId <= 0) {
+                        continue;
+                    }
+                    $insertProceso->execute([$poaId, $procesoId]);
                 }
             }
 
@@ -206,7 +210,11 @@ class PoaModel extends Database
             if (!empty($data['procesos_ids']) && is_array($data['procesos_ids'])) {
                 $insertStmt = $db->prepare("INSERT INTO poa_procesos (poa_id, proceso_id) VALUES (?, ?)");
                 foreach ($data['procesos_ids'] as $procesoId) {
-                    $insertStmt->execute([(int) $id, (int) $procesoId]);
+                    $procesoId = (int) $procesoId;
+                    if ($procesoId <= 0) {
+                        continue;
+                    }
+                    $insertStmt->execute([(int) $id, $procesoId]);
                 }
             }
 

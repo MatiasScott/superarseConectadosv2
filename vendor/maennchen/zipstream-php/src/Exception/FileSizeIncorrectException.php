@@ -15,8 +15,8 @@ class FileSizeIncorrectException extends Exception
      * @internal
      */
     public function __construct(
-        public readonly int $expectedSize,
-        public readonly int $actualSize
+        public int $expectedSize,
+        public int $actualSize
     ) {
         parent::__construct("File is {$actualSize} instead of {$expectedSize} bytes large. Adjust `exactSize` parameter.");
     }

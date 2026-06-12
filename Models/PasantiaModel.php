@@ -1,0 +1,2154 @@
+<?php
+require_once __DIR__ . '/Database.php';
+class PasantiaModel extends Database
+{
+    private $db;
+    private ?bool $hasObservacionColumn = null;
+
+    public function __construct()
+    {
+        $this->db = $this->getConnection();
+        $this->db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    }
+
+    private function practicaTieneObservacionColumn(): bool
+    {
+        if ($this->hasObservacionColumn !== null) {
+            return $this->hasObservacionColumn;
+        }
+
+        try {
+            $stmt = $this->db->query("SHOW COLUMNS FROM practicas_estudiantes LIKE 'observacion'");
+            $this->hasObservacionColumn = (bool) $stmt->fetch(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            $this->hasObservacionColumn = false;
+        }
+
+        return $this->hasObservacionColumn;
+    }
+    public function getActiveDocentes()
+    {
+        $query = "SELECT id_docente, nombre_completo, estado FROM docentes WHERE estado = 'Activo' ORDER BY nombre_completo ASC";
+        try {
+            $stmt = $this->db->query($query);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log("Error al obtener docentes: " . $e->getMessage());
+            return [];
+        }
+    }
+    public function getActivePracticaByUserId(int $userId)
+    {
+        $selectObservacion = $this->practicaTieneObservacionColumn()
+            ? "pe.observacion,"
+            : "'' AS observacion,";
+
+        $query = "SELECT
+            pe.id_practica,
+            pe.modalidad,
+            pe.proyecto_id,
+            pe.estado_fase_uno_completado,
+            pe.afiliacion_iess,
+            pe.estado,
+            pe.fecha_fin,
+            {$selectObservacion}
+            ent.ruc,
+            pmod.id_practica_modalidad,
+            ent.nombre_empresa,
+            ent.razon_social,
+            ent.persona_contacto,
+            ent.telefono_contacto,
+            ent.email_contacto,
+            ent.direccion,
+            ent.plazas_disponibles,
+            tutemp.nombre_completo,
+            tutemp.cedula,
+            tutemp.funcion,
+            tutemp.email,
+            tutemp.telefono,
+            tutemp.departamento
+        FROM
+            practicas_estudiantes pe
+        INNER JOIN practica_modalidad pmod ON pmod.modalidad = pe.modalidad
+        INNER JOIN entidades ent ON ent.id_entidad = pe.entidad_id
+        LEFT JOIN tutores_empresariales tutemp ON tutemp.id_tutor_empresa = pe.tutor_empresarial_id
+        WHERE user_id = :userId
+        ORDER BY pe.id_practica DESC
+        LIMIT 1";
+        $stmt = $this->db->prepare($query);
+        $stmt->execute([':userId' => $userId]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    public function getPracticaById(int $practicaId)
+    {
+        $selectObservacion = $this->practicaTieneObservacionColumn()
+            ? "pe.observacion,"
+            : "'' AS observacion,";
+
+        $query = "SELECT
+            pe.id_practica,
+            pe.modalidad,
+            pe.estado_fase_uno_completado,
+            pe.afiliacion_iess,
+            pe.user_id,
+            pe.docente_asignado_id,
+            pe.entidad_id,
+            pe.tutor_empresarial_id,
+            pe.fecha_registro,
+            pe.estado,
+            pe.fecha_fin,
+            {$selectObservacion}
+            ent.ruc,
+            ent.nombre_empresa,
+            ent.id_entidad,
+            pmod.id_practica_modalidad,
+            ent.nombre_empresa AS entidad_nombre_empresa,
+            ent.razon_social,
+            ent.persona_contacto,
+            ent.telefono_contacto,
+            ent.email_contacto,
+            ent.direccion,
+            ent.plazas_disponibles,
+            tutemp.nombre_completo AS tutor_emp_nombre_completo,
+            tutemp.cedula AS tutor_emp_cedula,
+            tutemp.funcion AS tutor_emp_funcion,
+            tutemp.email AS tutor_emp_email,
+            tutemp.telefono AS tutor_emp_telefono,
+            tutemp.departamento AS tutor_emp_departamento,
+            tutemp.id_tutor_empresa,
+            doc.nombre_completo AS docente_nombre,
+            p.descripcion AS proyecto_descripcion,
+            p.carreras AS proyecto_carreras,
+            p.lugar AS proyecto_lugar,
+            u.codigo_matricula,
+            u.numero_identificacion,
+            u.programa,
+            CONCAT(u.primer_nombre, ' ', IFNULL(u.segundo_nombre, ''), ' ', u.primer_apellido, ' ', u.segundo_apellido) AS estudiante_nombre
+        FROM
+            practicas_estudiantes pe
+        INNER JOIN practica_modalidad pmod ON pmod.modalidad = pe.modalidad
+        INNER JOIN entidades ent ON ent.id_entidad = pe.entidad_id
+        LEFT JOIN tutores_empresariales tutemp ON tutemp.id_tutor_empresa = pe.tutor_empresarial_id
+        LEFT JOIN docentes doc ON doc.id_docente = pe.docente_asignado_id
+        LEFT JOIN proyectos p ON p.id = pe.proyecto_id
+        INNER JOIN users u ON u.id = pe.user_id
+        WHERE pe.id_practica = :practicaId LIMIT 1";
+        try {
+            $stmt = $this->db->prepare($query);
+            $stmt->execute([':practicaId' => $practicaId]);
+            return $stmt->fetch(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log("Error al obtener práctica por ID: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    private function getTutorAcademicoId(string $programa): ?int
+    {
+        $query = "SELECT docentes.id_docente FROM docentes INNER JOIN programas ON programas.id = docentes.id_programa WHERE programas.programa = :programa LIMIT 1";
+        try {
+            $stmt = $this->db->prepare($query);
+            $stmt->execute([':programa' => $programa]);
+            $tutor = $stmt->fetch(PDO::FETCH_ASSOC);
+            return $tutor ? (int)$tutor['id_docente'] : null;
+        } catch (PDOException $e) {
+            error_log("Error al obtener el Id del Tutor: " . $e->getMessage());
+            return null;
+        }
+    }
+    public function savePasantiaPhaseOne(array $data)
+    {
+        if (empty($data['user_id']) || empty($data['programa']) || empty($data['modalidad']) || empty($data['entidad_ruc'])) {
+            error_log("Datos incompletos para Fase 1.");
+            return false;
+        }
+
+        $this->db->beginTransaction();
+
+        try {
+            $user_id = $data['user_id'];
+            $programa = $data['programa'];
+
+            $docente_asignado_id = $this->getTutorAcademicoId($programa);
+            if (!$docente_asignado_id) {
+                throw new Exception("No se pudo asignar un docente para la carrera: " . $programa);
+            }
+            $entidad_id = null;
+            $stmt = $this->db->prepare("SELECT id_entidad FROM entidades WHERE ruc = :ruc");
+            $stmt->execute([':ruc' => $data['entidad_ruc']]);
+            $existing_entidad = $stmt->fetch();
+
+            $entidad_data = [
+                ':nombre_empresa' => $data['entidad_nombre_empresa'] ?? 'N/A',
+                ':ruc' => $data['entidad_ruc'],
+                ':razon_social' => $data['entidad_razon_social'] ?? null,
+                ':persona_contacto' => $data['entidad_persona_contacto'] ?? null,
+                ':telefono_contacto' => $data['entidad_telefono_contacto'] ?? null,
+                ':email_contacto' => $data['entidad_email_contacto'] ?? null,
+                ':direccion' => $data['entidad_direccion'] ?? null,
+                ':id_programa' => $data['id_programa'] ?? null
+            ];
+
+            if ($existing_entidad) {
+                $entidad_id = $existing_entidad['id_entidad'];
+                $update_query = "UPDATE entidades 
+                SET nombre_empresa = :nombre_empresa, razon_social = :razon_social, persona_contacto = :persona_contacto, 
+                    telefono_contacto = :telefono_contacto, email_contacto = :email_contacto, direccion = :direccion 
+                WHERE id_entidad = :id_entidad";
+
+                $update_data = [
+                    ':nombre_empresa' => $entidad_data[':nombre_empresa'],
+                    ':razon_social' => $entidad_data[':razon_social'],
+                    ':persona_contacto' => $entidad_data[':persona_contacto'],
+                    ':telefono_contacto' => $entidad_data[':telefono_contacto'],
+                    ':email_contacto' => $entidad_data[':email_contacto'],
+                    ':id_entidad' => $entidad_id,
+                    ':direccion' => $entidad_data[':direccion']
+                ];
+
+                $stmt = $this->db->prepare($update_query);
+                $stmt->execute($update_data);
+            } else {
+                $insert_query = "INSERT INTO entidades 
+                (nombre_empresa, ruc, razon_social, persona_contacto, telefono_contacto, email_contacto, direccion, id_programa)
+                VALUES (:nombre_empresa, :ruc, :razon_social, :persona_contacto, :telefono_contacto, :email_contacto, :direccion, :id_programa)";
+                $stmt = $this->db->prepare($insert_query);
+                $stmt->execute($entidad_data);
+                $entidad_id = $this->db->lastInsertId();
+            }
+
+            $tutor_emp_id = null;
+
+            $tutor_data = [
+                ':cedula' => trim($data['tutor_emp_cedula'] ?? ''),
+                ':nombre_completo' => trim($data['tutor_emp_nombre_completo'] ?? ''),
+                ':funcion' => trim($data['tutor_emp_funcion'] ?? ''),
+                ':telefono' => trim($data['tutor_emp_telefono'] ?? ''),
+                ':email' => trim($data['tutor_emp_email'] ?? ''),
+                ':departamento' => trim($data['tutor_emp_departamento'] ?? ''),
+            ];
+
+            $allEmpty = empty($tutor_data[':cedula'])
+                && empty($tutor_data[':nombre_completo'])
+                && empty($tutor_data[':funcion'])
+                && empty($tutor_data[':telefono'])
+                && empty($tutor_data[':email'])
+                && empty($tutor_data[':departamento']);
+
+            if (!$allEmpty) {
+                $stmt = $this->db->prepare("SELECT id_tutor_empresa FROM tutores_empresariales WHERE cedula = :cedula");
+                $stmt->execute([':cedula' => $tutor_data[':cedula']]);
+                $existing_tutor = $stmt->fetch();
+
+                if ($existing_tutor) {
+                    $tutor_emp_id = $existing_tutor['id_tutor_empresa'];
+                    $update_query = "UPDATE tutores_empresariales 
+                    SET nombre_completo = :nombre_completo, funcion = :funcion, telefono = :telefono, 
+                        email = :email, departamento = :departamento 
+                    WHERE id_tutor_empresa = :id_tutor_empresa";
+
+                    $update_data = [
+                        ':nombre_completo' => $tutor_data[':nombre_completo'] ?: 'N/A',
+                        ':funcion' => $tutor_data[':funcion'] ?: null,
+                        ':telefono' => $tutor_data[':telefono'] ?: null,
+                        ':email' => $tutor_data[':email'] ?: null,
+                        ':departamento' => $tutor_data[':departamento'] ?: null,
+                        ':id_tutor_empresa' => $tutor_emp_id,
+                    ];
+
+                    $stmt = $this->db->prepare($update_query);
+                    $stmt->execute($update_data);
+                } else {
+                    $insert_query = "INSERT INTO tutores_empresariales 
+                    (cedula, nombre_completo, funcion, telefono, email, departamento)
+                    VALUES (:cedula, :nombre_completo, :funcion, :telefono, :email, :departamento)";
+                    $stmt = $this->db->prepare($insert_query);
+                    $stmt->execute($tutor_data);
+                    $tutor_emp_id = $this->db->lastInsertId();
+                }
+            }
+
+            $insert_practica_query = "
+            INSERT INTO practicas_estudiantes (
+                user_id, modalidad, docente_asignado_id, entidad_id, tutor_empresarial_id, 
+                estado_fase_uno_completado, fecha_registro, proyecto_id, afiliacion_iess
+            ) VALUES (
+                :user_id, :modalidad, :docente_asignado_id, :entidad_id, :tutor_empresarial_id, 
+                :estado_fase_uno_completado, :fecha_registro, :proyecto_id, :afiliacion_iess
+            )
+        ";
+
+            $stmt = $this->db->prepare($insert_practica_query);
+            $stmt->execute([
+                ':user_id' => $user_id,
+                ':modalidad' => $data['modalidad'],
+                ':docente_asignado_id' => $docente_asignado_id,
+                ':entidad_id' => $entidad_id,
+                ':tutor_empresarial_id' => $tutor_emp_id ?? null,
+                ':estado_fase_uno_completado' => 0,
+                ':fecha_registro' => date('Y-m-d H:i:s'),
+                ':proyecto_id' => $data['idProyecto'] ?? null,
+                ':afiliacion_iess' => $data['afiliacion_iees'] ?? null
+            ]);
+
+            $practica_id = $this->db->lastInsertId();
+            $this->db->commit();
+
+            return (int)$practica_id;
+        } catch (Exception $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            error_log("Error al guardar Pasantia Fase 1: " . $e->getMessage() . " Linea: " . $e->getLine());
+            return $e->getMessage();
+        }
+    }
+    public function getProgramaTrabajo(int $practicaId, int $limit = 100, int $offset = 0)
+    {
+        $query = "SELECT * FROM programa_trabajo 
+              WHERE practica_id = :practica_id 
+              ORDER BY fecha_planificada ASC 
+              LIMIT :limit OFFSET :offset";
+        try {
+            $stmt = $this->db->prepare($query);
+            $stmt->bindValue(':practica_id', $practicaId, PDO::PARAM_INT);
+            $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+            $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log("Error al obtener Plan de Aprendizaje: " . $e->getMessage());
+            return [];
+        }
+    }
+    public function addProgramaTrabajo(array $data)
+    {
+        $query = "
+            INSERT INTO programa_trabajo (practica_id, actividad_planificada, departamento_area, funcion_asignada, fecha_planificada)
+            VALUES (:practica_id, :actividad_planificada, :departamento_area, :funcion_asignada, :fecha_planificada)
+        ";
+        try {
+            $stmt = $this->db->prepare($query);
+            return $stmt->execute([
+                ':practica_id' => $data['practica_id'],
+                ':actividad_planificada' => $data['actividad_planificada'],
+                ':departamento_area' => $data['departamento_area'] ?? null,
+                ':funcion_asignada' => $data['funcion_asignada'] ?? null,
+                ':fecha_planificada' => $data['fecha_planificada']
+            ]);
+        } catch (PDOException $e) {
+            error_log("Error al insertar Plan de Aprendizaje: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function upsertPlanAprendizajeResumen(int $practicaId, array $data): bool
+    {
+        $actividadPlanificada = trim((string) ($data['actividad_planificada'] ?? ''));
+        $departamentoArea = trim((string) ($data['departamento_area'] ?? ''));
+        $funcionAsignada = trim((string) ($data['funcion_asignada'] ?? ''));
+        $fechaPlanificada = trim((string) ($data['fecha_planificada'] ?? ''));
+
+        if ($actividadPlanificada === '' || $fechaPlanificada === '') {
+            return false;
+        }
+
+        try {
+            $queryFind = "SELECT id_programa
+                          FROM programa_trabajo
+                          WHERE practica_id = :practica_id
+                            AND actividad_planificada LIKE :marker
+                          ORDER BY id_programa DESC
+                          LIMIT 1";
+
+            $stmtFind = $this->db->prepare($queryFind);
+            $stmtFind->execute([
+                ':practica_id' => $practicaId,
+                ':marker' => 'PLAN APRENDIZAJE:%'
+            ]);
+
+            $existingId = $stmtFind->fetchColumn();
+
+            if ($existingId) {
+                $queryUpdate = "UPDATE programa_trabajo
+                                SET actividad_planificada = :actividad_planificada,
+                                    departamento_area = :departamento_area,
+                                    funcion_asignada = :funcion_asignada,
+                                    fecha_planificada = :fecha_planificada
+                                WHERE id_programa = :id_programa";
+
+                $stmtUpdate = $this->db->prepare($queryUpdate);
+                return $stmtUpdate->execute([
+                    ':actividad_planificada' => $actividadPlanificada,
+                    ':departamento_area' => $departamentoArea !== '' ? $departamentoArea : null,
+                    ':funcion_asignada' => $funcionAsignada !== '' ? $funcionAsignada : null,
+                    ':fecha_planificada' => $fechaPlanificada,
+                    ':id_programa' => (int) $existingId,
+                ]);
+            }
+
+            $queryInsert = "INSERT INTO programa_trabajo
+                            (practica_id, actividad_planificada, departamento_area, funcion_asignada, fecha_planificada)
+                            VALUES (:practica_id, :actividad_planificada, :departamento_area, :funcion_asignada, :fecha_planificada)";
+
+            $stmtInsert = $this->db->prepare($queryInsert);
+            return $stmtInsert->execute([
+                ':practica_id' => $practicaId,
+                ':actividad_planificada' => $actividadPlanificada,
+                ':departamento_area' => $departamentoArea !== '' ? $departamentoArea : null,
+                ':funcion_asignada' => $funcionAsignada !== '' ? $funcionAsignada : null,
+                ':fecha_planificada' => $fechaPlanificada,
+            ]);
+        } catch (PDOException $e) {
+            error_log("Error al guardar resumen de plan de aprendizaje: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Guarda o actualiza todos los campos del Plan de Aprendizaje en la tabla dedicada.
+     */
+    public function savePlanAprendizaje(int $practicaId, array $data): bool
+    {
+        $sql = "INSERT INTO plan_aprendizaje_datos
+                    (practica_id, apellidos_nombres, carrera, nivel, cedula, correo, telefono,
+                     nombre_empresa, ruc, tipo_entidad, actividad_economica, ubicacion, area_departamento,
+                     nombre_tutor_empresarial, telefono_tutor_empresarial, correo_tutor_empresarial, descripcion_empresa,
+                     periodo_academico, fecha_inicio, fecha_fin, horario, total_horas, modalidad,
+                     nombre_tutor_academico, correo_tutor_academico,
+                     ra1, ra2, ra3, ra4, ra5, ra6, ra7, ra8, ra9,
+                     signature_tutor_empresarial, signature_tutor_academico,
+                     nombre_firma_empresarial, nombre_firma_academico)
+                VALUES
+                    (:practica_id, :apellidos_nombres, :carrera, :nivel, :cedula, :correo, :telefono,
+                     :nombre_empresa, :ruc, :tipo_entidad, :actividad_economica, :ubicacion, :area_departamento,
+                     :nombre_tutor_empresarial, :telefono_tutor_empresarial, :correo_tutor_empresarial, :descripcion_empresa,
+                     :periodo_academico, :fecha_inicio, :fecha_fin, :horario, :total_horas, :modalidad,
+                     :nombre_tutor_academico, :correo_tutor_academico,
+                     :ra1, :ra2, :ra3, :ra4, :ra5, :ra6, :ra7, :ra8, :ra9,
+                     :signature_tutor_empresarial, :signature_tutor_academico,
+                     :nombre_firma_empresarial, :nombre_firma_academico)
+                ON DUPLICATE KEY UPDATE
+                    apellidos_nombres           = VALUES(apellidos_nombres),
+                    carrera                     = VALUES(carrera),
+                    nivel                       = VALUES(nivel),
+                    cedula                      = VALUES(cedula),
+                    correo                      = VALUES(correo),
+                    telefono                    = VALUES(telefono),
+                    nombre_empresa              = VALUES(nombre_empresa),
+                    ruc                         = VALUES(ruc),
+                    tipo_entidad                = VALUES(tipo_entidad),
+                    actividad_economica         = VALUES(actividad_economica),
+                    ubicacion                   = VALUES(ubicacion),
+                    area_departamento           = VALUES(area_departamento),
+                    nombre_tutor_empresarial    = VALUES(nombre_tutor_empresarial),
+                    telefono_tutor_empresarial  = VALUES(telefono_tutor_empresarial),
+                    correo_tutor_empresarial    = VALUES(correo_tutor_empresarial),
+                    descripcion_empresa         = VALUES(descripcion_empresa),
+                    periodo_academico           = VALUES(periodo_academico),
+                    fecha_inicio                = VALUES(fecha_inicio),
+                    fecha_fin                   = VALUES(fecha_fin),
+                    horario                     = VALUES(horario),
+                    total_horas                 = VALUES(total_horas),
+                    modalidad                   = VALUES(modalidad),
+                    nombre_tutor_academico      = VALUES(nombre_tutor_academico),
+                    correo_tutor_academico      = VALUES(correo_tutor_academico),
+                    ra1                         = VALUES(ra1),
+                    ra2                         = VALUES(ra2),
+                    ra3                         = VALUES(ra3),
+                    ra4                         = VALUES(ra4),
+                    ra5                         = VALUES(ra5),
+                    ra6                         = VALUES(ra6),
+                    ra7                         = VALUES(ra7),
+                    ra8                         = VALUES(ra8),
+                    ra9                         = VALUES(ra9),
+                    signature_tutor_empresarial = VALUES(signature_tutor_empresarial),
+                    signature_tutor_academico   = VALUES(signature_tutor_academico),
+                    nombre_firma_empresarial    = VALUES(nombre_firma_empresarial),
+                    nombre_firma_academico      = VALUES(nombre_firma_academico),
+                    updated_at                  = NOW()";
+
+        try {
+            $stmt = $this->db->prepare($sql);
+            return $stmt->execute([
+                ':practica_id'                  => $practicaId,
+                ':apellidos_nombres'            => trim((string) ($data['apellidos_nombres'] ?? '')),
+                ':carrera'                      => trim((string) ($data['carrera'] ?? '')),
+                ':nivel'                        => trim((string) ($data['nivel'] ?? '')),
+                ':cedula'                       => trim((string) ($data['cedula'] ?? '')),
+                ':correo'                       => trim((string) ($data['correo'] ?? '')),
+                ':telefono'                     => trim((string) ($data['telefono'] ?? '')),
+                ':nombre_empresa'               => trim((string) ($data['nombre_empresa'] ?? '')),
+                ':ruc'                          => trim((string) ($data['ruc'] ?? '')),
+                ':tipo_entidad'                 => trim((string) ($data['tipo_entidad'] ?? '')),
+                ':actividad_economica'          => trim((string) ($data['actividad_economica'] ?? '')),
+                ':ubicacion'                    => trim((string) ($data['ubicacion'] ?? '')),
+                ':area_departamento'            => trim((string) ($data['area_departamento'] ?? '')),
+                ':nombre_tutor_empresarial'     => trim((string) ($data['nombre_tutor_empresarial'] ?? '')),
+                ':telefono_tutor_empresarial'   => trim((string) ($data['telefono_tutor_empresarial'] ?? '')),
+                ':correo_tutor_empresarial'     => trim((string) ($data['correo_tutor_empresarial'] ?? '')),
+                ':descripcion_empresa'          => trim((string) ($data['descripcion_empresa'] ?? '')),
+                ':periodo_academico'            => trim((string) ($data['periodo_academico'] ?? '')),
+                ':fecha_inicio'                 => trim((string) ($data['fecha_inicio'] ?? '')),
+                ':fecha_fin'                    => trim((string) ($data['fecha_fin'] ?? '')),
+                ':horario'                      => trim((string) ($data['horario'] ?? '')),
+                ':total_horas'                  => trim((string) ($data['total_horas'] ?? '240')),
+                ':modalidad'                    => trim((string) ($data['modalidad'] ?? '')),
+                ':nombre_tutor_academico'       => trim((string) ($data['nombre_tutor_academico'] ?? '')),
+                ':correo_tutor_academico'       => trim((string) ($data['correo_tutor_academico'] ?? '')),
+                ':ra1'                          => !empty($data['ra1']) ? 1 : 0,
+                ':ra2'                          => !empty($data['ra2']) ? 1 : 0,
+                ':ra3'                          => !empty($data['ra3']) ? 1 : 0,
+                ':ra4'                          => !empty($data['ra4']) ? 1 : 0,
+                ':ra5'                          => !empty($data['ra5']) ? 1 : 0,
+                ':ra6'                          => !empty($data['ra6']) ? 1 : 0,
+                ':ra7'                          => !empty($data['ra7']) ? 1 : 0,
+                ':ra8'                          => !empty($data['ra8']) ? 1 : 0,
+                ':ra9'                          => !empty($data['ra9']) ? 1 : 0,
+                ':signature_tutor_empresarial'  => $data['signature_tutor_empresarial'] ?? null,
+                ':signature_tutor_academico'    => $data['signature_tutor_academico'] ?? null,
+                ':nombre_firma_empresarial'     => trim((string) ($data['nombre_firma_empresarial'] ?? '')),
+                ':nombre_firma_academico'       => trim((string) ($data['nombre_firma_academico'] ?? '')),
+            ]);
+        } catch (PDOException $e) {
+            error_log("Error al guardar plan de aprendizaje: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Obtiene los datos del Plan de Aprendizaje guardados para una práctica.
+     */
+    public function getPlanAprendizaje(int $practicaId): ?array
+    {
+        try {
+            $stmt = $this->db->prepare(
+                "SELECT * FROM plan_aprendizaje_datos WHERE practica_id = :practica_id LIMIT 1"
+            );
+            $stmt->execute([':practica_id' => $practicaId]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            return $row ?: null;
+        } catch (PDOException $e) {
+            error_log("Error al obtener plan de aprendizaje: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    public function updateProgramaTrabajo(array $data)
+    {
+        $query = "
+        UPDATE programa_trabajo 
+        SET actividad_planificada = :actividad_planificada,
+            departamento_area = :departamento_area,
+            funcion_asignada = :funcion_asignada,
+            fecha_planificada = :fecha_planificada
+        WHERE id_programa = :id
+    ";
+
+        try {
+            $stmt = $this->db->prepare($query);
+            return $stmt->execute([
+                ':actividad_planificada' => $data['actividad_planificada'],
+                ':departamento_area' => $data['departamento_area'] ?? null,
+                ':funcion_asignada' => $data['funcion_asignada'] ?? null,
+                ':fecha_planificada' => $data['fecha_planificada'],
+                ':id' => $data['id']
+            ]);
+        } catch (PDOException $e) {
+            error_log("Error al actualizar Plan de Aprendizaje: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function deleteProgramaTrabajo(int $id)
+    {
+        try {
+            // Primero, obtener los datos del plan ANTES de eliminarlo
+            $queryGet = "SELECT 
+                            pt.id_programa,
+                            pt.practica_id,
+                            pt.nombre_actividad,
+                            pt.horas,
+                            pt.fecha_inicio,
+                            pt.fecha_fin,
+                            CONCAT(u.primer_nombre, ' ', IFNULL(u.segundo_nombre, ''), ' ', u.primer_apellido, ' ', u.segundo_apellido) as estudiante_nombre,
+                            u.id as estudiante_id,
+                            u.programa as programa_descripcion,
+                            e.nombre_empresa
+                        FROM programa_trabajo pt
+                        INNER JOIN practicas_estudiantes ps ON ps.id_practica = pt.practica_id
+                        INNER JOIN users u ON u.id = ps.user_id
+                        INNER JOIN entidades e ON e.id_entidad = ps.entidad_id
+                        WHERE pt.id_programa = :id";
+
+            $stmtGet = $this->db->prepare($queryGet);
+            $stmtGet->execute([':id' => $id]);
+            $datosEliminado = $stmtGet->fetch(PDO::FETCH_ASSOC);
+
+            if ($datosEliminado) {
+                // Registrar en auditoría
+                $datosAuditoria = [
+                    'estudiante' => $datosEliminado['estudiante_nombre'] ?? 'N/A',
+                    'estudiante_id' => $datosEliminado['estudiante_id'] ?? null,
+                    'descripcion' => $datosEliminado['nombre_actividad'] ?? '',
+                    'empresa' => $datosEliminado['nombre_empresa'] ?? '',
+                    'horas' => $datosEliminado['horas'] ?? 0,
+                    'fecha_inicio' => $datosEliminado['fecha_inicio'] ?? null,
+                    'fecha_fin' => $datosEliminado['fecha_fin'] ?? null,
+                    'programa' => $datosEliminado['programa_descripcion'] ?? ''
+                ];
+
+                $this->registrarEliminacion('PLAN', $id, $datosAuditoria);
+            }
+
+            // Luego eliminar de la tabla
+            $query = "DELETE FROM programa_trabajo WHERE id_programa = :id";
+            $stmt = $this->db->prepare($query);
+            return $stmt->execute([':id' => $id]);
+        } catch (PDOException $e) {
+            error_log("Error al eliminar Plan de Aprendizaje: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function getTotalProgramaTrabajo(int $practicaId)
+    {
+        $query = "SELECT COUNT(*) as total FROM programa_trabajo WHERE practica_id = :practica_id";
+
+        try {
+            $stmt = $this->db->prepare($query);
+            $stmt->execute([':practica_id' => $practicaId]);
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            return $result['total'] ?? 0;
+        } catch (PDOException $e) {
+            error_log("Error al contar Plan de Aprendizaje: " . $e->getMessage());
+            return 0;
+        }
+    }
+    public function getActividadesDiarias(int $practicaId)
+    {
+        $query = "SELECT * FROM actividades_diarias WHERE practica_id = :practica_id ORDER BY fecha_actividad DESC";
+        try {
+            $stmt = $this->db->prepare($query);
+            $stmt->execute([':practica_id' => $practicaId]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log("Error al obtener Actividades Diarias: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    public function getActividadesDiariasPaginated(int $practicaId, int $offset, int $limit, ?string $search = null, string $sortBy = 'fecha_actividad', string $sortDir = 'DESC')
+    {
+        $allowedSort = ['fecha_actividad', 'horas_invertidas', 'actividad_realizada'];
+        if (!in_array($sortBy, $allowedSort)) {
+            $sortBy = 'fecha_actividad';
+        }
+        $sortDir = strtoupper($sortDir) === 'ASC' ? 'ASC' : 'DESC';
+
+        $sql = "SELECT * FROM actividades_diarias WHERE practica_id = :practica_id";
+        $params = [':practica_id' => $practicaId];
+
+        if ($search) {
+            $sql .= " AND (actividad_realizada LIKE :search OR observaciones LIKE :search OR fecha_actividad LIKE :search)";
+            $params[':search'] = '%' . $search . '%';
+        }
+
+        $sql .= " ORDER BY {$sortBy} {$sortDir} LIMIT :offset, :limit";
+
+        try {
+            $stmt = $this->db->prepare($sql);
+            // bind params
+            $stmt->bindValue(':practica_id', $practicaId, PDO::PARAM_INT);
+            if (isset($params[':search'])) {
+                $stmt->bindValue(':search', $params[':search'], PDO::PARAM_STR);
+            }
+            $stmt->bindValue(':offset', (int)$offset, PDO::PARAM_INT);
+            $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log("Error en paginación Actividades Diarias: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    public function countActividadesDiarias(int $practicaId, ?string $search = null)
+    {
+        $sql = "SELECT COUNT(*) as cnt FROM actividades_diarias WHERE practica_id = :practica_id";
+        $params = [':practica_id' => $practicaId];
+        if ($search) {
+            $sql .= " AND (actividad_realizada LIKE :search OR observaciones LIKE :search OR fecha_actividad LIKE :search)";
+            $params[':search'] = '%' . $search . '%';
+        }
+
+        try {
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute($params);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            return (int)($row['cnt'] ?? 0);
+        } catch (PDOException $e) {
+            error_log("Error al contar Actividades Diarias: " . $e->getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Cuenta actividades en una fecha específica (para validar duplicados)
+     */
+    public function countActividadesByDateAndPractica(int $practicaId, string $fecha, ?int $excluirId = null)
+    {
+        $sql = "SELECT COUNT(*) as cnt FROM actividades_diarias 
+                WHERE practica_id = :practica_id AND fecha_actividad = :fecha";
+        $params = [':practica_id' => $practicaId, ':fecha' => $fecha];
+
+        if ($excluirId !== null) {
+            $sql .= " AND id_actividad_diaria != :excluir_id";
+            $params[':excluir_id'] = $excluirId;
+        }
+
+        try {
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute($params);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            return (int)($row['cnt'] ?? 0);
+        } catch (PDOException $e) {
+            error_log("Error al contar actividades por fecha: " . $e->getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Calcula el total de horas invertidas para una práctica
+     */
+    public function getTotalHorasActividades(int $practicaId)
+    {
+        $sql = "SELECT SUM(horas_invertidas) as total FROM actividades_diarias 
+                WHERE practica_id = :practica_id";
+        try {
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([':practica_id' => $practicaId]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            return (float)($row['total'] ?? 0);
+        } catch (PDOException $e) {
+            error_log("Error al calcular total de horas: " . $e->getMessage());
+            return 0;
+        }
+    }
+
+    public function getActividadDiaria(int $id, int $practicaId)
+    {
+        $query = "SELECT * FROM actividades_diarias WHERE id = :id AND practica_id = :practica_id";
+        try {
+            $stmt = $this->db->prepare($query);
+            $stmt->execute([':id' => $id, ':practica_id' => $practicaId]);
+            return $stmt->fetch();
+        } catch (PDOException $e) {
+            error_log("Error al obtener Actividad Diaria: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    public function updateActividadDiaria(array $data)
+    {
+        if (empty($data['id']) || empty($data['practica_id'])) {
+            error_log("Validación fallida: Faltan id o practica_id para la actualización.");
+            return false;
+        }
+
+        $horas_invertidas = (float) $data['horas_invertidas'];
+        if ($horas_invertidas <= 0 || $horas_invertidas > 12.00) {
+            error_log("Validación fallida: Horas invertidas fuera de rango al actualizar.");
+            return false;
+        }
+
+        $query = "
+        UPDATE actividades_diarias 
+        SET 
+            actividad_realizada = :actividad_realizada,
+            horas_invertidas = :horas_invertidas,
+            fecha_actividad = :fecha_actividad,
+            hora_inicio = :hora_inicio,
+            hora_fin = :hora_fin
+        WHERE id_actividad_diaria = :id 
+          AND practica_id = :practica_id
+    ";
+
+        try {
+            $stmt = $this->db->prepare($query);
+            $resultado = $stmt->execute([
+                ':actividad_realizada' => $data['actividad_realizada'],
+                ':horas_invertidas'   => $data['horas_invertidas'],
+                ':fecha_actividad'    => $data['fecha_actividad'],
+                ':hora_inicio'        => $data['hora_inicio'],
+                ':hora_fin'           => $data['hora_fin'],
+                ':id'                 => $data['id'],
+                ':practica_id'        => $data['practica_id']
+            ]);
+
+            if ($resultado && $stmt->rowCount() === 0) {
+                error_log("ADVERTENCIA: No se actualizó ningún registro (ID: {$data['id']}, Práctica: {$data['practica_id']})");
+            }
+
+            return $resultado;
+        } catch (PDOException $e) {
+            error_log("Error al actualizar Actividad Diaria: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function deleteActividadDiaria(int $id, int $practicaId)
+    {
+        try {
+            // Primero, obtener los datos de la actividad ANTES de eliminarla
+            $queryGet = "SELECT 
+                            ad.id_actividad_diaria,
+                            ad.actividad_realizada,
+                            ad.horas_invertidas,
+                            ad.fecha_actividad,
+                            CONCAT(u.primer_nombre, ' ', IFNULL(u.segundo_nombre, ''), ' ', u.primer_apellido, ' ', u.segundo_apellido) as estudiante_nombre,
+                            u.id as estudiante_id,
+                            u.programa as programa_descripcion,
+                            e.nombre_empresa
+                        FROM actividades_diarias ad
+                        INNER JOIN practicas_estudiantes ps ON ps.id_practica = ad.practica_id
+                        INNER JOIN users u ON u.id = ps.user_id
+                        INNER JOIN entidades e ON e.id_entidad = ps.entidad_id
+                        WHERE ad.id_actividad_diaria = :id AND ad.practica_id = :practica_id";
+
+            $stmtGet = $this->db->prepare($queryGet);
+            $stmtGet->execute([':id' => $id, ':practica_id' => $practicaId]);
+            $datosEliminado = $stmtGet->fetch(PDO::FETCH_ASSOC);
+
+            if ($datosEliminado) {
+                // Registrar en auditoría
+                $datosAuditoria = [
+                    'estudiante' => $datosEliminado['estudiante_nombre'] ?? 'N/A',
+                    'estudiante_id' => $datosEliminado['estudiante_id'] ?? null,
+                    'descripcion' => $datosEliminado['actividad_realizada'] ?? '',
+                    'empresa' => $datosEliminado['nombre_empresa'] ?? '',
+                    'horas' => $datosEliminado['horas_invertidas'] ?? 0,
+                    'fecha_inicio' => $datosEliminado['fecha_actividad'] ?? null,
+                    'fecha_fin' => $datosEliminado['fecha_actividad'] ?? null,
+                    'programa' => $datosEliminado['programa_descripcion'] ?? ''
+                ];
+
+                $this->registrarEliminacion('ACTIVIDAD', $id, $datosAuditoria);
+            }
+
+            // Luego eliminar de la tabla
+            $query = "DELETE FROM actividades_diarias WHERE id_actividad_diaria = :id AND practica_id = :practica_id";
+            $stmt = $this->db->prepare($query);
+            return $stmt->execute([
+                ':id' => $id,
+                ':practica_id' => $practicaId
+            ]);
+        } catch (PDOException $e) {
+            error_log("Error al eliminar Actividad Diaria: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function addActividadDiaria(array $data)
+    {
+        $horas_invertidas = (float) $data['horas_invertidas'];
+        if ($horas_invertidas <= 0 || $horas_invertidas > 12.00) {
+            error_log("Validación fallida: Horas invertidas fuera del rango permitido.");
+            return false;
+        }
+
+        $query = "
+        INSERT INTO actividades_diarias (
+            practica_id, 
+            actividad_realizada, 
+            horas_invertidas, 
+            fecha_actividad, 
+            hora_inicio, 
+            hora_fin
+        ) VALUES (
+            :practica_id, 
+            :actividad_realizada, 
+            :horas_invertidas, 
+            :fecha_actividad, 
+            :hora_inicio, 
+            :hora_fin
+        )
+    ";
+
+        try {
+            $stmt = $this->db->prepare($query);
+            return $stmt->execute([
+                ':practica_id' => $data['practica_id'],
+                ':actividad_realizada' => $data['actividad_realizada'],
+                ':horas_invertidas' => $data['horas_invertidas'],
+                ':fecha_actividad' => $data['fecha_actividad'],
+                ':hora_inicio' => $data['hora_inicio'],
+                ':hora_fin' => $data['hora_fin']
+            ]);
+        } catch (PDOException $e) {
+            error_log("Error al insertar Actividad Diaria: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function getEntidadByRUC($ruc, $idPrograma)
+    {
+        try {
+            $normalizedRuc = preg_replace('/\D+/', '', (string) $ruc);
+            $normalizedPrograma = is_numeric($idPrograma) ? (int) $idPrograma : null;
+
+            if ($normalizedRuc === '') {
+                return null;
+            }
+
+            $entidad = null;
+
+            if ($normalizedPrograma !== null && $normalizedPrograma > 0) {
+                $stmt = $this->db->prepare(" 
+            SELECT entidades.*, te.*
+            FROM entidades
+            LEFT JOIN tutores_empresariales te ON entidades.id_tutor_empresarial = te.id_tutor_empresa
+            WHERE REPLACE(REPLACE(REPLACE(entidades.ruc, '-', ''), ' ', ''), '.', '') = :ruc
+              AND entidades.id_programa = :idPrograma
+            ORDER BY entidades.id_entidad DESC
+            LIMIT 1
+            ");
+                $stmt->execute([':ruc' => $normalizedRuc, ':idPrograma' => $normalizedPrograma]);
+                $entidad = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+            }
+
+            // Fallback: si no hay coincidencia por programa, buscar por RUC en general.
+            if (!$entidad) {
+                $stmt = $this->db->prepare(" 
+            SELECT entidades.*, te.*
+            FROM entidades
+            LEFT JOIN tutores_empresariales te ON entidades.id_tutor_empresarial = te.id_tutor_empresa
+            WHERE REPLACE(REPLACE(REPLACE(entidades.ruc, '-', ''), ' ', ''), '.', '') = :ruc
+            ORDER BY entidades.id_entidad DESC
+            LIMIT 1
+            ");
+                $stmt->execute([':ruc' => $normalizedRuc]);
+                $entidad = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+            }
+
+            return $entidad ?: null;
+        } catch (Exception $e) {
+            error_log("Error al buscar entidad por RUC: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    public function getProyectos()
+    {
+        try {
+            $stmt = $this->db->prepare("SELECT * FROM proyectos");
+            $stmt->execute();
+            $entidad = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            return $entidad ?: null;
+        } catch (Exception $e) {
+            error_log("Error al buscar entidad por RUC: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    public function getPracticaModalidad()
+    {
+        try {
+            $stmt = $this->db->prepare("
+            SELECT * FROM practica_modalidad 
+            WHERE estado = 'Activo'
+            ");
+            $stmt->execute();
+            $modalidades = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            return $modalidades ?: null;
+        } catch (Exception $e) {
+            error_log("Error al buscar las modalidades: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    public function getStatusPracticaByUserId(int $userId)
+    {
+        $selectObservacion = $this->practicaTieneObservacionColumn()
+            ? "COALESCE(NULLIF(TRIM(pe.observacion), ''), '') AS observacion"
+            : "'' AS observacion";
+
+        $query = "SELECT
+	pe.estado_fase_uno_completado,
+        COALESCE(NULLIF(TRIM(pe.estado), ''), 'ACTIVA') AS estado,
+        {$selectObservacion}
+    FROM
+	practicas_estudiantes pe 
+    WHERE user_id = :userId
+    ORDER BY pe.id_practica DESC
+    LIMIT 1";
+        $stmt = $this->db->prepare($query);
+        $stmt->execute([':userId' => $userId]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    public function marcarFaseUnoComoCompletada($idPractica)
+    {
+        $query = "UPDATE practicas_estudiantes
+              SET estado_fase_uno_completado = 1
+              WHERE id_practica = :id";
+
+        $db = $this->getConnection();
+        $stmt = $db->prepare($query);
+
+        try {
+            $stmt->execute([':id' => $idPractica]);
+            return $stmt->rowCount();
+        } catch (PDOException $e) {
+            error_log("Error de SQL en PracticasModel: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function obtenerDatosPracticaEstudiante($id_practica)
+    {
+        $sql = "SELECT * FROM practicas_estudiantes WHERE id_practica = :id_practica";
+
+        try {
+            $stmt = $this->db->prepare($sql);
+            $stmt->bindParam(':id_practica', $id_practica, PDO::PARAM_INT);
+            $stmt->execute();
+            return $stmt->fetch(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Obtiene toda la información necesaria para el PDF de una práctica específica.
+     * Usa la consulta unificada proporcionada por el usuario.
+     * @param int $id_practica El ID de la práctica (pe.id_practica)
+     * @return array|null Un array con todos los datos o null si no se encuentra.
+     */
+    public function getPracticeFullData(int $id_practica): ?array
+    {
+        // Esta consulta unifica datos de Práctica, Entidad, Tutor Empresarial y Usuario (Estudiante)
+        $queryPractice = "SELECT
+        u.codigo_matricula, 
+        CONCAT(u.primer_nombre, ' ', u.segundo_nombre, ' ', u.primer_apellido, ' ',u.segundo_apellido) as 'nombre_completo',
+        u.numero_identificacion, u.usuario, u.nivel, u.programa, u.periodo,
+        pe.id_practica, pe.modalidad, pe.estado_fase_uno_completado, pe.afiliacion_iess,
+        pe.docente_asignado_id, pe.proyecto_id, pe.user_id,
+        ent.ruc, pmod.id_practica_modalidad,
+        ent.nombre_empresa, ent.razon_social, ent.persona_contacto, ent.telefono_contacto, ent.email_contacto,
+        ent.direccion, ent.plazas_disponibles,
+        tutemp.nombre_completo AS tutor_emp_nombre_completo, tutemp.cedula, tutemp.funcion,
+        tutemp.email AS tutor_emp_email, tutemp.telefono AS tutor_emp_telefono, tutemp.departamento,
+        doc.nombre_completo AS docente_nombre, doc.email AS docente_email
+        FROM
+            practicas_estudiantes pe
+        INNER JOIN practica_modalidad pmod ON pmod.modalidad = pe.modalidad
+        INNER JOIN entidades ent ON ent.id_entidad = pe.entidad_id
+        INNER JOIN users u on pe.user_id = u.id
+        LEFT JOIN tutores_empresariales tutemp ON tutemp.id_tutor_empresa = pe.tutor_empresarial_id
+        LEFT JOIN docentes doc on pe.docente_asignado_id = doc.id_docente
+        WHERE pe.id_practica = :id_practica";
+
+        $stmt = $this->db->prepare($queryPractice);
+        $stmt->execute([':id_practica' => $id_practica]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$result) {
+            return null; // No hay práctica con ese ID
+        }
+
+        // --- AGREGAR Y REESTRUCTURAR LA DATA PARA LA VISTA ---
+        // Reestructuramos el resultado plano de la consulta en un array $data
+        // que se asemeje a la estructura que usa tu vista original (tab_pasantias.php).
+
+        $data = [];
+
+        // 1. Datos de la Práctica y Entidad
+        $data['infoPractica'] = [
+            'id_practica' => $result['id_practica'],
+            'modalidad' => $result['modalidad'],
+            'estado_fase_uno_completado' => $result['estado_fase_uno_completado'],
+            'afiliacion_iess' => $result['afiliacion_iess'],
+            'ruc' => $result['ruc'],
+            'nombre_empresa' => $result['nombre_empresa'],
+            'razon_social' => $result['razon_social'],
+            'persona_contacto' => $result['persona_contacto'],
+            'telefono_contacto' => $result['telefono_contacto'],
+            'email_contacto' => $result['email_contacto'],
+            'direccion' => $result['direccion'],
+            'plazas_disponibles' => $result['plazas_disponibles'],
+            // ... otros campos que necesites de la práctica ...
+        ];
+
+        // 2. Datos Personales del Estudiante
+        $data['infoPersonal'] = [
+            'codigo_matricula' => $result['codigo_matricula'],
+            'numero_identificacion' => $result['numero_identificacion'],
+            'usuario' => $result['usuario'],
+            'nivel' => $result['nivel'],
+            'programa' => $result['programa'],
+            'periodo' => $result['periodo'],
+            'nombre_completo' => $result['nombre_completo'], // Usamos el alias de la consulta
+            // ...
+        ];
+        $data['nombreCompleto'] = $result['nombre_completo'];
+
+        // 3. Datos del Tutor Empresarial
+        $data['tutoresEmpresariales'] = [
+            [
+                'nombre_completo' => $result['tutor_emp_nombre_completo'],
+                'cedula' => $result['cedula'],
+                'funcion' => $result['funcion'],
+                'email' => $result['tutor_emp_email'],
+                'telefono' => $result['tutor_emp_telefono'],
+                'departamento' => $result['departamento'],
+            ]
+        ];
+        $data['cantidadTutores'] = 1; // Asumo 1 por la consulta LEFT JOIN
+
+        // 4. Datos del Tutor Académico (Docente Asignado)
+        // Se usa el nombre 'tutoresAcademicos' para seguir el patrón de tu vista
+        $data['tutoresAcademicos'] = [
+            [
+                'nombre_completo' => $result['docente_nombre'],
+                'email' => $result['docente_email']
+            ]
+        ];
+
+        // 5. Datos de Proyecto (Si aplica)
+        // Como tu consulta solo trae el ID del proyecto, necesitas un paso extra
+        // para obtener la descripción, carreras y lugar si es necesario para el PDF.
+        $data['infoProyectos'] = []; // Inicializamos vacío si no lo usas o lo agregas aquí.
+        if ($result['proyecto_id']) {
+            // Ejecuta otra consulta o un método para obtener detalles del proyecto
+            // $project_details = $this->getProjectDetails($result['proyecto_id']);
+            // $data['infoProyectos'] = [$project_details];
+        }
+
+        return $data;
+    }
+
+    public function getAllPasantias()
+    {
+        $query = "SELECT 
+            pe.id_practica,
+            pe.user_id,
+            pe.modalidad,
+            pe.docente_asignado_id,
+            pe.entidad_id,
+            pe.tutor_empresarial_id,
+            pe.estado_fase_uno_completado,
+            pe.fecha_registro,
+            pe.proyecto_id,
+            pe.afiliacion_iess,
+            CONCAT(u.primer_nombre, ' ', COALESCE(u.segundo_nombre, ''), ' ', u.primer_apellido, ' ', COALESCE(u.segundo_apellido, '')) as estudiante_nombre,
+            u.codigo_matricula,
+            u.numero_identificacion,
+            u.programa as nombre_carrera,
+            ent.nombre_empresa,
+            ent.razon_social,
+            doc.nombre_completo as docente_nombre,
+            tutemp.nombre_completo as tutor_empresarial_nombre
+        FROM practicas_estudiantes pe
+        INNER JOIN users u ON u.id = pe.user_id
+        INNER JOIN entidades ent ON ent.id_entidad = pe.entidad_id
+        LEFT JOIN docentes doc ON doc.id_docente = pe.docente_asignado_id
+        LEFT JOIN tutores_empresariales tutemp ON tutemp.id_tutor_empresa = pe.tutor_empresarial_id
+        ORDER BY pe.fecha_registro DESC";
+
+        try {
+            $stmt = $this->db->query($query);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log("Error al obtener todas las pasantías: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    public function buscarTutorPorCedula(string $cedula): ?array
+    {
+        $stmt = $this->db->prepare(
+            "SELECT id_tutor_empresa, cedula, nombre_completo, funcion, telefono, email, departamento
+             FROM tutores_empresariales WHERE cedula = :cedula LIMIT 1"
+        );
+        $stmt->execute([':cedula' => $cedula]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
+    public function actualizarPasantia($id_practica, $datos)
+    {
+        try {
+            $this->db->beginTransaction();
+
+            $estadoActual = strtoupper(trim((string) ($datos['estado_actual'] ?? 'ACTIVA')));
+            if ($estadoActual === 'CANCELADA') {
+                $estadoActual = 'NO FINALIZADO';
+            }
+            $nuevoEstado = strtoupper(trim((string) ($datos['estado'] ?? 'ACTIVA')));
+            if ($nuevoEstado === 'CANCELADA') {
+                $nuevoEstado = 'NO FINALIZADO';
+            }
+            $estadosPermitidos = ['ACTIVA', 'FINALIZADA', 'NO FINALIZADO'];
+            if (!in_array($nuevoEstado, $estadosPermitidos, true)) {
+                $nuevoEstado = 'ACTIVA';
+            }
+
+            $fechaFin = $datos['fecha_fin_actual'] ?? null;
+            if ($nuevoEstado === 'ACTIVA') {
+                $fechaFin = null;
+            } elseif ($nuevoEstado !== $estadoActual) {
+                // Si cambió a FINALIZADA/NO FINALIZADO, registrar fecha fin del día del cambio.
+                $fechaFin = date('Y-m-d');
+            }
+
+            $setObservacion = $this->practicaTieneObservacionColumn() ? ",\n                    observacion = :observacion" : "";
+
+            $queryPractica = "UPDATE practicas_estudiantes SET 
+                    estado_fase_uno_completado = :estado_fase_uno_completado,
+                    afiliacion_iess = :afiliacion_iess,
+                    estado = :estado,
+                    fecha_fin = :fecha_fin{$setObservacion}
+                    WHERE id_practica = :id_practica";
+            $stmtPractica = $this->db->prepare($queryPractica);
+            $paramsPractica = [
+                ':estado_fase_uno_completado' => (int) ($datos['estado_fase_uno_completado'] ?? 0),
+                ':afiliacion_iess' => trim((string) ($datos['afiliacion_iess'] ?? '')),
+                ':estado' => $nuevoEstado,
+                ':fecha_fin' => $fechaFin,
+                ':id_practica' => (int) $id_practica,
+            ];
+
+            if ($this->practicaTieneObservacionColumn()) {
+                $paramsPractica[':observacion'] = trim((string) ($datos['observacion'] ?? ''));
+            }
+
+            $stmtPractica->execute($paramsPractica);
+
+            if (!empty($datos['entidad_id'])) {
+                $queryEntidad = "UPDATE entidades SET
+                        nombre_empresa = :nombre_empresa,
+                        ruc = :ruc,
+                        razon_social = :razon_social,
+                        persona_contacto = :persona_contacto,
+                        telefono_contacto = :telefono_contacto,
+                        email_contacto = :email_contacto,
+                        direccion = :direccion,
+                        plazas_disponibles = :plazas_disponibles
+                    WHERE id_entidad = :id_entidad";
+
+                $stmtEntidad = $this->db->prepare($queryEntidad);
+                $stmtEntidad->execute([
+                    ':nombre_empresa' => trim((string) ($datos['entidad_nombre_empresa'] ?? '')),
+                    ':ruc' => trim((string) ($datos['entidad_ruc'] ?? '')),
+                    ':razon_social' => trim((string) ($datos['entidad_razon_social'] ?? '')),
+                    ':persona_contacto' => trim((string) ($datos['entidad_persona_contacto'] ?? '')),
+                    ':telefono_contacto' => trim((string) ($datos['entidad_telefono_contacto'] ?? '')),
+                    ':email_contacto' => trim((string) ($datos['entidad_email_contacto'] ?? '')),
+                    ':direccion' => trim((string) ($datos['entidad_direccion'] ?? '')),
+                    ':plazas_disponibles' => max(0, (int) ($datos['plazas_disponibles'] ?? 0)),
+                    ':id_entidad' => (int) $datos['entidad_id'],
+                ]);
+            }
+
+            // ── Cambio de tutor empresarial (buscar/crear y reasignar) ──────────────
+            if (!empty($datos['cambiar_tutor'])) {
+                $cedulaNueva = trim((string) ($datos['tutor_emp_cedula'] ?? ''));
+                if ($cedulaNueva !== '') {
+                    $tutorExistente = $this->buscarTutorPorCedula($cedulaNueva);
+                    if ($tutorExistente) {
+                        $nuevoTutorId = (int) $tutorExistente['id_tutor_empresa'];
+                        $stmtTutorUpd = $this->db->prepare(
+                            "UPDATE tutores_empresariales SET
+                                nombre_completo = :nombre_completo,
+                                funcion         = :funcion,
+                                telefono        = :telefono,
+                                email           = :email,
+                                departamento    = :departamento
+                            WHERE id_tutor_empresa = :id_tutor_empresa"
+                        );
+                        $stmtTutorUpd->execute([
+                            ':nombre_completo' => trim((string) ($datos['tutor_emp_nombre_completo'] ?? '')),
+                            ':funcion'         => trim((string) ($datos['tutor_emp_funcion'] ?? '')),
+                            ':telefono'        => trim((string) ($datos['tutor_emp_telefono'] ?? '')),
+                            ':email'           => trim((string) ($datos['tutor_emp_email'] ?? '')),
+                            ':departamento'    => trim((string) ($datos['tutor_emp_departamento'] ?? '')),
+                            ':id_tutor_empresa' => $nuevoTutorId,
+                        ]);
+                    } else {
+                        $stmtTutorIns = $this->db->prepare(
+                            "INSERT INTO tutores_empresariales
+                                (cedula, nombre_completo, funcion, telefono, email, departamento)
+                             VALUES
+                                (:cedula, :nombre_completo, :funcion, :telefono, :email, :departamento)"
+                        );
+                        $stmtTutorIns->execute([
+                            ':cedula'          => $cedulaNueva,
+                            ':nombre_completo' => trim((string) ($datos['tutor_emp_nombre_completo'] ?? '')),
+                            ':funcion'         => trim((string) ($datos['tutor_emp_funcion'] ?? '')),
+                            ':telefono'        => trim((string) ($datos['tutor_emp_telefono'] ?? '')),
+                            ':email'           => trim((string) ($datos['tutor_emp_email'] ?? '')),
+                            ':departamento'    => trim((string) ($datos['tutor_emp_departamento'] ?? '')),
+                        ]);
+                        $nuevoTutorId = (int) $this->db->lastInsertId();
+                    }
+
+                    // Reasignar tutor en la práctica
+                    $stmtReasignar = $this->db->prepare(
+                        "UPDATE practicas_estudiantes
+                         SET tutor_empresarial_id = :tid
+                         WHERE id_practica = :id_practica"
+                    );
+                    $stmtReasignar->execute([
+                        ':tid'         => $nuevoTutorId,
+                        ':id_practica' => (int) $id_practica,
+                    ]);
+                }
+            } elseif (!empty($datos['tutor_empresarial_id'])) {
+                // Edición in-place del tutor actual (sin cambio de tutor)
+                $queryTutor = "UPDATE tutores_empresariales SET
+                        nombre_completo = :nombre_completo,
+                        cedula          = :cedula,
+                        funcion         = :funcion,
+                        email           = :email,
+                        telefono        = :telefono,
+                        departamento    = :departamento
+                    WHERE id_tutor_empresa = :id_tutor_empresa";
+
+                $stmtTutor = $this->db->prepare($queryTutor);
+                $stmtTutor->execute([
+                    ':nombre_completo'  => trim((string) ($datos['tutor_emp_nombre_completo'] ?? '')),
+                    ':cedula'           => trim((string) ($datos['tutor_emp_cedula'] ?? '')),
+                    ':funcion'          => trim((string) ($datos['tutor_emp_funcion'] ?? '')),
+                    ':email'            => trim((string) ($datos['tutor_emp_email'] ?? '')),
+                    ':telefono'         => trim((string) ($datos['tutor_emp_telefono'] ?? '')),
+                    ':departamento'     => trim((string) ($datos['tutor_emp_departamento'] ?? '')),
+                    ':id_tutor_empresa' => (int) $datos['tutor_empresarial_id'],
+                ]);
+            }
+
+            $this->db->commit();
+            return true;
+        } catch (PDOException $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            error_log("Error al actualizar pasantía: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function getPlanesDeTrabajo($offset = 0, $limit = 100, $search = null, $sortBy = 'pt.fecha_planificada', $sortDir = 'DESC')
+    {
+        $allowedSort = ['pt.fecha_planificada', 'pt.actividad_planificada', 'u.primer_nombre', 'ps.modalidad'];
+        if (!in_array($sortBy, $allowedSort)) {
+            $sortBy = 'pt.fecha_planificada';
+        }
+        $sortDir = strtoupper($sortDir) === 'ASC' ? 'ASC' : 'DESC';
+
+        $sql = "SELECT 
+                    pt.id_programa as id_plan,
+                    pt.practica_id,
+                    pt.actividad_planificada,
+                    pt.departamento_area,
+                    pt.funcion_asignada,
+                    pt.fecha_planificada,
+                    CONCAT(u.primer_nombre, ' ', IFNULL(u.segundo_nombre, ''), ' ', u.primer_apellido, ' ', u.segundo_apellido) as estudiante_nombre,
+                    u.codigo_matricula,
+                    u.numero_identificacion,
+                    ps.modalidad,
+                    ps.fecha_registro as practica_fecha_registro,
+                    e.nombre_empresa,
+                    u.programa,
+                    'PLAN' as tipo_registro
+                FROM programa_trabajo pt
+                INNER JOIN practicas_estudiantes ps ON ps.id_practica = pt.practica_id
+                INNER JOIN users u ON u.id = ps.user_id
+                INNER JOIN entidades e ON e.id_entidad = ps.entidad_id";
+
+        $params = [];
+        if ($search) {
+            $sql .= " WHERE (u.primer_nombre LIKE :search OR u.primer_apellido LIKE :search OR pt.actividad_planificada LIKE :search OR u.codigo_matricula LIKE :search OR u.numero_identificacion LIKE :search)";
+            $params[':search'] = '%' . $search . '%';
+        }
+
+        $sql .= " ORDER BY {$sortBy} {$sortDir} LIMIT :offset, :limit";
+
+        try {
+            $stmt = $this->db->prepare($sql);
+            if (isset($params[':search'])) {
+                $stmt->bindValue(':search', $params[':search'], PDO::PARAM_STR);
+            }
+            $stmt->bindValue(':offset', (int)$offset, PDO::PARAM_INT);
+            $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log("Error en getPlanesDeTrabajo: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    public function countPlanesDeTrabajo($search = null)
+    {
+        $sql = "SELECT COUNT(*) as cnt FROM programa_trabajo pt
+                INNER JOIN practicas_estudiantes ps ON ps.id_practica = pt.practica_id
+                INNER JOIN users u ON u.id = ps.user_id
+                INNER JOIN entidades e ON e.id_entidad = ps.entidad_id";
+
+        $params = [];
+        if ($search) {
+            $sql .= " WHERE (u.primer_nombre LIKE :search OR u.primer_apellido LIKE :search OR pt.actividad_planificada LIKE :search OR u.codigo_matricula LIKE :search OR u.numero_identificacion LIKE :search)";
+            $params[':search'] = '%' . $search . '%';
+        }
+
+        try {
+            $stmt = $this->db->prepare($sql);
+            if (isset($params[':search'])) {
+                $stmt->bindValue(':search', $params[':search'], PDO::PARAM_STR);
+            }
+            $stmt->execute();
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            return (int)($row['cnt'] ?? 0);
+        } catch (PDOException $e) {
+            error_log("Error en countPlanesDeTrabajo: " . $e->getMessage());
+            return 0;
+        }
+    }
+
+    public function getAuditDataCombined($offset = 0, $limit = 100, $search = null, $sortBy = 'fecha', $sortDir = 'DESC')
+    {
+        $allowedSort = ['fecha', 'estudiante', 'empresa', 'modalidad'];
+        if (!in_array($sortBy, $allowedSort)) {
+            $sortBy = 'fecha';
+        }
+        $sortDir = strtoupper($sortDir) === 'ASC' ? 'ASC' : 'DESC';
+
+        try {
+            $combined = [];
+
+            // Query para actividades diarias
+            $sql_actividades = "
+                SELECT 
+                    ad.id_actividad_diaria as id,
+                    ad.practica_id,
+                    CONCAT(u.primer_nombre, ' ', IFNULL(u.segundo_nombre, ''), ' ', u.primer_apellido, ' ', u.segundo_apellido) as estudiante_nombre,
+                    u.codigo_matricula,
+                    u.numero_identificacion,
+                    ps.modalidad,
+                    ps.fecha_registro as practica_fecha_registro,
+                    e.nombre_empresa,
+                    u.programa,
+                    'ACTIVIDAD' as tipo_registro,
+                    ad.actividad_realizada as actividad,
+                    ad.horas_invertidas as horas,
+                    ad.fecha_actividad as fecha,
+                    ad.hora_inicio as hora_inicio,
+                    ad.hora_fin as hora_fin,
+                    NULL as departamento_area,
+                    NULL as funcion_asignada
+                FROM actividades_diarias ad
+                INNER JOIN practicas_estudiantes ps ON ps.id_practica = ad.practica_id
+                INNER JOIN users u ON u.id = ps.user_id
+                INNER JOIN entidades e ON e.id_entidad = ps.entidad_id
+            ";
+
+            if ($search) {
+                $sql_actividades .= " WHERE (u.primer_nombre LIKE ? OR u.primer_apellido LIKE ? OR ad.actividad_realizada LIKE ? OR u.codigo_matricula LIKE ? OR u.numero_identificacion LIKE ?)";
+            }
+
+            $stmt = $this->db->prepare($sql_actividades);
+            if ($search) {
+                $search_term = '%' . $search . '%';
+                $stmt->bindValue(1, $search_term, PDO::PARAM_STR);
+                $stmt->bindValue(2, $search_term, PDO::PARAM_STR);
+                $stmt->bindValue(3, $search_term, PDO::PARAM_STR);
+                $stmt->bindValue(4, $search_term, PDO::PARAM_STR);
+                $stmt->bindValue(5, $search_term, PDO::PARAM_STR);
+            }
+            $stmt->execute();
+            $actividades = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $combined = array_merge($combined, $actividades);
+
+            // Query para planes de aprendizaje
+            $sql_planes = "
+                SELECT 
+                    pt.id_programa as id,
+                    pt.practica_id,
+                    CONCAT(u.primer_nombre, ' ', IFNULL(u.segundo_nombre, ''), ' ', u.primer_apellido, ' ', u.segundo_apellido) as estudiante_nombre,
+                    u.codigo_matricula,
+                    u.numero_identificacion,
+                    ps.modalidad,
+                    ps.fecha_registro as practica_fecha_registro,
+                    e.nombre_empresa,
+                    u.programa,
+                    'PLAN' as tipo_registro,
+                    pt.actividad_planificada as actividad,
+                    NULL as horas,
+                    pt.fecha_planificada as fecha,
+                    NULL as hora_inicio,
+                    NULL as hora_fin,
+                    pt.departamento_area,
+                    pt.funcion_asignada
+                FROM programa_trabajo pt
+                INNER JOIN practicas_estudiantes ps ON ps.id_practica = pt.practica_id
+                INNER JOIN users u ON u.id = ps.user_id
+                INNER JOIN entidades e ON e.id_entidad = ps.entidad_id
+            ";
+
+            if ($search) {
+                $sql_planes .= " WHERE (u.primer_nombre LIKE ? OR u.primer_apellido LIKE ? OR pt.actividad_planificada LIKE ? OR u.codigo_matricula LIKE ? OR u.numero_identificacion LIKE ?)";
+            }
+
+            $stmt = $this->db->prepare($sql_planes);
+            if ($search) {
+                $search_term = '%' . $search . '%';
+                $stmt->bindValue(1, $search_term, PDO::PARAM_STR);
+                $stmt->bindValue(2, $search_term, PDO::PARAM_STR);
+                $stmt->bindValue(3, $search_term, PDO::PARAM_STR);
+                $stmt->bindValue(4, $search_term, PDO::PARAM_STR);
+                $stmt->bindValue(5, $search_term, PDO::PARAM_STR);
+            }
+            $stmt->execute();
+            $planes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $combined = array_merge($combined, $planes);
+
+            // Mapping para el order by
+            $sortByMap = [
+                'fecha' => 'fecha',
+                'estudiante' => 'estudiante_nombre',
+                'empresa' => 'nombre_empresa',
+                'modalidad' => 'modalidad'
+            ];
+            $sortField = $sortByMap[$sortBy] ?? 'fecha';
+
+            // Ordenar en PHP
+            usort($combined, function ($a, $b) use ($sortField, $sortDir) {
+                $valA = $a[$sortField] ?? '';
+                $valB = $b[$sortField] ?? '';
+
+                $cmp = strcmp((string)$valA, (string)$valB);
+
+                // Si es fecha, ordenar numéricamente
+                if ($sortField === 'fecha') {
+                    $cmp = strcmp((string)$valA, (string)$valB);
+                }
+
+                return $sortDir === 'ASC' ? $cmp : -$cmp;
+            });
+
+            // Aplicar paginación
+            $result = array_slice($combined, (int)$offset, (int)$limit);
+
+            return $result;
+        } catch (PDOException $e) {
+            error_log("Error en getAuditDataCombined: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    public function countAuditDataCombined($search = null)
+    {
+        try {
+            $totalCount = 0;
+
+            // Contar actividades diarias
+            $sql_actividades = "
+                SELECT COUNT(*) as cnt 
+                FROM actividades_diarias ad
+                INNER JOIN practicas_estudiantes ps ON ps.id_practica = ad.practica_id
+                INNER JOIN users u ON u.id = ps.user_id
+                INNER JOIN entidades e ON e.id_entidad = ps.entidad_id
+            ";
+
+            if ($search) {
+                $sql_actividades .= " WHERE (u.primer_nombre LIKE ? OR u.primer_apellido LIKE ? OR ad.actividad_realizada LIKE ? OR u.codigo_matricula LIKE ? OR u.numero_identificacion LIKE ?)";
+            }
+
+            $stmt = $this->db->prepare($sql_actividades);
+            if ($search) {
+                $search_term = '%' . $search . '%';
+                $stmt->bindValue(1, $search_term, PDO::PARAM_STR);
+                $stmt->bindValue(2, $search_term, PDO::PARAM_STR);
+                $stmt->bindValue(3, $search_term, PDO::PARAM_STR);
+                $stmt->bindValue(4, $search_term, PDO::PARAM_STR);
+                $stmt->bindValue(5, $search_term, PDO::PARAM_STR);
+            }
+            $stmt->execute();
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            $totalCount += (int)($row['cnt'] ?? 0);
+
+            // Contar planes de aprendizaje
+            $sql_planes = "
+                SELECT COUNT(*) as cnt 
+                FROM programa_trabajo pt
+                INNER JOIN practicas_estudiantes ps ON ps.id_practica = pt.practica_id
+                INNER JOIN users u ON u.id = ps.user_id
+                INNER JOIN entidades e ON e.id_entidad = ps.entidad_id
+            ";
+
+            if ($search) {
+                $sql_planes .= " WHERE (u.primer_nombre LIKE ? OR u.primer_apellido LIKE ? OR pt.actividad_planificada LIKE ? OR u.codigo_matricula LIKE ? OR u.numero_identificacion LIKE ?)";
+            }
+
+            $stmt = $this->db->prepare($sql_planes);
+            if ($search) {
+                $search_term = '%' . $search . '%';
+                $stmt->bindValue(1, $search_term, PDO::PARAM_STR);
+                $stmt->bindValue(2, $search_term, PDO::PARAM_STR);
+                $stmt->bindValue(3, $search_term, PDO::PARAM_STR);
+                $stmt->bindValue(4, $search_term, PDO::PARAM_STR);
+                $stmt->bindValue(5, $search_term, PDO::PARAM_STR);
+            }
+            $stmt->execute();
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            $totalCount += (int)($row['cnt'] ?? 0);
+
+            return $totalCount;
+        } catch (PDOException $e) {
+            error_log("Error en countAuditDataCombined: " . $e->getMessage());
+            return 0;
+        }
+    }
+
+    public function getAllActividadesWithStudentInfo($offset = 0, $limit = 100, $search = null, $sortBy = 'ad.fecha_actividad', $sortDir = 'DESC')
+    {
+        $allowedSort = ['ad.fecha_actividad', 'ad.horas_invertidas', 'ad.actividad_realizada', 'u.primer_nombre', 'ps.modalidad'];
+        if (!in_array($sortBy, $allowedSort)) {
+            $sortBy = 'ad.fecha_actividad';
+        }
+        $sortDir = strtoupper($sortDir) === 'ASC' ? 'ASC' : 'DESC';
+
+        $sql = "SELECT 
+                    ad.id_actividad_diaria as id,
+                    ad.practica_id,
+                    ad.actividad_realizada,
+                    ad.horas_invertidas,
+                    ad.fecha_actividad,
+                    ad.hora_inicio,
+                    ad.hora_fin,
+                    CONCAT(u.primer_nombre, ' ', IFNULL(u.segundo_nombre, ''), ' ', u.primer_apellido, ' ', u.segundo_apellido) as estudiante_nombre,
+                    u.codigo_matricula,
+                    u.numero_identificacion,
+                    ps.modalidad,
+                    ps.fecha_registro as practica_fecha_registro,
+                    e.nombre_empresa,
+                    u.programa
+                FROM actividades_diarias ad
+                INNER JOIN practicas_estudiantes ps ON ps.id_practica = ad.practica_id
+                INNER JOIN users u ON u.id = ps.user_id
+                INNER JOIN entidades e ON e.id_entidad = ps.entidad_id";
+
+        $params = [];
+        if ($search) {
+            $sql .= " WHERE (u.primer_nombre LIKE :search OR u.primer_apellido LIKE :search OR ad.actividad_realizada LIKE :search OR u.codigo_matricula LIKE :search OR u.numero_identificacion LIKE :search)";
+            $params[':search'] = '%' . $search . '%';
+        }
+
+        $sql .= " ORDER BY {$sortBy} {$sortDir} LIMIT :offset, :limit";
+
+        try {
+            $stmt = $this->db->prepare($sql);
+            if (isset($params[':search'])) {
+                $stmt->bindValue(':search', $params[':search'], PDO::PARAM_STR);
+            }
+            $stmt->bindValue(':offset', (int)$offset, PDO::PARAM_INT);
+            $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log("Error en getAllActividadesWithStudentInfo: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    public function countAllActividades($search = null)
+    {
+        $sql = "SELECT COUNT(*) as cnt FROM actividades_diarias ad
+                INNER JOIN practicas_estudiantes ps ON ps.id_practica = ad.practica_id
+                INNER JOIN users u ON u.id = ps.user_id
+                INNER JOIN entidades e ON e.id_entidad = ps.entidad_id";
+
+        $params = [];
+        if ($search) {
+            $sql .= " WHERE (u.primer_nombre LIKE :search OR u.primer_apellido LIKE :search OR ad.actividad_realizada LIKE :search OR u.codigo_matricula LIKE :search OR u.numero_identificacion LIKE :search)";
+            $params[':search'] = '%' . $search . '%';
+        }
+
+        try {
+            $stmt = $this->db->prepare($sql);
+            if (isset($params[':search'])) {
+                $stmt->bindValue(':search', $params[':search'], PDO::PARAM_STR);
+            }
+            $stmt->execute();
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            return (int)($row['cnt'] ?? 0);
+        } catch (PDOException $e) {
+            error_log("Error en countAllActividades: " . $e->getMessage());
+            return 0;
+        }
+    }
+
+    public function eliminarPasantia($id_practica)
+    {
+        try {
+            // Iniciar transacción
+            $this->db->beginTransaction();
+
+            error_log("Iniciando eliminación de pasantía ID: " . $id_practica);
+
+            // 1. Primero eliminar plan de aprendizaje relacionado
+            $query0 = "DELETE FROM programa_trabajo WHERE practica_id = :id_practica";
+            $stmt0 = $this->db->prepare($query0);
+            $stmt0->bindParam(':id_practica', $id_practica);
+            $stmt0->execute();
+            error_log("Programa trabajo eliminado: " . $stmt0->rowCount() . " filas");
+
+            // 2. Eliminar actividades diarias relacionadas
+            $query1 = "DELETE FROM actividades_diarias WHERE practica_id = :id_practica";
+            $stmt1 = $this->db->prepare($query1);
+            $stmt1->bindParam(':id_practica', $id_practica);
+            $stmt1->execute();
+            error_log("Actividades diarias eliminadas: " . $stmt1->rowCount() . " filas");
+
+            // 3. Finalmente eliminar la pasantía
+            $query2 = "DELETE FROM practicas_estudiantes WHERE id_practica = :id_practica";
+            $stmt2 = $this->db->prepare($query2);
+            $stmt2->bindParam(':id_practica', $id_practica);
+            $resultado = $stmt2->execute();
+            error_log("Pasantía eliminada: " . $stmt2->rowCount() . " filas");
+
+            // Confirmar transacción
+            $this->db->commit();
+            error_log("Transacción completada exitosamente");
+
+            return $resultado && $stmt2->rowCount() > 0;
+        } catch (PDOException $e) {
+            // Revertir cambios en caso de error
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            error_log("Error al eliminar pasantía ID " . $id_practica . ": " . $e->getMessage());
+            return false;
+        }
+    }
+
+    // Obtener un registro de auditoría por ID (puede ser ACTIVIDAD o PLAN)
+    public function getRegistroAuditoriaById($id)
+    {
+        try {
+            // Primero buscar en actividades_diarias
+            $sql = "SELECT 
+                        ad.id_actividad_diaria as id,
+                        ad.practica_id,
+                        CONCAT(u.primer_nombre, ' ', IFNULL(u.segundo_nombre, ''), ' ', u.primer_apellido, ' ', u.segundo_apellido) as estudiante_nombre,
+                        u.id as estudiante_id,
+                        u.codigo_matricula,
+                        u.numero_identificacion,
+                        ps.modalidad,
+                        ps.fecha_registro as practica_fecha_registro,
+                        e.nombre_empresa,
+                        e.nombre_empresa as empresa_nombre,
+                        u.programa as programa_descripcion,
+                        'ACTIVIDAD' as tipo_registro,
+                        ad.actividad_realizada as descripcion,
+                        ad.horas_invertidas as horas_cumplidas,
+                        ad.fecha_actividad as fecha,
+                        ad.fecha_actividad as fecha_inicio,
+                        ad.fecha_actividad as fecha_fin,
+                        ad.hora_inicio as hora_inicio,
+                        ad.hora_fin as hora_fin,
+                        NULL as departamento_area,
+                        NULL as funcion_asignada
+                    FROM actividades_diarias ad
+                    INNER JOIN practicas_estudiantes ps ON ps.id_practica = ad.practica_id
+                    INNER JOIN users u ON u.id = ps.user_id
+                    INNER JOIN entidades e ON e.id_entidad = ps.entidad_id
+                    WHERE ad.id_actividad_diaria = ?
+                    LIMIT 1";
+
+            $stmt = $this->db->prepare($sql);
+            $stmt->bindValue(1, $id, PDO::PARAM_INT);
+            $stmt->execute();
+
+            $resultado = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($resultado) {
+                return $resultado;
+            }
+
+            // Si no encuentra en actividades, buscar en programa_trabajo
+            $sql = "SELECT 
+                        pt.id_programa as id,
+                        pt.practica_id,
+                        CONCAT(u.primer_nombre, ' ', IFNULL(u.segundo_nombre, ''), ' ', u.primer_apellido, ' ', u.segundo_apellido) as estudiante_nombre,
+                        u.id as estudiante_id,
+                        u.codigo_matricula,
+                        u.numero_identificacion,
+                        ps.modalidad,
+                        ps.fecha_registro as practica_fecha_registro,
+                        e.nombre_empresa,
+                        e.nombre_empresa as empresa_nombre,
+                        u.programa as programa_descripcion,
+                        'PLAN' as tipo_registro,
+                        pt.nombre_actividad as descripcion,
+                        pt.horas as horas_cumplidas,
+                        pt.fecha_actividad as fecha,
+                        pt.fecha_inicio as fecha_inicio,
+                        pt.fecha_fin as fecha_fin,
+                        pt.hora_inicio as hora_inicio,
+                        pt.hora_fin as hora_fin,
+                        pt.departamento_area,
+                        pt.funcion_asignada
+                    FROM programa_trabajo pt
+                    INNER JOIN practicas_estudiantes ps ON ps.id_practica = pt.practica_id
+                    INNER JOIN users u ON u.id = ps.user_id
+                    INNER JOIN entidades e ON e.id_entidad = ps.entidad_id
+                    WHERE pt.id_programa = ?
+                    LIMIT 1";
+
+            $stmt = $this->db->prepare($sql);
+            $stmt->bindValue(1, $id, PDO::PARAM_INT);
+            $stmt->execute();
+
+            $resultado = $stmt->fetch(PDO::FETCH_ASSOC);
+            return $resultado ? $resultado : null;
+        } catch (PDOException $e) {
+            error_log("Error en getRegistroAuditoriaById: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    // Determinar tipo de registro (ACTIVIDAD o PLAN)
+    public function obtenerTipoRegistro($id)
+    {
+        try {
+            // Buscar en actividades_diarias
+            $sql = "SELECT 'ACTIVIDAD' as tipo FROM actividades_diarias WHERE id_actividad_diaria = ? LIMIT 1";
+            $stmt = $this->db->prepare($sql);
+            $stmt->bindValue(1, $id, PDO::PARAM_INT);
+            $stmt->execute();
+
+            if ($stmt->rowCount() > 0) {
+                return 'ACTIVIDAD';
+            }
+
+            // Buscar en programa_trabajo
+            $sql = "SELECT 'PLAN' as tipo FROM programa_trabajo WHERE id_programa = ? LIMIT 1";
+            $stmt = $this->db->prepare($sql);
+            $stmt->bindValue(1, $id, PDO::PARAM_INT);
+            $stmt->execute();
+
+            if ($stmt->rowCount() > 0) {
+                return 'PLAN';
+            }
+
+            return null;
+        } catch (PDOException $e) {
+            error_log("Error en obtenerTipoRegistro: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    // Eliminar actividad diaria
+    public function eliminarActividad($id)
+    {
+        try {
+            $sql = "DELETE FROM actividades_diarias WHERE id_actividad_diaria = ?";
+            $stmt = $this->db->prepare($sql);
+            $stmt->bindValue(1, $id, PDO::PARAM_INT);
+            return $stmt->execute() && $stmt->rowCount() > 0;
+        } catch (PDOException $e) {
+            error_log("Error al eliminar actividad ID " . $id . ": " . $e->getMessage());
+            return false;
+        }
+    }
+
+    // Eliminar plan de trabajo
+    public function eliminarPlan($id)
+    {
+        try {
+            $sql = "DELETE FROM programa_trabajo WHERE id_programa = ?";
+            $stmt = $this->db->prepare($sql);
+            $stmt->bindValue(1, $id, PDO::PARAM_INT);
+            return $stmt->execute() && $stmt->rowCount() > 0;
+        } catch (PDOException $e) {
+            error_log("Error al eliminar plan ID " . $id . ": " . $e->getMessage());
+            return false;
+        }
+    }
+
+    // Actualizar actividad diaria
+    public function actualizarActividad($id, $datos)
+    {
+        try {
+            $sql = "UPDATE actividades_diarias SET 
+                    actividad_realizada = ?,
+                    horas_invertidas = ?,
+                    fecha_actividad = ?,
+                    hora_inicio = ?,
+                    hora_fin = ?
+                    WHERE id_actividad_diaria = ?";
+
+            $stmt = $this->db->prepare($sql);
+            $stmt->bindValue(1, $datos['actividad'] ?? null, PDO::PARAM_STR);
+            $stmt->bindValue(2, $datos['horas'] ?? 0, PDO::PARAM_STR);
+            $stmt->bindValue(3, $datos['fecha'] ?? null, PDO::PARAM_STR);
+            $stmt->bindValue(4, $datos['hora_inicio'] ?? null, PDO::PARAM_STR);
+            $stmt->bindValue(5, $datos['hora_fin'] ?? null, PDO::PARAM_STR);
+            $stmt->bindValue(6, $id, PDO::PARAM_INT);
+
+            return $stmt->execute() && $stmt->rowCount() > 0;
+        } catch (PDOException $e) {
+            error_log("Error al actualizar actividad ID " . $id . ": " . $e->getMessage());
+            return false;
+        }
+    }
+
+    // Actualizar plan de trabajo
+    public function actualizarPlan($id, $datos)
+    {
+        try {
+            $sql = "UPDATE programa_trabajo SET 
+                    nombre_actividad = ?,
+                    horas = ?,
+                    fecha_actividad = ?,
+                    hora_inicio = ?,
+                    hora_fin = ?,
+                    departamento_area = ?,
+                    funcion_asignada = ?
+                    WHERE id_programa = ?";
+
+            $stmt = $this->db->prepare($sql);
+            $stmt->bindValue(1, $datos['actividad'] ?? null, PDO::PARAM_STR);
+            $stmt->bindValue(2, $datos['horas'] ?? 0, PDO::PARAM_STR);
+            $stmt->bindValue(3, $datos['fecha'] ?? null, PDO::PARAM_STR);
+            $stmt->bindValue(4, $datos['hora_inicio'] ?? null, PDO::PARAM_STR);
+            $stmt->bindValue(5, $datos['hora_fin'] ?? null, PDO::PARAM_STR);
+            $stmt->bindValue(6, $datos['departamento'] ?? null, PDO::PARAM_STR);
+            $stmt->bindValue(7, $datos['funcion_asignada'] ?? null, PDO::PARAM_STR);
+            $stmt->bindValue(8, $id, PDO::PARAM_INT);
+
+            return $stmt->execute() && $stmt->rowCount() > 0;
+        } catch (PDOException $e) {
+            error_log("Error al actualizar plan ID " . $id . ": " . $e->getMessage());
+            return false;
+        }
+    }
+
+    // Métodos para auditoría de eliminaciones
+    public function crearTablaAuditoria()
+    {
+        $sql = "CREATE TABLE IF NOT EXISTS registros_eliminados (
+            id INT PRIMARY KEY AUTO_INCREMENT,
+            tipo_registro VARCHAR(20) NOT NULL,
+            id_original INT,
+            estudiante_nombre VARCHAR(255),
+            estudiante_id INT,
+            descripcion TEXT,
+            empresa_nombre VARCHAR(255),
+            horas_cumplidas INT DEFAULT 0,
+            fecha_eliminacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            fecha_inicio DATE,
+            fecha_fin DATE,
+            programa_descripcion TEXT
+        )";
+
+        try {
+            $this->db->exec($sql);
+            return true;
+        } catch (PDOException $e) {
+            error_log("Error al crear tabla de auditoría: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function registrarEliminacion($tipoRegistro, $idOriginal, $datos)
+    {
+        $this->crearTablaAuditoria();
+
+        $sql = "INSERT INTO registros_eliminados 
+                (tipo_registro, id_original, estudiante_nombre, estudiante_id, descripcion, empresa_nombre, horas_cumplidas, fecha_inicio, fecha_fin, programa_descripcion)
+                VALUES 
+                (:tipo, :id_original, :estudiante, :estudiante_id, :descripcion, :empresa, :horas, :fecha_inicio, :fecha_fin, :programa)";
+
+        try {
+            $stmt = $this->db->prepare($sql);
+
+            $stmt->bindValue(':tipo', $tipoRegistro, PDO::PARAM_STR);
+            $stmt->bindValue(':id_original', $idOriginal, PDO::PARAM_INT);
+            $stmt->bindValue(':estudiante', $datos['estudiante'] ?? null, PDO::PARAM_STR);
+            $stmt->bindValue(':estudiante_id', $datos['estudiante_id'] ?? null, PDO::PARAM_INT);
+            $stmt->bindValue(':descripcion', $datos['descripcion'] ?? null, PDO::PARAM_STR);
+            $stmt->bindValue(':empresa', $datos['empresa'] ?? null, PDO::PARAM_STR);
+            $stmt->bindValue(':horas', $datos['horas'] ?? 0, PDO::PARAM_INT);
+            $stmt->bindValue(':fecha_inicio', $datos['fecha_inicio'] ?? null, PDO::PARAM_STR);
+            $stmt->bindValue(':fecha_fin', $datos['fecha_fin'] ?? null, PDO::PARAM_STR);
+            $stmt->bindValue(':programa', $datos['programa'] ?? null, PDO::PARAM_STR);
+
+            return $stmt->execute();
+        } catch (PDOException $e) {
+            error_log("Error al registrar eliminación: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function getRegistrosEliminados($limit = 20, $offset = 0)
+    {
+        $this->crearTablaAuditoria();
+
+        $sql = "SELECT * FROM registros_eliminados 
+                ORDER BY fecha_eliminacion DESC 
+                LIMIT :limit OFFSET :offset";
+
+        try {
+            $stmt = $this->db->prepare($sql);
+            $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+            $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log("Error al obtener registros eliminados: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    public function countRegistrosEliminados()
+    {
+        $this->crearTablaAuditoria();
+
+        $sql = "SELECT COUNT(*) as total FROM registros_eliminados";
+
+        try {
+            $stmt = $this->db->query($sql);
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            return $result['total'] ?? 0;
+        } catch (PDOException $e) {
+            error_log("Error al contar registros eliminados: " . $e->getMessage());
+            return 0;
+        }
+    }
+
+    public function buscarPasantias($texto)
+    {
+        $query = "SELECT
+        pe.id_practica,
+        pe.estado_fase_uno_completado,
+        ent.nombre_empresa,
+        CONCAT(u.primer_nombre, ' ', IFNULL(u.segundo_nombre, ''), ' ', u.primer_apellido, ' ', u.segundo_apellido) AS estudiante_nombre
+    FROM practicas_estudiantes pe
+    INNER JOIN entidades ent ON ent.id_entidad = pe.entidad_id
+    INNER JOIN users u ON u.id = pe.user_id
+    WHERE 
+        CONCAT(u.primer_nombre, ' ', IFNULL(u.segundo_nombre, ''), ' ', u.primer_apellido, ' ', u.segundo_apellido) LIKE :texto
+        OR ent.nombre_empresa LIKE :texto
+    ORDER BY pe.id_practica DESC";
+
+        try {
+            $stmt = $this->db->prepare($query);
+            $stmt->bindValue(':texto', '%' . $texto . '%');
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log("Error al buscar prácticas: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    public function contarPorEstado($estado, $estadoPractica = 'ACTIVA')
+    {
+        $sql = "SELECT COUNT(*) FROM practicas_estudiantes 
+            WHERE estado_fase_uno_completado = :estado";
+
+        $params = ['estado' => $estado];
+        if ($estadoPractica !== '' && strtoupper($estadoPractica) !== 'TODOS') {
+            $sql .= " AND estado = :estado_practica";
+            $params['estado_practica'] = strtoupper($estadoPractica);
+        }
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchColumn();
+    }
+
+    public function contarPorEstadoPractica($estadoPractica)
+    {
+        $sql = "SELECT COUNT(*) FROM practicas_estudiantes WHERE estado = :estado_practica";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(['estado_practica' => strtoupper((string) $estadoPractica)]);
+        return (int) $stmt->fetchColumn();
+    }
+
+    public function contarPracticas($buscar = '', $estado = '', $estadoPractica = 'ACTIVA')
+    {
+        $sql = "SELECT COUNT(*) FROM practicas_estudiantes pe
+            INNER JOIN users u ON u.id = pe.user_id
+            INNER JOIN entidades e ON e.id_entidad = pe.entidad_id
+            WHERE 1=1";
+
+        $params = [];
+
+        if ($estadoPractica !== '' && strtoupper($estadoPractica) !== 'TODOS') {
+            $sql .= " AND pe.estado = :estado_practica";
+            $params['estado_practica'] = strtoupper($estadoPractica);
+        }
+
+        if ($buscar) {
+            $sql .= " AND (CONCAT(u.primer_nombre,' ',u.primer_apellido) LIKE :buscar 
+                  OR e.nombre_empresa LIKE :buscar)";
+            $params['buscar'] = "%$buscar%";
+        }
+
+        if ($estado !== '') {
+            $sql .= " AND pe.estado_fase_uno_completado = :estado";
+            $params['estado'] = $estado;
+        }
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchColumn();
+    }
+
+    public function getPracticasPaginadas($buscar, $estado, $limite, $offset, $estadoPractica = 'ACTIVA')
+    {
+        $sql = "SELECT pe.*, 
+            e.nombre_empresa,
+            CONCAT(u.primer_nombre,' ',u.primer_apellido) AS estudiante_nombre
+            FROM practicas_estudiantes pe
+            INNER JOIN users u ON u.id = pe.user_id
+            INNER JOIN entidades e ON e.id_entidad = pe.entidad_id
+            WHERE 1=1";
+
+        $params = [];
+
+        if ($estadoPractica !== '' && strtoupper($estadoPractica) !== 'TODOS') {
+            $sql .= " AND pe.estado = :estado_practica";
+            $params['estado_practica'] = strtoupper($estadoPractica);
+        }
+
+        if ($buscar) {
+            $sql .= " AND (CONCAT(u.primer_nombre,' ',u.primer_apellido) LIKE :buscar 
+                  OR e.nombre_empresa LIKE :buscar)";
+            $params['buscar'] = "%$buscar%";
+        }
+
+        if ($estado !== '') {
+            $sql .= " AND pe.estado_fase_uno_completado = :estado";
+            $params['estado'] = $estado;
+        }
+
+        $sql .= " LIMIT :limite OFFSET :offset";
+
+        $stmt = $this->db->prepare($sql);
+
+        foreach ($params as $key => $val) {
+            $stmt->bindValue(":$key", $val);
+        }
+
+        $stmt->bindValue(":limite", (int)$limite, PDO::PARAM_INT);
+        $stmt->bindValue(":offset", (int)$offset, PDO::PARAM_INT);
+
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+}

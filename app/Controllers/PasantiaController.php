@@ -20,7 +20,7 @@ class PasantiaController
         if (isset($_SERVER['HTTP_HOST']) && strpos($_SERVER['HTTP_HOST'], 'superarse.ec') !== false) {
             $this->basePath = '';
         } else {
-            $this->basePath = '/superarseconectadosv2/public';
+            $this->basePath = '/superarseConectadosv2-master1/public';
         }
 
         $this->pasantiaModel = new PasantiaModel();
@@ -1236,7 +1236,7 @@ class PasantiaController
         if (isset($_SERVER['HTTP_HOST']) && strpos($_SERVER['HTTP_HOST'], 'superarse.ec') !== false) {
             $basePath = '';
         } else {
-            $basePath = '/superarseconectadosv2/public';
+            $basePath = '/superarseConectadosv2-master1/public';
         }
 
         $nombreCompleto = $_SESSION['nombres_completos'] ?? 'Administrador';

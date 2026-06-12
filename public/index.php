@@ -49,7 +49,7 @@ $uri = rtrim($uri, '/');
 if (isset($_SERVER['HTTP_HOST']) && strpos($_SERVER['HTTP_HOST'], 'superarse.ec') !== false) {
     $basePath = '';
 } else {
-    $basePath = '/superarseconectadosv2/public';
+    $basePath = '/superarseConectadosv2-master1/public';
 }
 
 /* Quitar basePath de la URI */
@@ -405,6 +405,34 @@ if (preg_match('#^/admin#', $uri)) {
             $controller->planEstrategicoIndex();
             break;
 
+        case $uri === '/admin/pedi':
+            $controller->pediIndex();
+            break;
+
+        case $uri === '/admin/pedi/create':
+            $controller->crearPedi();
+            break;
+
+        case $uri === '/admin/pedi/store' && $method === 'POST':
+            $controller->guardarPedi();
+            break;
+
+        case preg_match('/^\/admin\/pedi\/edit\/(\d+)$/', $uri, $matches):
+            $controller->editarPedi((int)$matches[1]);
+            break;
+
+        case $uri === '/admin/pedi/update' && $method === 'POST':
+            $controller->actualizarPedi();
+            break;
+
+        case preg_match('/^\/admin\/pedi\/eliminar\/(\d+)$/', $uri, $matches) && $method === 'POST':
+            $controller->eliminarPedi((int)$matches[1]);
+            break;
+
+        case $uri === '/admin/poa':
+            $controller->poaIndex();
+            break;
+
         case $uri === '/admin/poa/store' && $method === 'POST':
             $controller->guardarPoa();
             break;
@@ -415,6 +443,14 @@ if (preg_match('#^/admin#', $uri)) {
 
         case preg_match('/^\/admin\/poa\/eliminar\/(\d+)$/', $uri, $matches) && $method === 'POST':
             $controller->eliminarPoa((int)$matches[1]);
+            break;
+
+        case $uri === '/admin/actividad/create' && $method === 'GET':
+            $controller->crearActividad();
+            break;
+
+        case preg_match('/^\/admin\/actividad\/edit\/(\d+)$/', $uri, $matches) && $method === 'GET':
+            $controller->editarActividad((int)$matches[1]);
             break;
 
         case $uri === '/admin/actividad/store' && $method === 'POST':

@@ -108,7 +108,7 @@ class ZipStream
      */
     private $outputStream;
 
-    private readonly Closure $httpHeaderCallback;
+    private $httpHeaderCallback;
 
     /**
      * @var File[]
@@ -131,7 +131,7 @@ class ZipStream
      * );
      * ```
      *
-     * @param OperationMode $operationMode
+    * @param string $operationMode
      * The mode can be used to switch between `NORMAL` and `SIMULATION_*` modes.
      * For details see the `OperationMode` documentation.
      *
@@ -205,22 +205,22 @@ class ZipStream
      * @return self
      */
     public function __construct(
-        private OperationMode $operationMode = OperationMode::NORMAL,
-        private readonly string $comment = '',
+        private string $operationMode = OperationMode::NORMAL,
+        private string $comment = '',
         $outputStream = null,
-        private readonly CompressionMethod $defaultCompressionMethod = CompressionMethod::DEFLATE,
-        private readonly int $defaultDeflateLevel = 6,
-        private readonly bool $enableZip64 = true,
-        private readonly bool $defaultEnableZeroHeader = true,
+        private int $defaultCompressionMethod = CompressionMethod::DEFLATE,
+        private int $defaultDeflateLevel = 6,
+        private bool $enableZip64 = true,
+        private bool $defaultEnableZeroHeader = true,
         private bool $sendHttpHeaders = true,
         ?Closure $httpHeaderCallback = null,
-        private readonly ?string $outputName = null,
-        private readonly string $contentDisposition = 'attachment',
-        private readonly string $contentType = 'application/x-zip',
+        private ?string $outputName = null,
+        private string $contentDisposition = 'attachment',
+        private string $contentType = 'application/x-zip',
         private bool $flushOutput = false,
     ) {
         $this->outputStream = self::normalizeStream($outputStream);
-        $this->httpHeaderCallback = $httpHeaderCallback ?? header(...);
+        $this->httpHeaderCallback = $httpHeaderCallback ?? 'header';
     }
 
     /**
@@ -254,7 +254,7 @@ class ZipStream
         string $fileName,
         string $data,
         string $comment = '',
-        ?CompressionMethod $compressionMethod = null,
+        ?int $compressionMethod = null,
         ?int $deflateLevel = null,
         ?DateTimeInterface $lastModificationDateTime = null,
         ?int $maxSize = null,
@@ -316,7 +316,7 @@ class ZipStream
          */
         string $path,
         string $comment = '',
-        ?CompressionMethod $compressionMethod = null,
+        ?int $compressionMethod = null,
         ?int $deflateLevel = null,
         ?DateTimeInterface $lastModificationDateTime = null,
         ?int $maxSize = null,
@@ -386,7 +386,7 @@ class ZipStream
         string $fileName,
         $stream,
         string $comment = '',
-        ?CompressionMethod $compressionMethod = null,
+        ?int $compressionMethod = null,
         ?int $deflateLevel = null,
         ?DateTimeInterface $lastModificationDateTime = null,
         ?int $maxSize = null,
@@ -429,7 +429,7 @@ class ZipStream
      * @param string $comment
      * ZIP comment for this file
      *
-     * @param ?CompressionMethod $compressionMethod
+    * @param ?int $compressionMethod
      * Override `defaultCompressionMethod`
      *
      * See {@see __construct()}
@@ -465,7 +465,7 @@ class ZipStream
         string $fileName,
         StreamInterface $stream,
         string $comment = '',
-        ?CompressionMethod $compressionMethod = null,
+        ?int $compressionMethod = null,
         ?int $deflateLevel = null,
         ?DateTimeInterface $lastModificationDateTime = null,
         ?int $maxSize = null,
@@ -517,7 +517,7 @@ class ZipStream
      * @param string $comment
      * ZIP comment for this file
      *
-     * @param ?CompressionMethod $compressionMethod
+    * @param ?int $compressionMethod
      * Override `defaultCompressionMethod`
      *
      * See {@see __construct()}
@@ -553,7 +553,7 @@ class ZipStream
         string $fileName,
         Closure $callback,
         string $comment = '',
-        ?CompressionMethod $compressionMethod = null,
+        ?int $compressionMethod = null,
         ?int $deflateLevel = null,
         ?DateTimeInterface $lastModificationDateTime = null,
         ?int $maxSize = null,
@@ -597,8 +597,12 @@ class ZipStream
                 return $stream;
 
             },
-            send: $this->send(...),
-            recordSentBytes: $this->recordSentBytes(...),
+            send: function (string $data): void {
+                $this->send($data);
+            },
+            recordSentBytes: function (int $bytes): void {
+                $this->recordSentBytes($bytes);
+            },
             operationMode: $this->operationMode,
             fileName: $fileName,
             startOffset: $this->offset,
@@ -721,7 +725,7 @@ class ZipStream
 
             $this->send(Zip64\EndOfCentralDirectory::generate(
                 versionMadeBy: self::ZIP_VERSION_MADE_BY,
-                versionNeededToExtract: Version::ZIP64->value,
+                versionNeededToExtract: Version::ZIP64,
                 numberOfThisDisk: 0,
                 numberOfTheDiskWithCentralDirectoryStart: 0,
                 numberOfCentralDirectoryEntriesOnThisDisk: count($this->centralDirectoryRecords),

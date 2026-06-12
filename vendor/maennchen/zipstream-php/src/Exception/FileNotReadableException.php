@@ -15,7 +15,7 @@ class FileNotReadableException extends Exception
      * @internal
      */
     public function __construct(
-        public readonly string $path
+        public string $path
     ) {
         parent::__construct("The file with the path $path isn't readable.");
     }

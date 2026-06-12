@@ -32,11 +32,104 @@ class PoaActividadModel extends Database
     {
         $db = $this->getConnection();
 
-        $query = "SELECT a.*, p.anio_planificacion, s.nombre AS sede_nombre
+        $query = "SELECT
+                    a.id, a.id AS id_actividad,
+                    a.poa_id,
+                    a.tipo_registro,
+                    a.nombre, a.nombre AS nombre_actividad,
+                    a.descripcion, a.descripcion AS observacion_actividad,
+                    a.laboratorio,
+                    a.meta,
+                    COALESCE(NULLIF(TRIM(a.meta), ''), CAST(ml.porcentaje_esperado AS CHAR), pm.meta_texto) AS meta_pedi,
+                    a.presupuesto_asignado, a.presupuesto_asignado AS presupuesto_planificado,
+                    a.presupuesto_ejecutado,
+                    a.avance_actividad, a.avance_actividad AS avance_ejecutado,
+                    a.estado AS estado_tinyint,
+                    a.observaciones,
+                    CASE WHEN a.estado = 1 THEN 'activo' ELSE 'inactivo' END AS estado,
+                    s.nombre AS nombre_sede,
+                    s.nombre AS sede,
+                    eje.nombre AS eje,
+                    obj.nombre AS objetivo_estrategico,
+                    est.nombre AS objetivo_estrategia,
+                    COALESCE(NULLIF(TRIM(a.observaciones), ''), '') AS observaciones_avance,
+                    COALESCE(ml.porcentaje_esperado, pm.porcentaje) AS meta_pedi_pct,
+                    COALESCE(ml.anio, ptab.anio_planificacion) AS anio_meta_pedi,
+                    est.nombre AS estrategia_meta_pedi,
+                    proc.nombre_area,
+                    COALESCE(cr.ene_pct, 0) AS ene_pct,
+                    COALESCE(cr.feb_pct, 0) AS feb_pct,
+                    COALESCE(cr.mar_pct, 0) AS mar_pct,
+                    COALESCE(cr.abr_pct, 0) AS abr_pct,
+                    COALESCE(cr.may_pct, 0) AS may_pct,
+                    COALESCE(cr.jun_pct, 0) AS jun_pct,
+                    COALESCE(cr.jul_pct, 0) AS jul_pct,
+                    COALESCE(cr.ago_pct, 0) AS ago_pct,
+                    COALESCE(cr.sep_pct, 0) AS sep_pct,
+                    COALESCE(cr.oct_pct, 0) AS oct_pct,
+                    COALESCE(cr.nov_pct, 0) AS nov_pct,
+                    COALESCE(cr.dic_pct, 0) AS dic_pct
                 FROM poa_actividades a
-                INNER JOIN poa p ON p.id = a.poa_id
-                INNER JOIN sedes s ON s.id = p.sede_id
+                INNER JOIN poa ptab ON ptab.id = a.poa_id
+                LEFT JOIN sedes s ON s.id = ptab.sede_id
+                LEFT JOIN estrategias est ON est.id = ptab.estrategia_id
+                LEFT JOIN objetivos_estrategicos obj ON obj.id = est.objetivo_estrategico_id
+                LEFT JOIN ejes_estrategicos eje ON eje.id = obj.eje_id
+                LEFT JOIN (
+                    SELECT estrategia_id, MAX(id) AS linea_base_id
+                    FROM lineas_base
+                    GROUP BY estrategia_id
+                ) lb ON lb.estrategia_id = ptab.estrategia_id
+                LEFT JOIN (
+                    SELECT linea_base_id, anio, MAX(porcentaje_esperado) AS porcentaje_esperado
+                    FROM metas_linea_base
+                    GROUP BY linea_base_id, anio
+                ) ml ON ml.linea_base_id = lb.linea_base_id AND ml.anio = ptab.anio_planificacion
+                LEFT JOIN (
+                    SELECT
+                        m.eje_id,
+                        SUBSTRING_INDEX(GROUP_CONCAT(m.meta_texto ORDER BY m.anio DESC SEPARATOR '||'), '||', 1) AS meta_texto,
+                        CAST(SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(m.porcentaje, 0) ORDER BY m.anio DESC SEPARATOR ','), ',', 1) AS DECIMAL(10,2)) AS porcentaje
+                    FROM (
+                        SELECT pm.eje_id, pm.anio, pm.meta_texto, pm.porcentaje
+                        FROM pedi_metas pm
+                        WHERE pm.eje_id IS NOT NULL
+
+                        UNION ALL
+
+                        SELECT e.id AS eje_id, pm.anio, pm.meta_texto, pm.porcentaje
+                        FROM pedi_metas pm
+                        INNER JOIN pedi p ON pm.pedi_id = p.id_pedi
+                        INNER JOIN ejes_estrategicos e ON e.nombre = p.eje
+                        WHERE pm.eje_id IS NULL
+                    ) m
+                    GROUP BY m.eje_id
+                ) pm ON pm.eje_id = eje.id
+                LEFT JOIN (
+                    SELECT pp.poa_id, GROUP_CONCAT(p2.nombre SEPARATOR ', ') AS nombre_area
+                    FROM poa_procesos pp
+                    INNER JOIN procesos p2 ON p2.id = pp.proceso_id
+                    GROUP BY pp.poa_id
+                ) proc ON proc.poa_id = a.poa_id
+                LEFT JOIN (
+                    SELECT poa_actividad_id,
+                        COALESCE(MAX(CASE WHEN mes = 1 THEN avance END), 0) AS ene_pct,
+                        COALESCE(MAX(CASE WHEN mes = 2 THEN avance END), 0) AS feb_pct,
+                        COALESCE(MAX(CASE WHEN mes = 3 THEN avance END), 0) AS mar_pct,
+                        COALESCE(MAX(CASE WHEN mes = 4 THEN avance END), 0) AS abr_pct,
+                        COALESCE(MAX(CASE WHEN mes = 5 THEN avance END), 0) AS may_pct,
+                        COALESCE(MAX(CASE WHEN mes = 6 THEN avance END), 0) AS jun_pct,
+                        COALESCE(MAX(CASE WHEN mes = 7 THEN avance END), 0) AS jul_pct,
+                        COALESCE(MAX(CASE WHEN mes = 8 THEN avance END), 0) AS ago_pct,
+                        COALESCE(MAX(CASE WHEN mes = 9 THEN avance END), 0) AS sep_pct,
+                        COALESCE(MAX(CASE WHEN mes = 10 THEN avance END), 0) AS oct_pct,
+                        COALESCE(MAX(CASE WHEN mes = 11 THEN avance END), 0) AS nov_pct,
+                        COALESCE(MAX(CASE WHEN mes = 12 THEN avance END), 0) AS dic_pct
+                    FROM cronogramas
+                    GROUP BY poa_actividad_id
+                ) cr ON cr.poa_actividad_id = a.id
                 ORDER BY a.id DESC";
+
         $stmt = $db->prepare($query);
         $stmt->execute();
 
@@ -47,11 +140,99 @@ class PoaActividadModel extends Database
     {
         $db = $this->getConnection();
 
-        $query = "SELECT a.*,
-                    COALESCE(cr.promedio_avance, 0) AS avance_cronograma
+        $query = "SELECT
+                    a.id, a.id AS id_actividad,
+                    a.poa_id,
+                    a.tipo_registro,
+                    a.nombre, a.nombre AS nombre_actividad,
+                    a.descripcion, a.descripcion AS observacion_actividad,
+                    a.laboratorio,
+                    a.meta,
+                    COALESCE(NULLIF(TRIM(a.meta), ''), CAST(ml.porcentaje_esperado AS CHAR), pm.meta_texto) AS meta_pedi,
+                    a.presupuesto_asignado, a.presupuesto_asignado AS presupuesto_planificado,
+                    a.presupuesto_ejecutado,
+                    a.avance_actividad, a.avance_actividad AS avance_ejecutado,
+                    a.estado AS estado_tinyint,
+                    a.observaciones,
+                    CASE WHEN a.estado = 1 THEN 'activo' ELSE 'inactivo' END AS estado,
+                    s.nombre AS nombre_sede,
+                    s.nombre AS sede,
+                    eje.nombre AS eje,
+                    obj.nombre AS objetivo_estrategico,
+                    est.nombre AS objetivo_estrategia,
+                    COALESCE(NULLIF(TRIM(a.observaciones), ''), '') AS observaciones_avance,
+                    COALESCE(ml.porcentaje_esperado, pm.porcentaje) AS meta_pedi_pct,
+                    COALESCE(ml.anio, ptab.anio_planificacion) AS anio_meta_pedi,
+                    est.nombre AS estrategia_meta_pedi,
+                    proc.nombre_area,
+                    COALESCE(cr.ene_pct, 0) AS ene_pct,
+                    COALESCE(cr.feb_pct, 0) AS feb_pct,
+                    COALESCE(cr.mar_pct, 0) AS mar_pct,
+                    COALESCE(cr.abr_pct, 0) AS abr_pct,
+                    COALESCE(cr.may_pct, 0) AS may_pct,
+                    COALESCE(cr.jun_pct, 0) AS jun_pct,
+                    COALESCE(cr.jul_pct, 0) AS jul_pct,
+                    COALESCE(cr.ago_pct, 0) AS ago_pct,
+                    COALESCE(cr.sep_pct, 0) AS sep_pct,
+                    COALESCE(cr.oct_pct, 0) AS oct_pct,
+                    COALESCE(cr.nov_pct, 0) AS nov_pct,
+                    COALESCE(cr.dic_pct, 0) AS dic_pct
                 FROM poa_actividades a
+                INNER JOIN poa ptab ON ptab.id = a.poa_id
+                LEFT JOIN sedes s ON s.id = ptab.sede_id
+                LEFT JOIN estrategias est ON est.id = ptab.estrategia_id
+                LEFT JOIN objetivos_estrategicos obj ON obj.id = est.objetivo_estrategico_id
+                LEFT JOIN ejes_estrategicos eje ON eje.id = obj.eje_id
                 LEFT JOIN (
-                    SELECT poa_actividad_id, AVG(avance) AS promedio_avance
+                    SELECT estrategia_id, MAX(id) AS linea_base_id
+                    FROM lineas_base
+                    GROUP BY estrategia_id
+                ) lb ON lb.estrategia_id = ptab.estrategia_id
+                LEFT JOIN (
+                    SELECT linea_base_id, anio, MAX(porcentaje_esperado) AS porcentaje_esperado
+                    FROM metas_linea_base
+                    GROUP BY linea_base_id, anio
+                ) ml ON ml.linea_base_id = lb.linea_base_id AND ml.anio = ptab.anio_planificacion
+                LEFT JOIN (
+                    SELECT
+                        m.eje_id,
+                        SUBSTRING_INDEX(GROUP_CONCAT(m.meta_texto ORDER BY m.anio DESC SEPARATOR '||'), '||', 1) AS meta_texto,
+                        CAST(SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(m.porcentaje, 0) ORDER BY m.anio DESC SEPARATOR ','), ',', 1) AS DECIMAL(10,2)) AS porcentaje
+                    FROM (
+                        SELECT pm.eje_id, pm.anio, pm.meta_texto, pm.porcentaje
+                        FROM pedi_metas pm
+                        WHERE pm.eje_id IS NOT NULL
+
+                        UNION ALL
+
+                        SELECT e.id AS eje_id, pm.anio, pm.meta_texto, pm.porcentaje
+                        FROM pedi_metas pm
+                        INNER JOIN pedi p ON pm.pedi_id = p.id_pedi
+                        INNER JOIN ejes_estrategicos e ON e.nombre = p.eje
+                        WHERE pm.eje_id IS NULL
+                    ) m
+                    GROUP BY m.eje_id
+                ) pm ON pm.eje_id = eje.id
+                LEFT JOIN (
+                    SELECT pp.poa_id, GROUP_CONCAT(p2.nombre SEPARATOR ', ') AS nombre_area
+                    FROM poa_procesos pp
+                    INNER JOIN procesos p2 ON p2.id = pp.proceso_id
+                    GROUP BY pp.poa_id
+                ) proc ON proc.poa_id = a.poa_id
+                LEFT JOIN (
+                    SELECT poa_actividad_id,
+                        COALESCE(MAX(CASE WHEN mes = 1 THEN avance END), 0) AS ene_pct,
+                        COALESCE(MAX(CASE WHEN mes = 2 THEN avance END), 0) AS feb_pct,
+                        COALESCE(MAX(CASE WHEN mes = 3 THEN avance END), 0) AS mar_pct,
+                        COALESCE(MAX(CASE WHEN mes = 4 THEN avance END), 0) AS abr_pct,
+                        COALESCE(MAX(CASE WHEN mes = 5 THEN avance END), 0) AS may_pct,
+                        COALESCE(MAX(CASE WHEN mes = 6 THEN avance END), 0) AS jun_pct,
+                        COALESCE(MAX(CASE WHEN mes = 7 THEN avance END), 0) AS jul_pct,
+                        COALESCE(MAX(CASE WHEN mes = 8 THEN avance END), 0) AS ago_pct,
+                        COALESCE(MAX(CASE WHEN mes = 9 THEN avance END), 0) AS sep_pct,
+                        COALESCE(MAX(CASE WHEN mes = 10 THEN avance END), 0) AS oct_pct,
+                        COALESCE(MAX(CASE WHEN mes = 11 THEN avance END), 0) AS nov_pct,
+                        COALESCE(MAX(CASE WHEN mes = 12 THEN avance END), 0) AS dic_pct
                     FROM cronogramas
                     GROUP BY poa_actividad_id
                 ) cr ON cr.poa_actividad_id = a.id
@@ -68,11 +249,22 @@ class PoaActividadModel extends Database
     {
         $db = $this->getConnection();
 
-        $query = "SELECT a.*, p.anio_planificacion, p.presupuesto_total_aprobado, s.nombre AS sede_nombre
+        $query = "SELECT a.*, p.anio_planificacion, p.presupuesto_total_aprobado, p.sede_id, p.estrategia_id,
+                         s.nombre AS sede_nombre,
+                         eje.id AS eje_id, eje.nombre AS eje,
+                         obj.id AS objetivo_id, obj.nombre AS objetivo_estrategico,
+                         est.nombre AS objetivo_estrategia,
+                         GROUP_CONCAT(DISTINCT p2.id ORDER BY p2.id SEPARATOR ',') AS proceso_ids
                 FROM " . $this->table_name . " a
                 INNER JOIN poa p ON p.id = a.poa_id
                 INNER JOIN sedes s ON s.id = p.sede_id
-                WHERE a.id = ?";
+                LEFT JOIN estrategias est ON est.id = p.estrategia_id
+                LEFT JOIN objetivos_estrategicos obj ON obj.id = est.objetivo_estrategico_id
+                LEFT JOIN ejes_estrategicos eje ON eje.id = obj.eje_id
+                LEFT JOIN poa_procesos pp ON pp.poa_id = p.id
+                LEFT JOIN procesos p2 ON p2.id = pp.proceso_id
+                WHERE a.id = ?
+                GROUP BY a.id";
 
         $stmt = $db->prepare($query);
         $stmt->execute([(int) $id]);
@@ -85,8 +277,8 @@ class PoaActividadModel extends Database
         $db = $this->getConnection();
 
         $query = "INSERT INTO " . $this->table_name . "
-                (poa_id, tipo_registro, nombre, descripcion, laboratorio, meta, presupuesto_asignado, presupuesto_ejecutado, avance_actividad, estado, observaciones)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                (poa_id, tipo_registro, nombre, descripcion, laboratorio, meta, presupuesto_asignado, presupuesto_ejecutado, avance_actividad, estado, observaciones, fecha_inicio, fecha_fin)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         $stmt = $db->prepare($query);
 
@@ -103,6 +295,8 @@ class PoaActividadModel extends Database
                 (float) ($data['avance_actividad'] ?? 0),
                 !empty($data['estado']) ? 1 : 0,
                 (string) ($data['observaciones'] ?? ''),
+                !empty($data['fecha_inicio']) ? $data['fecha_inicio'] : null,
+                !empty($data['fecha_fin']) ? $data['fecha_fin'] : null,
             ]);
 
             if (!$ok) {
@@ -131,6 +325,8 @@ class PoaActividadModel extends Database
                     presupuesto_ejecutado = ?,
                     avance_actividad = ?,
                     observaciones = ?,
+                    fecha_inicio = ?,
+                    fecha_fin = ?,
                     estado = ?
                 WHERE id = ?";
 
@@ -148,6 +344,8 @@ class PoaActividadModel extends Database
                 (float) $data['presupuesto_ejecutado'],
                 (float) ($data['avance_actividad'] ?? 0),
                 (string) ($data['observaciones'] ?? ''),
+                !empty($data['fecha_inicio']) ? $data['fecha_inicio'] : null,
+                !empty($data['fecha_fin']) ? $data['fecha_fin'] : null,
                 !empty($data['estado']) ? 1 : 0,
                 (int) $id,
             ]);
@@ -198,33 +396,24 @@ class PoaActividadModel extends Database
         $db = $this->getConnection();
         $db->beginTransaction();
         try {
+            // Reemplaza por completo el cronograma para evitar acumulación histórica
+            // que provoca meses marcados incorrectamente al re-editar.
+            $deleteStmt = $db->prepare("DELETE FROM cronogramas WHERE poa_actividad_id = ?");
+            $deleteStmt->execute([(int) $actividadId]);
+
             $stmt = $db->prepare("INSERT INTO cronogramas (poa_actividad_id, mes, avance, estado_semaforo, estado, observaciones)
-                VALUES (?, ?, ?, ?, 1, ?)
-                ON DUPLICATE KEY UPDATE
-                    avance = VALUES(avance),
-                    estado_semaforo = VALUES(estado_semaforo),
-                    observaciones = VALUES(observaciones),
-                    estado = 1,
-                    fecha_actualizacion = CURRENT_TIMESTAMP");
+                VALUES (?, ?, ?, ?, 1, '')");
 
-            foreach ($cronogramaPorMes as $mes => $item) {
-                $mesNumero = (int) $mes;
-                if ($mesNumero < 1 || $mesNumero > 12) {
-                    continue;
-                }
-
-                $avance = max(0, min(100, (float) ($item['avance'] ?? 0)));
-                $semaforo = (string) ($item['estado_semaforo'] ?? 'no_cumple');
-                if (!in_array($semaforo, ['no_cumple', 'cumple_parcialmente', 'cumple_segun_planificado'], true)) {
-                    $semaforo = 'no_cumple';
-                }
+            for ($m = 1; $m <= 12; $m++) {
+                $checked = !empty($cronogramaPorMes[$m]);
+                $avance = $checked ? 100 : 0;
+                $semaforo = $checked ? 'cumple_segun_planificado' : 'no_cumple';
 
                 $stmt->execute([
                     (int) $actividadId,
-                    $mesNumero,
+                    $m,
                     $avance,
                     $semaforo,
-                    (string) ($item['observaciones'] ?? ''),
                 ]);
             }
 

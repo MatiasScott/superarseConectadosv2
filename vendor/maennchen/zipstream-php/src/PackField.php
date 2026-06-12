@@ -17,8 +17,8 @@ class PackField
     public const MAX_v = 0xFFFF;
 
     public function __construct(
-        public readonly string $format,
-        public readonly int|string $value
+        public string $format,
+        public int|string $value
     ) {}
 
     /**

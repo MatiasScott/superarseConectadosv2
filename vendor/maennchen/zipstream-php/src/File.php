@@ -22,7 +22,7 @@ class File
 {
     private const CHUNKED_READ_BLOCK_SIZE = 0x1000000;
 
-    private Version $version;
+    private int $version;
 
     private int $compressedSize = 0;
 
@@ -32,7 +32,7 @@ class File
 
     private int $generalPurposeBitFlag = 0;
 
-    private readonly string $fileName;
+    private string $fileName;
 
     /**
      * @var resource|null
@@ -45,22 +45,24 @@ class File
      */
     public function __construct(
         string $fileName,
-        private readonly Closure $dataCallback,
-        private readonly OperationMode $operationMode,
-        private readonly int $startOffset,
-        private readonly CompressionMethod $compressionMethod,
-        private readonly string $comment,
-        private readonly DateTimeInterface $lastModificationDateTime,
-        private readonly int $deflateLevel,
-        private readonly ?int $maxSize,
-        private readonly ?int $exactSize,
-        private readonly bool $enableZip64,
-        private readonly bool $enableZeroHeader,
-        private readonly Closure $send,
-        private readonly Closure $recordSentBytes,
+        private Closure $dataCallback,
+        private string $operationMode,
+        private int $startOffset,
+        private int $compressionMethod,
+        private string $comment,
+        private DateTimeInterface $lastModificationDateTime,
+        private int $deflateLevel,
+        private ?int $maxSize,
+        private ?int $exactSize,
+        private bool $enableZip64,
+        private bool $enableZeroHeader,
+        callable $send,
+        callable $recordSentBytes,
     ) {
         $this->fileName = self::filterFilename($fileName);
         $this->checkEncoding();
+        $this->send = $send;
+        $this->recordSentBytes = $recordSentBytes;
 
         if ($this->enableZeroHeader) {
             $this->generalPurposeBitFlag |= GeneralPurposeBitFlag::ZERO_HEADER;
@@ -197,7 +199,7 @@ class File
         }
 
         $data = LocalFileHeader::generate(
-            versionNeededToExtract: $this->version->value,
+            versionNeededToExtract: $this->version,
             generalPurposeBitFlag: $this->generalPurposeBitFlag,
             compressionMethod: $this->compressionMethod,
             lastModificationDateTime: $this->lastModificationDateTime,
@@ -400,7 +402,7 @@ class File
 
         return CentralDirectoryFileHeader::generate(
             versionMadeBy: ZipStream::ZIP_VERSION_MADE_BY,
-            versionNeededToExtract: $this->version->value,
+            versionNeededToExtract: $this->version,
             generalPurposeBitFlag: $this->generalPurposeBitFlag,
             compressionMethod: $this->compressionMethod,
             lastModificationDateTime: $this->lastModificationDateTime,

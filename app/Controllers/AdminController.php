@@ -52,7 +52,7 @@ class AdminController
         if (isset($_SERVER['HTTP_HOST']) && strpos($_SERVER['HTTP_HOST'], 'superarse.ec') !== false) {
             $this->basePath = '';
         } else {
-            $this->basePath = '/superarseconectadosv2/public';
+            $this->basePath = '/superarseConectadosv2-master1/public';
         }
 
         $this->pasantiaModel = new PasantiaModel();
@@ -533,8 +533,18 @@ class AdminController
             exit();
         }
 
+        $areas = [];
+        try {
+            $db = $this->reportesModel->getConnection();
+            $stmt = $db->query("SELECT id, nombre FROM procesos WHERE estado = 1 ORDER BY nombre");
+            $areas = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (\PDOException $e) {
+            $areas = [];
+        }
+
         $this->render('admin/reportes/index', [
             'title' => 'Reportes de Prácticas',
+            'areas' => $areas,
         ]);
     }
 
@@ -668,62 +678,70 @@ class AdminController
             'investigacion_publicaciones',
             'investigacion_ponencias',
             'investigacion_proyectos_carrera',
+            'planificacion',
+            'planificacion_pedi',
+            'planificacion_poa',
+            'planificacion_poa_actividades',
         ];
         if (!in_array($module, $allowedModules, true)) {
             $module = 'practicas';
         }
 
         $format = $this->normalizeReportFormat($_GET['format'] ?? 'excel');
-        $exportData = $this->reportesModel->getDataForModuleExport($module);
+        $areaId = isset($_GET['area_id']) && $_GET['area_id'] !== '' ? $_GET['area_id'] : null;
+        $exportData = $this->reportesModel->getDataForModuleExport($module, $areaId);
         $rows = $exportData['rows'] ?? [];
         $label = $exportData['label'] ?? ucfirst($module);
         $reportTitle = 'Reporte Administrativo';
+        date_default_timezone_set('America/Guayaquil');
         $downloadedAt = date('d/m/Y H:i:s');
+        $userName = $_SESSION['nombres_completos'] ?? 'Administrador';
 
         if ($format === 'pdf') {
-            $html = $this->buildStyledReportHtml($reportTitle, (string) $label, $downloadedAt, $rows, 'pdf');
-            $this->renderPdfDownload('reporte_' . $module . '_' . date('Ymd_His') . '.pdf', $html);
+            $html = $this->buildStyledReportHtml($reportTitle, (string) $label, $downloadedAt, $rows, 'pdf', $module, $userName);
+            $paper = $module === 'planificacion_poa_actividades' ? 'A3' : 'A4';
+            $this->renderPdfDownload('reporte_' . $module . '_' . date('Ymd_His') . '.pdf', $html, $paper, 'landscape');
         }
 
         $filename = 'reporte_' . $module . '_' . date('Ymd_His') . '.xlsx';
-        $this->streamXlsxDownload($filename, $rows, null, (string) $label);
+        $this->streamXlsxDownload($filename, $rows, null, (string) $label, $module);
     }
 
-    private function buildStyledReportHtml($reportTitle, $moduleLabel, $downloadedAt, array $rows, $target = 'pdf')
+    private function buildStyledReportHtml($reportTitle, $moduleLabel, $downloadedAt, array $rows, $target = 'pdf', $module = '', $userName = '')
     {
+        if ($module === 'planificacion_poa_actividades') {
+            return $this->buildPoaActividadesStyledReportHtml($reportTitle, $moduleLabel, $downloadedAt, $rows, $target, $userName);
+        }
+
         $target = strtolower((string) $target);
         $headers = !empty($rows) ? array_keys((array) $rows[0]) : [];
 
         $isExcel = $target === 'excel';
-        $pagePadding = $isExcel ? '14px' : '12px';
-        $headerBg = $isExcel ? '#f3f4f6' : '#eef2ff';
+        $pagePadding = $isExcel ? '14px' : '16px';
+        $bodySize = $isExcel ? '11px' : '9.5px';
+        $headerSize = $isExcel ? '10px' : '8.5px';
 
         $html = '<!DOCTYPE html><html><head><meta charset="utf-8">';
         $html .= '<style>';
-        $html .= 'body{font-family:Arial,Helvetica,sans-serif;color:#111827;font-size:12px;padding:' . $pagePadding . ';}';
-        $html .= '.card{border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;}';
-        $html .= '.head{background:' . $headerBg . ';padding:12px 14px;border-bottom:1px solid #d1d5db;}';
-        $html .= '.title{font-size:18px;font-weight:700;margin:0;color:#1f2937;}';
-        $html .= '.meta{margin-top:6px;font-size:11px;color:#374151;}';
-        $html .= '.meta span{margin-right:14px;}';
-        $html .= 'table{width:100%;border-collapse:collapse;}';
-        $html .= 'th,td{border:1px solid #d1d5db;padding:7px 8px;vertical-align:top;}';
-        $html .= 'th{background:#111827;color:#ffffff;font-size:11px;text-transform:uppercase;}';
-        $html .= 'tr:nth-child(even) td{background:#f9fafb;}';
-        $html .= '.empty{padding:14px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;margin-top:10px;border-radius:6px;}';
+        $html .= '*{box-sizing:border-box;}';
+        $html .= 'body{font-family:Arial,Helvetica,sans-serif;color:#1e293b;font-size:' . $bodySize . ';padding:' . $pagePadding . ';margin:0;padding-bottom:28px;}';
+        $html .= 'table{width:100%;border-collapse:collapse;border:1px solid #cbd5e1;}';
+        $html .= 'th,td{border:1px solid #cbd5e1;padding:6px 7px;vertical-align:middle;}';
+        $html .= 'th{background:#4c1d95;color:#ffffff;font-size:' . $headerSize . ';text-transform:uppercase;letter-spacing:0.4px;font-weight:700;}';
+        $html .= 'td{color:#1e293b;}';
+        $html .= 'tr:nth-child(even) td{background:#f1f5f9;}';
+        $html .= '.empty{padding:16px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:6px;font-size:12px;}';
         $html .= '</style></head><body>';
 
-        $html .= '<div class="card">';
-        $html .= '<div class="head">';
-        $html .= '<p class="title">' . htmlspecialchars((string) $reportTitle, ENT_QUOTES, 'UTF-8') . '</p>';
-        $html .= '<div class="meta">';
-        $html .= '<span><strong>Modulo:</strong> ' . htmlspecialchars((string) $moduleLabel, ENT_QUOTES, 'UTF-8') . '</span>';
-        $html .= '<span><strong>Descargado:</strong> ' . htmlspecialchars((string) $downloadedAt, ENT_QUOTES, 'UTF-8') . '</span>';
-        $html .= '</div>';
-        $html .= '</div>';
+        $html .= '<div style="background:#4c1d95;padding:14px 18px;border-radius:6px 6px 0 0;margin-bottom:10px;">';
+        $html .= '<div style="font-size:17px;font-weight:700;color:#ffffff;margin:0;">' . htmlspecialchars((string) $reportTitle, ENT_QUOTES, 'UTF-8') . '</div>';
+        $html .= '<div style="margin-top:5px;font-size:10px;color:#94a3b8;">';
+        $html .= '<span style="margin-right:18px;"><strong style="color:#e2e8f0;">Modulo:</strong> ' . htmlspecialchars((string) $moduleLabel, ENT_QUOTES, 'UTF-8') . '</span>';
+        $html .= '<span><strong style="color:#e2e8f0;">Descargado:</strong> ' . htmlspecialchars((string) $downloadedAt, ENT_QUOTES, 'UTF-8') . '</span>';
+        $html .= '</div></div>';
 
         if (empty($rows)) {
-            $html .= '<div class="empty">No hay datos para exportar.</div>';
+            $html .= '<div class="empty" style="margin-top:10px;">No hay datos para exportar.</div>';
         } else {
             $html .= '<table><thead><tr>';
             foreach ($headers as $header) {
@@ -742,7 +760,145 @@ class AdminController
             $html .= '</tbody></table>';
         }
 
-        $html .= '</div></body></html>';
+        $logoPath = __DIR__ . '/../../public/Assets/img/logoSuperarse.png';
+        $logoB64 = '';
+        if (file_exists($logoPath)) {
+            $logoB64 = base64_encode(file_get_contents($logoPath));
+        }
+
+        $html .= '<div id="footer" style="position:fixed;bottom:0;left:0;right:0;padding:4px 16px;font-size:7.5px;color:#64748b;text-align:center;background:#ffffff;">';
+        $html .= '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">';
+        if ($logoB64 !== '') {
+            $html .= '<img src="data:image/png;base64,' . $logoB64 . '" style="height:18px;width:auto;">';
+        }
+        $html .= '<div>';
+        $html .= '<span>&copy; 2025 Instituto Superarse. Todos los derechos reservados.</span>';
+        if ($userName !== '') {
+            $html .= '<span> &mdash; Descargado por: ' . htmlspecialchars($userName, ENT_QUOTES, 'UTF-8') . '</span>';
+        }
+        $html .= '</div></div></div>';
+        $html .= '</body></html>';
+
+        return $html;
+    }
+
+    private function buildPoaActividadesStyledReportHtml($reportTitle, $moduleLabel, $downloadedAt, array $rows, $target = 'pdf', $userName = '')
+    {
+        $target = strtolower((string) $target);
+        $isExcel = $target === 'excel';
+        $pagePadding = $isExcel ? '12px' : '14px';
+        $bodySize = $isExcel ? '10.5px' : '9px';
+        $headerSize = $isExcel ? '9px' : '8px';
+
+        $generalHeaders = [
+            'EJE ESTRATÉGICO (PEDI)',
+            'OBJETIVO ESTRATÉGICO (PEDI)',
+            'ESTRATEGIA (PEDI)',
+            'NOMBRE DEL PROYECTO/ ACTIVIDAD',
+            'DESCRIPCIÓN',
+            'META (PEDI)',
+            'SEDE',
+            'LABORATORIO',
+            'PRESUPUESTO PLANIFICADO',
+            'PRESUPUESTO EJECUTADO',
+            'EJECUCIÓN PRESUPUESTARIA (%)',
+            'PROCESOS',
+            'OBSERVACIONES',
+            'ESTADO',
+        ];
+        $monthHeaders = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+
+        $html = '<!DOCTYPE html><html><head><meta charset="utf-8">';
+        $html .= '<style>';
+        $html .= '*{box-sizing:border-box;}';
+        $html .= 'body{font-family:Arial,Helvetica,sans-serif;color:#1e293b;font-size:' . $bodySize . ';padding:' . $pagePadding . ';margin:0;padding-bottom:28px;}';
+        $html .= '.top{background:#4c1d95;padding:14px 18px;border-radius:6px 6px 0 0;margin-bottom:10px;text-align:center;}';
+        $html .= '.top h1{margin:0;color:#fff;font-size:38px;font-weight:700;line-height:1.1;}';
+        $html .= '.top .sub{margin-top:6px;font-size:14px;color:#d8cfff;}';
+        $html .= 'h2.section{margin:10px 0 6px;font-size:26px;color:#334155;letter-spacing:0.3px;}';
+        $html .= 'table{width:100%;border-collapse:collapse;border:2px solid #334155;margin-bottom:12px;}';
+        $html .= 'th,td{border:1px solid #cbd5e1;padding:4px 6px;vertical-align:middle;}';
+        $html .= 'th{background:#4c1d95;color:#fff;font-size:' . $headerSize . ';text-transform:uppercase;letter-spacing:0.4px;font-weight:700;}';
+        $html .= 'td{font-size:' . $bodySize . ';}';
+        $html .= 'tbody tr:nth-child(even) td{background:#f8fafc;}';
+        $html .= '.center{text-align:center;}';
+        $html .= '.tick{color:#166534;font-weight:700;font-size:12px;font-family:"DejaVu Sans","Segoe UI Symbol","Arial Unicode MS",sans-serif;}';
+        $html .= '.dash{color:#cbd5e1;font-weight:700;}';
+        $html .= '.empty{padding:16px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:6px;font-size:12px;}';
+        $html .= '.cron-head{background:#4c1d95;color:#fff;font-weight:700;text-align:center;text-transform:uppercase;}';
+        $html .= '</style></head><body>';
+
+        $html .= '<div class="top">';
+        $html .= '<h1>' . htmlspecialchars((string) $reportTitle, ENT_QUOTES, 'UTF-8') . '</h1>';
+        $html .= '<div class="sub"><strong>Módulo:</strong> ' . htmlspecialchars((string) $moduleLabel, ENT_QUOTES, 'UTF-8') . '&nbsp;&nbsp;&nbsp; <strong>Descargado:</strong> ' . htmlspecialchars((string) $downloadedAt, ENT_QUOTES, 'UTF-8') . '</div>';
+        $html .= '</div>';
+
+        if (empty($rows)) {
+            $html .= '<div class="empty">No hay datos para exportar.</div>';
+        } else {
+            $html .= '<h2 class="section">TABLA GENERAL</h2>';
+            $html .= '<table><thead><tr>';
+            foreach ($generalHeaders as $header) {
+                $html .= '<th>' . htmlspecialchars($header, ENT_QUOTES, 'UTF-8') . '</th>';
+            }
+            $html .= '</tr></thead><tbody>';
+
+            foreach ($rows as $row) {
+                $html .= '<tr>';
+                foreach ($generalHeaders as $header) {
+                    $html .= '<td>' . htmlspecialchars((string) ($row[$header] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
+                }
+                $html .= '</tr>';
+            }
+            $html .= '</tbody></table>';
+
+            $html .= '<h2 class="section">TABLA CRONOGRAMA</h2>';
+            $html .= '<table><thead>';
+            $html .= '<tr>';
+            $html .= '<th class="cron-head" colspan="12">CRONOGRAMA</th>';
+            $html .= '<th class="cron-head">PROCESOS</th>';
+            $html .= '</tr><tr>';
+            foreach ($monthHeaders as $month) {
+                $html .= '<th>' . $month . '</th>';
+            }
+            $html .= '<th>PROCESOS</th>';
+            $html .= '</tr></thead><tbody>';
+
+            foreach ($rows as $row) {
+                $html .= '<tr>';
+                foreach ($monthHeaders as $month) {
+                    $value = (string) ($row[$month] ?? '—');
+                    if ($value === 'V') {
+                        $html .= '<td class="center"><span class="tick">&#x2714;</span></td>';
+                    } else {
+                        $html .= '<td class="center"><span class="dash">—</span></td>';
+                    }
+                }
+                $html .= '<td class="center">' . htmlspecialchars((string) ($row['PROCESOS'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
+                $html .= '</tr>';
+            }
+
+            $html .= '</tbody></table>';
+        }
+
+        $logoPath = __DIR__ . '/../../public/Assets/img/logoSuperarse.png';
+        $logoB64 = '';
+        if (file_exists($logoPath)) {
+            $logoB64 = base64_encode(file_get_contents($logoPath));
+        }
+
+        $html .= '<div id="footer" style="position:fixed;bottom:0;left:0;right:0;padding:4px 16px;font-size:7.5px;color:#64748b;text-align:center;background:#ffffff;">';
+        $html .= '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">';
+        if ($logoB64 !== '') {
+            $html .= '<img src="data:image/png;base64,' . $logoB64 . '" style="height:18px;width:auto;">';
+        }
+        $html .= '<div>';
+        $html .= '<span>&copy; 2025 Instituto Superarse. Todos los derechos reservados.</span>';
+        if ($userName !== '') {
+            $html .= '<span> &mdash; Descargado por: ' . htmlspecialchars($userName, ENT_QUOTES, 'UTF-8') . '</span>';
+        }
+        $html .= '</div></div></div>';
+        $html .= '</body></html>';
 
         return $html;
     }
@@ -971,7 +1127,7 @@ class AdminController
         return in_array($value, ['excel', 'pdf'], true) ? $value : 'excel';
     }
 
-    private function renderPdfDownload($filename, $html)
+    private function renderPdfDownload($filename, $html, $paper = 'A4', $orientation = 'landscape')
     {
         $options = new \Dompdf\Options();
         $options->set('defaultFont', 'Arial');
@@ -980,7 +1136,7 @@ class AdminController
 
         $dompdf = new \Dompdf\Dompdf($options);
         $dompdf->loadHtml('<meta charset="utf-8">' . (string) $html);
-        $dompdf->setPaper('A4', 'landscape');
+        $dompdf->setPaper((string) $paper, (string) $orientation);
         $dompdf->render();
 
         if (ob_get_level() > 0) {
@@ -991,7 +1147,7 @@ class AdminController
         exit();
     }
 
-    private function streamXlsxDownload($filename, array $rows, ?array $columns = null, $sheetTitle = 'Reporte')
+    private function streamXlsxDownload($filename, array $rows, ?array $columns = null, $sheetTitle = 'Reporte', $module = '')
     {
         while (ob_get_level() > 0) {
             ob_end_clean();
@@ -1001,7 +1157,7 @@ class AdminController
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle($this->sanitizeExcelSheetName((string) $sheetTitle));
 
-        $this->writeRowsToSheet($sheet, $rows, $columns);
+        $this->writeRowsToSheet($sheet, $rows, $columns, $module);
 
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
@@ -1055,8 +1211,13 @@ class AdminController
         exit();
     }
 
-    private function writeRowsToSheet($sheet, array $rows, ?array $columns = null)
+    private function writeRowsToSheet($sheet, array $rows, ?array $columns = null, $module = '')
     {
+        if (strpos($module, 'planificacion_poa_actividades') !== false) {
+            $this->writePoaActividadesRowsToSheet($sheet, $rows);
+            return;
+        }
+
         if ($columns !== null) {
             $keys = array_keys($columns);
             $labels = array_values($columns);
@@ -1073,17 +1234,52 @@ class AdminController
             return;
         }
 
+        $isPoaActividades = strpos($module, 'planificacion_poa_actividades') !== false;
+        $headerRow = 1;
+
+        if ($isPoaActividades) {
+            $monthKeys = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+            $monthStart = null;
+            $monthEnd = null;
+            foreach ($keys as $i => $k) {
+                if (in_array($k, $monthKeys)) {
+                    if ($monthStart === null) $monthStart = $i;
+                    $monthEnd = $i;
+                }
+            }
+            if ($monthStart !== null) {
+                $startCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($monthStart + 1);
+                $endCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($monthEnd + 1);
+                $mergeRange = $startCol . '1:' . $endCol . '1';
+                $sheet->mergeCells($mergeRange);
+                $cell = $sheet->getCell($startCol . '1');
+                $cell->setValueExplicit('CRONOGRAMA', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                $sheet->getStyle($mergeRange)->applyFromArray([
+                    'font' => ['bold' => true, 'color' => ['argb' => 'FFFFFFFF'], 'size' => 9],
+                    'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF4C1D95']],
+                    'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER, 'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER],
+                ]);
+                $headerRow = 2;
+            }
+        }
+
         foreach ($labels as $index => $label) {
             $column = $index + 1;
-            $cellRef = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($column) . '1';
+            $cellRef = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($column) . $headerRow;
             $cell = $sheet->getCell($cellRef);
             $cell->setValueExplicit((string) $label, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
         }
 
         $lastHeaderColumn = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($keys));
-        $sheet->getStyle('A1:' . $lastHeaderColumn . '1')->getFont()->setBold(true);
+        $headerStyle = $sheet->getStyle('A' . $headerRow . ':' . $lastHeaderColumn . $headerRow);
+        $headerStyle->getFont()->setBold(true)->getColor()->setARGB('FFFFFFFF');
+        $headerStyle->getFill()
+            ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+            ->getStartColor()
+            ->setARGB('FF4C1D95');
 
-        $rowNumber = 2;
+        $dataStartRow = $isPoaActividades ? 3 : 2;
+        $rowNumber = $dataStartRow;
         foreach ($rows as $row) {
             foreach ($keys as $index => $key) {
                 $value = $row[$key] ?? '';
@@ -1102,6 +1298,131 @@ class AdminController
         for ($column = 1; $column <= count($keys); $column++) {
             $columnRef = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($column);
             $sheet->getColumnDimension($columnRef)->setAutoSize(true);
+        }
+    }
+
+    private function writePoaActividadesRowsToSheet($sheet, array $rows)
+    {
+        if (empty($rows)) {
+            $sheet->setCellValue('A1', 'No hay datos para exportar.');
+            return;
+        }
+
+        $generalHeaders = [
+            'EJE ESTRATÉGICO (PEDI)',
+            'OBJETIVO ESTRATÉGICO (PEDI)',
+            'ESTRATEGIA (PEDI)',
+            'NOMBRE DEL PROYECTO/ ACTIVIDAD',
+            'DESCRIPCIÓN',
+            'META (PEDI)',
+            'SEDE',
+            'LABORATORIO',
+            'PRESUPUESTO PLANIFICADO',
+            'PRESUPUESTO EJECUTADO',
+            'EJECUCIÓN PRESUPUESTARIA (%)',
+            'PROCESOS',
+            'OBSERVACIONES',
+            'ESTADO',
+        ];
+        $monthHeaders = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+
+        $generalCols = count($generalHeaders);
+        $cronCols = count($monthHeaders) + 1;
+
+        $sheet->mergeCells('A1:' . \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($generalCols) . '1');
+        $sheet->setCellValue('A1', 'TABLA GENERAL');
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(12)->getColor()->setARGB('FF334155');
+
+        $headerRowGeneral = 2;
+        foreach ($generalHeaders as $index => $label) {
+            $column = $index + 1;
+            $cellRef = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($column) . $headerRowGeneral;
+            $sheet->setCellValueExplicit($cellRef, $label, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+        }
+
+        $lastGeneralCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($generalCols);
+        $sheet->getStyle('A2:' . $lastGeneralCol . '2')->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['argb' => 'FFFFFFFF'], 'size' => 9],
+            'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF4C1D95']],
+            'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER, 'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER],
+        ]);
+
+        $rowNumber = 3;
+        foreach ($rows as $row) {
+            foreach ($generalHeaders as $index => $key) {
+                $column = $index + 1;
+                $cellRef = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($column) . $rowNumber;
+                $sheet->setCellValueExplicit($cellRef, (string) ($row[$key] ?? ''), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+            }
+            $rowNumber++;
+        }
+
+        $cronTitleRow = $rowNumber + 1;
+        $sheet->mergeCells('A' . $cronTitleRow . ':' . \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($cronCols) . $cronTitleRow);
+        $sheet->setCellValue('A' . $cronTitleRow, 'TABLA CRONOGRAMA');
+        $sheet->getStyle('A' . $cronTitleRow)->getFont()->setBold(true)->setSize(12)->getColor()->setARGB('FF334155');
+
+        $cronGroupRow = $cronTitleRow + 1;
+        $sheet->mergeCells('A' . $cronGroupRow . ':L' . $cronGroupRow);
+        $sheet->setCellValue('A' . $cronGroupRow, 'CRONOGRAMA');
+        $sheet->setCellValue('M' . $cronGroupRow, 'PROCESOS');
+
+        $sheet->getStyle('A' . $cronGroupRow . ':M' . $cronGroupRow)->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['argb' => 'FFFFFFFF'], 'size' => 9],
+            'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF4C1D95']],
+            'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER, 'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER],
+        ]);
+
+        $cronHeaderRow = $cronGroupRow + 1;
+        foreach ($monthHeaders as $index => $label) {
+            $column = $index + 1;
+            $cellRef = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($column) . $cronHeaderRow;
+            $sheet->setCellValueExplicit($cellRef, $label, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+        }
+        $sheet->setCellValueExplicit('M' . $cronHeaderRow, 'PROCESOS', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+        $sheet->getStyle('A' . $cronHeaderRow . ':M' . $cronHeaderRow)->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['argb' => 'FFFFFFFF'], 'size' => 9],
+            'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF4C1D95']],
+            'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER, 'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER],
+        ]);
+
+        $cronDataRow = $cronHeaderRow + 1;
+        foreach ($rows as $row) {
+            foreach ($monthHeaders as $index => $key) {
+                $column = $index + 1;
+                $cellRef = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($column) . $cronDataRow;
+                $rawValue = (string) ($row[$key] ?? '—');
+                if ($rawValue === 'V') {
+                    $sheet->setCellValueExplicit($cellRef, '✔', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                    $sheet->getStyle($cellRef)->applyFromArray([
+                        'font' => ['bold' => true, 'name' => 'Segoe UI Symbol', 'color' => ['argb' => 'FF15803D']],
+                        'alignment' => [
+                            'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+                            'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+                        ],
+                    ]);
+                } else {
+                    $sheet->setCellValueExplicit($cellRef, '—', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                    $sheet->getStyle($cellRef)->applyFromArray([
+                        'font' => ['bold' => true, 'color' => ['argb' => 'FFCBD5E1']],
+                        'alignment' => [
+                            'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+                            'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+                        ],
+                    ]);
+                }
+            }
+            $sheet->setCellValueExplicit('M' . $cronDataRow, (string) ($row['PROCESOS'] ?? ''), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+            $cronDataRow++;
+        }
+
+        $lastRow = $cronDataRow - 1;
+        $sheet->getStyle('A2:' . $lastGeneralCol . $lastRow)->applyFromArray([
+            'borders' => ['allBorders' => ['borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN, 'color' => ['argb' => 'FFCBD5E1']]],
+        ]);
+
+        foreach (range('A', $lastGeneralCol) as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
         }
     }
 
@@ -1959,6 +2280,8 @@ class AdminController
             'vinculacion' => 'Vinculación',
             'investigacion' => 'Investigación',
             'plan_estrategico' => 'Planificación Estratégica',
+            'pedi' => 'PEDI',
+            'poa' => 'POA',
             'convenios' => 'Convenios',
             'auditoria' => 'Auditoría',
             'reportes' => 'Reportes',
@@ -1987,6 +2310,15 @@ class AdminController
 
         $matrix = $permissionState['matrix'] ?? [];
         if (!isset($matrix[$moduleKey])) {
+            // Fallback: si pedi/poa no está en la matriz, usar plan_estrategico
+            $fallbackByModule = [
+                'pedi' => 'plan_estrategico',
+                'poa' => 'plan_estrategico',
+            ];
+            $fallbackKey = $fallbackByModule[$moduleKey] ?? null;
+            if ($fallbackKey !== null && isset($matrix[$fallbackKey])) {
+                return !empty($matrix[$fallbackKey][$action]);
+            }
             return false;
         }
 
@@ -2084,13 +2416,28 @@ class AdminController
         if ($uri === '/admin/plan-estrategico') {
             return ['plan_estrategico', 'view'];
         }
-        if (in_array($uri, ['/admin/pedi/create', '/admin/pedi/store', '/admin/poa/create', '/admin/poa/store', '/admin/actividad/create', '/admin/actividad/store'], true)) {
+        if ($uri === '/admin/pedi') {
+            return ['pedi', 'view'];
+        }
+        if ($uri === '/admin/poa') {
+            return ['poa', 'view'];
+        }
+        if (in_array($uri, ['/admin/pedi/create', '/admin/pedi/store'], true)) {
+            return ['pedi', 'create'];
+        }
+        if (preg_match('#^/admin/pedi/edit/\d+$#', $uri) || $uri === '/admin/pedi/update') {
+            return ['pedi', 'edit'];
+        }
+        if (preg_match('#^/admin/pedi/eliminar/\d+$#', $uri)) {
+            return ['pedi', 'delete'];
+        }
+        if (in_array($uri, ['/admin/poa/create', '/admin/poa/store', '/admin/actividad/create', '/admin/actividad/store'], true)) {
             return ['plan_estrategico', 'create'];
         }
-        if (preg_match('#^/admin/pedi/edit/\d+$#', $uri) || $uri === '/admin/pedi/update' || preg_match('#^/admin/poa/edit/\d+$#', $uri) || $uri === '/admin/poa/update' || preg_match('#^/admin/actividad/edit/\d+$#', $uri) || $uri === '/admin/actividad/update') {
+        if (preg_match('#^/admin/poa/edit/\d+$#', $uri) || $uri === '/admin/poa/update' || preg_match('#^/admin/actividad/edit/\d+$#', $uri) || $uri === '/admin/actividad/update') {
             return ['plan_estrategico', 'edit'];
         }
-        if (preg_match('#^/admin/pedi/eliminar/\d+$#', $uri) || preg_match('#^/admin/poa/eliminar/\d+$#', $uri) || preg_match('#^/admin/actividad/eliminar/\d+$#', $uri)) {
+        if (preg_match('#^/admin/poa/eliminar/\d+$#', $uri) || preg_match('#^/admin/actividad/eliminar/\d+$#', $uri)) {
             return ['plan_estrategico', 'delete'];
         }
 
@@ -3704,7 +4051,15 @@ class AdminController
             }
         }
 
-        $this->render('admin/plan_estrategico/pedi_poa_index', [
+        $canCreatePoa = $this->hasPermission('poa', 'create');
+        $canEditPoa = $this->hasPermission('poa', 'edit');
+        $canDeletePoa = $this->hasPermission('poa', 'delete');
+
+        $viewName = $selectedPoaId > 0 && $selectedPoa
+            ? 'admin/plan_estrategico/gestionar_poa'
+            : 'admin/plan_estrategico/pedi_poa_index';
+
+        $this->render($viewName, [
             'title' => 'Planificación Estratégica',
             'poa' => $poa,
             'estrategias' => $estrategias,
@@ -3713,6 +4068,51 @@ class AdminController
             'selectedPoaId' => $selectedPoaId,
             'selectedPoa' => $selectedPoa,
             'selectedPoaActividades' => $selectedPoaActividades,
+            'canCreatePoa' => $canCreatePoa,
+            'canEditPoa' => $canEditPoa,
+            'canDeletePoa' => $canDeletePoa,
+        ]);
+    }
+
+    public function pediIndex()
+    {
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $pedi = $this->pediModel->obtenerTodos() ?? [];
+        $canCreatePedi = $this->hasPermission('pedi', 'create');
+        $canEditPedi = $this->hasPermission('pedi', 'edit');
+        $canDeletePedi = $this->hasPermission('pedi', 'delete');
+
+        $this->render('admin/pedi/index', [
+            'title' => 'PEDI',
+            'pedi' => $pedi,
+            'canCreatePedi' => $canCreatePedi,
+            'canEditPedi' => $canEditPedi,
+            'canDeletePedi' => $canDeletePedi,
+        ]);
+    }
+
+    public function poaIndex()
+    {
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $poa = $this->actividadModel->obtenerTodos() ?? [];
+        $canCreatePoa = $this->hasPermission('poa', 'create');
+        $canEditPoa = $this->hasPermission('poa', 'edit');
+        $canDeletePoa = $this->hasPermission('poa', 'delete');
+
+        $this->render('admin/poa/index', [
+            'title' => 'POA',
+            'poa' => $poa,
+            'canCreatePoa' => $canCreatePoa,
+            'canEditPoa' => $canEditPoa,
+            'canDeletePoa' => $canDeletePoa,
         ]);
     }
 
@@ -3818,28 +4218,63 @@ class AdminController
     public function guardarActividad()
     {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            header("Location: " . $this->basePath . "/admin/plan-estrategico");
+            header("Location: " . $this->basePath . "/admin/poa");
             exit();
         }
 
         $idPoa = (int) ($_POST['poa_id'] ?? 0);
+        $procesosIds = array_values(array_filter(
+            array_map('intval', (array) ($_POST['proceso_ids'] ?? [])),
+            static function ($id) { return $id > 0; }
+        ));
+        $procesosIds = array_values(array_unique($procesosIds));
+
+        if (count($procesosIds) === 0) {
+            $_SESSION['error'] = 'Debe seleccionar al menos un proceso.';
+            header("Location: " . $this->basePath . "/admin/actividad/create");
+            exit();
+        }
+
+        if (count($procesosIds) > 3) {
+            $_SESSION['error'] = 'Solo puede seleccionar hasta 3 procesos.';
+            header("Location: " . $this->basePath . "/admin/actividad/create");
+            exit();
+        }
+
+        if (!$idPoa) {
+            $estrategiaId = !empty($_POST['estrategia_id']) ? (int) $_POST['estrategia_id'] : 0;
+            $sedeId = !empty($_POST['sede_id']) ? (int) $_POST['sede_id'] : 0;
+            if ($estrategiaId && $sedeId) {
+                $poaData = [
+                    'estrategia_id' => $estrategiaId,
+                    'sede_id' => $sedeId,
+                    'anio_planificacion' => (int) date('Y'),
+                    'presupuesto_total_aprobado' => (float) ($_POST['presupuesto_asignado'] ?? 0),
+                    'estado_aprobacion' => 'Aprobado',
+                    'observaciones' => '',
+                    'estado' => true,
+                    'procesos_ids' => $procesosIds,
+                ];
+                $idPoa = $this->poaModel->crear($poaData);
+                if (!$idPoa) {
+                    $_SESSION['error'] = 'No se pudo crear el POA.';
+                    header("Location: " . $this->basePath . "/admin/poa");
+                    exit();
+                }
+            } else {
+                $_SESSION['error'] = 'Debe seleccionar un POA o especificar estrategia y sede.';
+                header("Location: " . $this->basePath . "/admin/poa");
+                exit();
+            }
+        }
+
         $presupuestoActividad = (float) ($_POST['presupuesto_asignado'] ?? 0);
-
-        $poa = $this->poaModel->obtenerPorId($idPoa);
-        if (!$poa) {
-            $_SESSION['error'] = 'Debe seleccionar un POA válido.';
-            header("Location: " . $this->basePath . "/admin/plan-estrategico");
-            exit();
-        }
-
-        $presupuestoUsado = $this->actividadModel->obtenerPresupuestoUsadoPorPoa($idPoa);
-        $presupuestoDisponible = (float) ($poa['presupuesto_total_aprobado'] ?? 0) - $presupuestoUsado;
-
-        if ($presupuestoActividad > $presupuestoDisponible) {
-            $_SESSION['error'] = 'El presupuesto de la actividad supera el disponible del POA seleccionado.';
-            header("Location: " . $this->basePath . "/admin/plan-estrategico?poa=" . $idPoa);
-            exit();
-        }
+        $estadoForm = strtoupper(trim((string) ($_POST['estado'] ?? 'ACTIVO')));
+        $fechaFin = trim((string) ($_POST['fecha_fin'] ?? ''));
+        $estaCaducado = ($fechaFin !== '' && $fechaFin < date('Y-m-d'));
+        $estadoActivo = $estaCaducado ? true : ($estadoForm !== 'INACTIVO');
+        $observacionesGenerales = trim((string) ($_POST['observaciones'] ?? ''));
+        $observacionAvance = trim((string) ($_POST['observaciones_avance'] ?? ''));
 
         $data = [
             'poa_id' => $idPoa,
@@ -3851,13 +4286,15 @@ class AdminController
             'presupuesto_asignado' => $presupuestoActividad,
             'presupuesto_ejecutado' => (float) ($_POST['presupuesto_ejecutado'] ?? 0),
             'avance_actividad' => (float) ($_POST['avance_actividad'] ?? 0),
-            'observaciones' => trim((string) ($_POST['observaciones'] ?? '')),
-            'estado' => true,
+            'observaciones' => $observacionesGenerales !== '' ? $observacionesGenerales : $observacionAvance,
+            'fecha_inicio' => $_POST['fecha_inicio'] ?? '',
+            'fecha_fin' => $fechaFin,
+            'estado' => $estadoActivo,
         ];
 
-        if ($data['nombre'] === '' || $data['meta'] === '') {
-            $_SESSION['error'] = 'Nombre y meta son obligatorios para la actividad/proyecto.';
-            header("Location: " . $this->basePath . "/admin/plan-estrategico?poa=" . $idPoa);
+        if ($data['nombre'] === '') {
+            $_SESSION['error'] = 'El nombre es obligatorio para la actividad/proyecto.';
+            header("Location: " . $this->basePath . "/admin/poa");
             exit();
         }
 
@@ -3868,47 +4305,74 @@ class AdminController
         $nuevoId = $this->actividadModel->crear($data);
         if ($nuevoId <= 0) {
             $_SESSION['error'] = 'No se pudo registrar la actividad/proyecto.';
-            header("Location: " . $this->basePath . "/admin/plan-estrategico?poa=" . $idPoa);
+            header("Location: " . $this->basePath . "/admin/poa");
             exit();
         }
 
+        $this->actividadModel->guardarCronogramaActividad($nuevoId, $_POST['cronograma'] ?? []);
+
         $_SESSION['success'] = 'Actividad/proyecto registrado correctamente.';
-        header("Location: " . $this->basePath . "/admin/plan-estrategico?poa=" . $idPoa);
+        header("Location: " . $this->basePath . "/admin/poa");
         exit();
     }
 
     public function actualizarActividad()
     {
-        $id = (int) ($_POST['id'] ?? 0);
+        $id = (int) ($_POST['id_actividad'] ?? 0);
         $actividadAnterior = $this->actividadModel->obtenerPorId($id);
 
         if (!$actividadAnterior) {
             $_SESSION['error'] = 'Actividad no encontrada.';
-            header("Location: " . $this->basePath . "/admin/plan-estrategico");
+            header("Location: " . $this->basePath . "/admin/poa");
             exit();
         }
 
-        $idPoaNuevo = (int) ($_POST['poa_id'] ?? 0);
-        $poaNuevo = $this->poaModel->obtenerPorId($idPoaNuevo);
+        $idPoa = (int) ($actividadAnterior['poa_id'] ?? 0);
+        $estrategiaId = !empty($_POST['estrategia_id']) ? (int) $_POST['estrategia_id'] : null;
+        $sedeId = !empty($_POST['sede_id']) ? (int) $_POST['sede_id'] : null;
+        $procesosIds = array_values(array_filter(
+            array_map('intval', (array) ($_POST['proceso_ids'] ?? [])),
+            static function ($pid) { return $pid > 0; }
+        ));
+        $procesosIds = array_values(array_unique($procesosIds));
 
-        if (!$poaNuevo) {
-            $_SESSION['error'] = 'Debe seleccionar un POA válido.';
-            header("Location: " . $this->basePath . "/admin/plan-estrategico?poa=" . (int) ($actividadAnterior['poa_id'] ?? 0));
+        if (count($procesosIds) === 0) {
+            $_SESSION['error'] = 'Debe seleccionar al menos un proceso.';
+            header("Location: " . $this->basePath . "/admin/actividad/edit/" . $id);
             exit();
+        }
+
+        if (count($procesosIds) > 3) {
+            $_SESSION['error'] = 'Solo puede seleccionar hasta 3 procesos.';
+            header("Location: " . $this->basePath . "/admin/actividad/edit/" . $id);
+            exit();
+        }
+
+        $poa = $this->poaModel->obtenerPorId($idPoa);
+        if ($poa) {
+            $poaData = [
+                'estrategia_id' => $estrategiaId ?? (int) $poa['estrategia_id'],
+                'sede_id' => $sedeId ?? (int) $poa['sede_id'],
+                'anio_planificacion' => (int) ($poa['anio_planificacion'] ?? date('Y')),
+                'presupuesto_total_aprobado' => (float) ($poa['presupuesto_total_aprobado'] ?? 0),
+                'estado_aprobacion' => $poa['estado_aprobacion'] ?? 'Aprobado',
+                'observaciones' => '',
+                'estado' => true,
+                'procesos_ids' => $procesosIds,
+            ];
+            $this->poaModel->actualizar($idPoa, $poaData);
         }
 
         $presupuestoActividad = (float) ($_POST['presupuesto_asignado'] ?? 0);
-        $presupuestoUsadoSinActual = $this->actividadModel->obtenerPresupuestoUsadoPorPoa($idPoaNuevo, $id);
-        $presupuestoDisponible = (float) ($poaNuevo['presupuesto_total_aprobado'] ?? 0) - $presupuestoUsadoSinActual;
-
-        if ($presupuestoActividad > $presupuestoDisponible) {
-            $_SESSION['error'] = 'El presupuesto de la actividad supera el disponible del POA seleccionado.';
-            header("Location: " . $this->basePath . "/admin/plan-estrategico?poa=" . $idPoaNuevo);
-            exit();
-        }
+        $estadoForm = strtoupper(trim((string) ($_POST['estado'] ?? 'ACTIVO')));
+        $fechaFin = trim((string) ($_POST['fecha_fin'] ?? ''));
+        $estaCaducado = ($fechaFin !== '' && $fechaFin < date('Y-m-d'));
+        $estadoActivo = $estaCaducado ? true : ($estadoForm !== 'INACTIVO');
+        $observacionesGenerales = trim((string) ($_POST['observaciones'] ?? ''));
+        $observacionAvance = trim((string) ($_POST['observaciones_avance'] ?? ''));
 
         $data = [
-            'poa_id' => $idPoaNuevo,
+            'poa_id' => $idPoa,
             'tipo_registro' => $_POST['tipo_registro'] ?? 'Actividad',
             'nombre' => trim((string) ($_POST['nombre'] ?? '')),
             'descripcion' => trim((string) ($_POST['descripcion'] ?? '')),
@@ -3917,8 +4381,10 @@ class AdminController
             'presupuesto_asignado' => $presupuestoActividad,
             'presupuesto_ejecutado' => (float) ($_POST['presupuesto_ejecutado'] ?? 0),
             'avance_actividad' => (float) ($_POST['avance_actividad'] ?? 0),
-            'observaciones' => trim((string) ($_POST['observaciones'] ?? '')),
-            'estado' => true,
+            'observaciones' => $observacionesGenerales !== '' ? $observacionesGenerales : $observacionAvance,
+            'fecha_inicio' => $_POST['fecha_inicio'] ?? '',
+            'fecha_fin' => $fechaFin,
+            'estado' => $estadoActivo,
         ];
 
         if (!in_array($data['tipo_registro'], ['Proyecto', 'Actividad'], true)) {
@@ -3926,11 +4392,14 @@ class AdminController
         }
 
         $actualizado = $this->actividadModel->actualizar($id, $data);
+
+        $this->actividadModel->guardarCronogramaActividad($id, $_POST['cronograma'] ?? []);
+
         $_SESSION[$actualizado ? 'success' : 'error'] = $actualizado
             ? 'Actividad/proyecto actualizado correctamente.'
             : 'No se pudo actualizar la actividad/proyecto.';
 
-        header("Location: " . $this->basePath . "/admin/plan-estrategico?poa=" . $idPoaNuevo);
+        header("Location: " . $this->basePath . "/admin/poa");
         exit();
     }
 
@@ -4003,52 +4472,315 @@ class AdminController
 
     public function crearActividad()
     {
-        header("Location: " . $this->basePath . "/admin/plan-estrategico");
-        exit();
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $db = $this->pediModel->getConnection();
+        $ejes = $db->query("SELECT id, nombre FROM ejes_estrategicos WHERE estado = 1 ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
+        $objetivos = $db->query("SELECT id, nombre, eje_id FROM objetivos_estrategicos ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
+        $estrategias = $db->query("SELECT id, nombre, objetivo_estrategico_id FROM estrategias ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
+        $sedes = $db->query("SELECT id, nombre FROM sedes ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
+        $procesos = $db->query("SELECT id, nombre FROM procesos ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
+        $metasPedi = $this->obtenerMetasPediPorEstrategia($db);
+        $poas = $this->poaModel->obtenerTodos();
+        $meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+        $actividad = [
+            'id' => 0,
+            'poa_id' => 0,
+            'nombre' => '',
+            'descripcion' => '',
+            'laboratorio' => '',
+            'meta' => '',
+            'presupuesto_asignado' => '0',
+            'presupuesto_ejecutado' => '0',
+            'avance_actividad' => '0',
+            'observaciones' => '',
+            'fecha_inicio' => '',
+            'fecha_fin' => '',
+            'estado' => 1,
+            'eje_id' => '',
+            'objetivo_id' => '',
+            'estrategia_id' => '',
+            'sede_id' => '',
+            'proceso_ids' => '',
+        ];
+
+        $this->render('admin/plan_estrategico/editar_actividad', [
+            'title' => 'Crear Actividad',
+            'actividad' => $actividad,
+            'ejes' => $ejes,
+            'objetivos' => $objetivos,
+            'estrategias' => $estrategias,
+            'sedes' => $sedes,
+            'procesos' => $procesos,
+            'metasPedi' => $metasPedi,
+            'poas' => $poas,
+            'cronograma' => [],
+            'meses' => $meses,
+        ]);
     }
 
     public function editarActividad($id)
     {
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
         $actividad = $this->actividadModel->obtenerPorId((int) $id);
         if (!$actividad) {
             header("Location: " . $this->basePath . "/admin/plan-estrategico");
             exit();
         }
 
-        header("Location: " . $this->basePath . "/admin/plan-estrategico?poa=" . (int) ($actividad['poa_id'] ?? 0));
-        exit();
+        $db = $this->pediModel->getConnection();
+        $ejes = $db->query("SELECT id, nombre FROM ejes_estrategicos WHERE estado = 1 ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
+        $objetivos = $db->query("SELECT id, nombre, eje_id FROM objetivos_estrategicos ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
+        $estrategias = $db->query("SELECT id, nombre, objetivo_estrategico_id FROM estrategias ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
+        $sedes = $db->query("SELECT id, nombre FROM sedes ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
+        $procesos = $db->query("SELECT id, nombre FROM procesos ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
+        $metasPedi = $this->obtenerMetasPediPorEstrategia($db);
+
+        $cronograma = $this->actividadModel->obtenerCronogramaPorActividad((int) $id);
+        $meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+        $this->render('admin/plan_estrategico/editar_actividad', [
+            'title' => 'Editar Actividad',
+            'actividad' => $actividad,
+            'ejes' => $ejes,
+            'objetivos' => $objetivos,
+            'estrategias' => $estrategias,
+            'sedes' => $sedes,
+            'procesos' => $procesos,
+            'metasPedi' => $metasPedi,
+            'poas' => [],
+            'cronograma' => $cronograma,
+            'meses' => $meses,
+        ]);
+    }
+
+    private function obtenerMetasPediPorEstrategia(PDO $db): array
+    {
+        $anioActual = (int) date('Y');
+        $fallbackSql = "SELECT
+                            TRIM(p.objetivo_estrategia) AS estrategia_nombre,
+                            SUBSTRING_INDEX(
+                                GROUP_CONCAT(NULLIF(TRIM(pm.meta_texto), '') ORDER BY pm.anio DESC SEPARATOR '||'),
+                                '||',
+                                1
+                            ) AS meta_texto
+                        FROM pedi p
+                        LEFT JOIN pedi_metas pm ON pm.pedi_id = p.id_pedi
+                        WHERE TRIM(COALESCE(p.objetivo_estrategia, '')) <> ''
+                        GROUP BY TRIM(p.objetivo_estrategia)";
+
+        $fallbackStmt = $db->prepare($fallbackSql);
+        $fallbackStmt->execute();
+        $fallbackByStrategyName = [];
+        foreach ($fallbackStmt->fetchAll(PDO::FETCH_ASSOC) as $fallbackRow) {
+            $strategyName = trim((string) ($fallbackRow['estrategia_nombre'] ?? ''));
+            $metaValue = trim((string) ($fallbackRow['meta_texto'] ?? ''));
+            if ($strategyName === '' || $metaValue === '') {
+                continue;
+            }
+            $fallbackByStrategyName[mb_strtolower($strategyName, 'UTF-8')] = $metaValue;
+        }
+
+        $sql = "SELECT
+                    es.id AS estrategia_id,
+                    es.nombre AS estrategia_nombre,
+                    COALESCE(
+                        CAST(ml.porcentaje_esperado AS CHAR),
+                        pm.meta_texto,
+                        ''
+                    ) AS meta_pedi
+                FROM estrategias es
+                LEFT JOIN objetivos_estrategicos obj ON obj.id = es.objetivo_estrategico_id
+                LEFT JOIN ejes_estrategicos eje ON eje.id = obj.eje_id
+                LEFT JOIN metas_linea_base ml ON ml.id = (
+                    SELECT ml2.id
+                    FROM metas_linea_base ml2
+                    INNER JOIN lineas_base lb2 ON lb2.id = ml2.linea_base_id
+                    WHERE lb2.estrategia_id = es.id
+                    ORDER BY (ml2.anio = :anio_actual) DESC, ml2.anio DESC, ml2.id DESC
+                    LIMIT 1
+                )
+                LEFT JOIN (
+                    SELECT
+                        m.eje_id,
+                        SUBSTRING_INDEX(GROUP_CONCAT(m.meta_texto ORDER BY m.anio DESC SEPARATOR '||'), '||', 1) AS meta_texto
+                    FROM (
+                        SELECT pm.eje_id, pm.anio, pm.meta_texto
+                        FROM pedi_metas pm
+                        WHERE pm.eje_id IS NOT NULL
+
+                        UNION ALL
+
+                        SELECT e.id AS eje_id, pm.anio, pm.meta_texto
+                        FROM pedi_metas pm
+                        INNER JOIN pedi p ON pm.pedi_id = p.id_pedi
+                        INNER JOIN ejes_estrategicos e ON e.nombre = p.eje
+                        WHERE pm.eje_id IS NULL
+                    ) m
+                    GROUP BY m.eje_id
+                ) pm ON pm.eje_id = eje.id
+                ORDER BY es.id ASC";
+
+        $stmt = $db->prepare($sql);
+        $stmt->bindValue(':anio_actual', $anioActual, PDO::PARAM_INT);
+        $stmt->execute();
+
+        $map = [];
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $id = (int) ($row['estrategia_id'] ?? 0);
+            if ($id <= 0) {
+                continue;
+            }
+
+            $meta = trim((string) ($row['meta_pedi'] ?? ''));
+            if ($meta === '') {
+                $strategyNameKey = mb_strtolower(trim((string) ($row['estrategia_nombre'] ?? '')), 'UTF-8');
+                if ($strategyNameKey !== '' && isset($fallbackByStrategyName[$strategyNameKey])) {
+                    $meta = trim((string) $fallbackByStrategyName[$strategyNameKey]);
+                }
+            }
+
+            if ($meta !== '' && is_numeric($meta)) {
+                $meta = rtrim(rtrim(number_format((float) $meta, 2, '.', ''), '0'), '.');
+            }
+            $map[$id] = $meta;
+        }
+
+        return $map;
     }
 
     public function crearPedi()
     {
-        header("Location: " . $this->basePath . "/admin/plan-estrategico");
-        exit();
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $this->render('admin/pedi/crear', [
+            'title' => 'Crear PEDI',
+        ]);
     }
 
     public function guardarPedi()
     {
-        $_SESSION['error'] = 'El mantenimiento de PEDI se realiza ahora desde catálogo estratégico.';
-        header("Location: " . $this->basePath . "/admin/plan-estrategico");
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $data = [
+            'objetivo_estrategico' => $_POST['objetivo_estrategico'] ?? '',
+            'eje' => $_POST['eje'] ?? '',
+            'objetivo_estrategia' => $_POST['objetivo_estrategia'] ?? '',
+            'avance' => 0,
+            'avance_estrategia' => 0,
+            'estado' => 'activo',
+            'linea_base' => $_POST['linea_base'] ?? '',
+            'meta_2024' => $_POST['meta_2024'] ?? '',
+            'meta_2025' => $_POST['meta_2025'] ?? '',
+            'meta_2026' => $_POST['meta_2026'] ?? '',
+            'meta_2027' => $_POST['meta_2027'] ?? '',
+            'meta_2028' => $_POST['meta_2028'] ?? '',
+        ];
+
+        try {
+            $created = $this->pediModel->crear($data);
+            $_SESSION[$created ? 'success' : 'error'] = $created
+                ? 'PEDI creado correctamente.'
+                : 'No se pudo crear el PEDI.';
+        } catch (Exception $e) {
+            error_log("Error guardarPedi: " . $e->getMessage());
+            $_SESSION['error'] = 'Error al guardar el PEDI.';
+        }
+
+        header("Location: " . $this->basePath . "/admin/pedi");
         exit();
     }
 
     public function editarPedi($id)
     {
-        header("Location: " . $this->basePath . "/admin/plan-estrategico");
-        exit();
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $pedi = $this->pediModel->obtenerPorId((int)$id);
+        if (!$pedi) {
+            $_SESSION['error'] = 'PEDI no encontrado.';
+            header("Location: " . $this->basePath . "/admin/pedi");
+            exit();
+        }
+
+        $this->render('admin/pedi/editar', [
+            'title' => 'Editar PEDI',
+            'pedi' => $pedi,
+        ]);
     }
 
     public function actualizarPedi()
     {
-        $_SESSION['error'] = 'El mantenimiento de PEDI se realiza ahora desde catálogo estratégico.';
-        header("Location: " . $this->basePath . "/admin/plan-estrategico");
+        if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $id = (int)($_POST['id_pedi'] ?? 0);
+        if ($id <= 0) {
+            $_SESSION['error'] = 'ID inválido.';
+            header("Location: " . $this->basePath . "/admin/pedi");
+            exit();
+        }
+
+        $data = [
+            'objetivo_estrategico' => $_POST['objetivo_estrategico'] ?? '',
+            'eje' => $_POST['eje'] ?? '',
+            'objetivo_estrategia' => $_POST['objetivo_estrategia'] ?? '',
+            'avance' => $_POST['avance'] ?? 0,
+            'avance_estrategia' => $_POST['avance_estrategia'] ?? 0,
+            'estado' => $_POST['estado'] ?? 'activo',
+            'linea_base' => $_POST['linea_base'] ?? '',
+            'meta_2024' => $_POST['meta_2024'] ?? '',
+            'meta_2025' => $_POST['meta_2025'] ?? '',
+            'meta_2026' => $_POST['meta_2026'] ?? '',
+            'meta_2027' => $_POST['meta_2027'] ?? '',
+            'meta_2028' => $_POST['meta_2028'] ?? '',
+        ];
+
+        try {
+            $updated = $this->pediModel->actualizar($id, $data);
+            $_SESSION[$updated ? 'success' : 'error'] = $updated
+                ? 'PEDI actualizado correctamente.'
+                : 'No se pudo actualizar el PEDI.';
+        } catch (Exception $e) {
+            error_log("Error actualizarPedi: " . $e->getMessage());
+            $_SESSION['error'] = 'Error al actualizar el PEDI.';
+        }
+
+        header("Location: " . $this->basePath . "/admin/pedi");
         exit();
     }
 
     public function eliminarPedi($id)
     {
-        $_SESSION['error'] = 'El mantenimiento de PEDI se realiza ahora desde catálogo estratégico.';
-        header("Location: " . $this->basePath . "/admin/plan-estrategico");
+        if (!isset($_SESSION['is_admin']) || $_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header("Location: " . $this->basePath . "/admin/login");
+            exit();
+        }
+
+        $eliminado = $this->pediModel->eliminar((int)$id);
+        $_SESSION[$eliminado ? 'success' : 'error'] = $eliminado
+            ? 'PEDI eliminado correctamente.'
+            : 'No se pudo eliminar el PEDI.';
+
+        header("Location: " . $this->basePath . "/admin/pedi");
         exit();
     }
 

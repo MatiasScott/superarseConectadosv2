@@ -1110,7 +1110,7 @@ class Calculation extends CalculationLocale
         }
 
         $oldFormula = $formula;
-        $formula = Preg::replaceCallback(self::UNIONABLE_COMMAS, $this->unionForComma(...), $formula);
+        $formula = Preg::replaceCallback(self::UNIONABLE_COMMAS, [$this, 'unionForComma'], $formula);
         if ($oldFormula !== $formula) {
             $this->debugLog->writeDebugLog('Reformulated as %s', $formula);
         }

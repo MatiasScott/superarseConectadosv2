@@ -20,7 +20,7 @@ class ResourceActionException extends Exception
      * @param resource $resource
      */
     public function __construct(
-        public readonly string $function,
+        public string $function,
         $resource = null,
     ) {
         $this->resource = $resource;

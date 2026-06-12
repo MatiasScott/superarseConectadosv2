@@ -16,7 +16,7 @@ abstract class LocalFileHeader
     public static function generate(
         int $versionNeededToExtract,
         int $generalPurposeBitFlag,
-        CompressionMethod $compressionMethod,
+        int $compressionMethod,
         DateTimeInterface $lastModificationDateTime,
         int $crc32UncompressedData,
         int $compressedSize,
@@ -28,7 +28,7 @@ abstract class LocalFileHeader
             new PackField(format: 'V', value: self::SIGNATURE),
             new PackField(format: 'v', value: $versionNeededToExtract),
             new PackField(format: 'v', value: $generalPurposeBitFlag),
-            new PackField(format: 'v', value: $compressionMethod->value),
+            new PackField(format: 'v', value: $compressionMethod),
             new PackField(format: 'V', value: Time::dateTimeToDosTime($lastModificationDateTime)),
             new PackField(format: 'V', value: $crc32UncompressedData),
             new PackField(format: 'V', value: $compressedSize),

@@ -16,7 +16,7 @@ class DosTimeOverflowException extends Exception
      * @internal
      */
     public function __construct(
-        public readonly DateTimeInterface $dateTime
+        public DateTimeInterface $dateTime
     ) {
         parent::__construct('The date ' . $dateTime->format(DateTimeInterface::ATOM) . " can't be represented as DOS time / date.");
     }
