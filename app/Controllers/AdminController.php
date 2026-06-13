@@ -2442,6 +2442,7 @@ class AdminController
         }
         if (in_array($uri, [
             '/admin/configuracion/proceso/store',
+            '/admin/configuracion/gestion/store',
             '/admin/configuracion/eje/store',
             '/admin/configuracion/objetivo/store',
             '/admin/configuracion/estrategia/store',
@@ -2450,6 +2451,7 @@ class AdminController
         }
         if (in_array($uri, [
             '/admin/configuracion/proceso/update',
+            '/admin/configuracion/gestion/update',
             '/admin/configuracion/eje/update',
             '/admin/configuracion/objetivo/update',
             '/admin/configuracion/estrategia/update',
@@ -2457,6 +2459,7 @@ class AdminController
             return ['configuracion', 'edit'];
         }
         if (preg_match('#^/admin/configuracion/proceso/eliminar/\d+$#', $uri)
+            || preg_match('#^/admin/configuracion/gestion/eliminar/\d+$#', $uri)
             || preg_match('#^/admin/configuracion/eje/eliminar/\d+$#', $uri)
             || preg_match('#^/admin/configuracion/objetivo/eliminar/\d+$#', $uri)
             || preg_match('#^/admin/configuracion/estrategia/eliminar/\d+$#', $uri)) {
@@ -3646,11 +3649,13 @@ class AdminController
         }
 
         $tab = (string) ($_GET['tab'] ?? 'procesos');
-        if (!in_array($tab, ['procesos', 'ejes', 'objetivos', 'estrategias'], true)) {
+        if (!in_array($tab, ['procesos', 'procesos_institucionales', 'gestiones', 'ejes', 'objetivos', 'estrategias'], true)) {
             $tab = 'procesos';
         }
 
         $editProcesoId = (int) ($_GET['edit_proceso'] ?? 0);
+        $editProcesoInstitucionalId = (int) ($_GET['edit_proceso_institucional'] ?? 0);
+        $editGestionId = (int) ($_GET['edit_gestion'] ?? 0);
         $editEjeId = (int) ($_GET['edit_eje'] ?? 0);
         $editObjetivoId = (int) ($_GET['edit_objetivo'] ?? 0);
         $editEstrategiaId = (int) ($_GET['edit_estrategia'] ?? 0);
@@ -3665,10 +3670,16 @@ class AdminController
             'title' => 'Configuracion de Planificacion',
             'activeTab' => $tab,
             'procesos' => $this->configPlanModel->obtenerProcesos(),
+            'procesosInstitucionales' => $this->configPlanModel->obtenerProcesosInstitucionales(),
+            'gestiones' => $this->configPlanModel->obtenerGestiones(),
+            'procesosActivos' => $this->configPlanModel->obtenerProcesosActivos(),
+            'procesosInstitucionalesActivos' => $this->configPlanModel->obtenerProcesosInstitucionalesActivos(),
             'ejes' => $this->configPlanModel->obtenerEjes(),
             'objetivos' => $this->configPlanModel->obtenerObjetivos(),
             'estrategias' => $estrategias,
             'editProceso' => $editProcesoId > 0 ? $this->configPlanModel->obtenerProcesoPorId($editProcesoId) : null,
+            'editProcesoInstitucional' => $editProcesoInstitucionalId > 0 ? $this->configPlanModel->obtenerProcesoInstitucionalPorId($editProcesoInstitucionalId) : null,
+            'editGestion' => $editGestionId > 0 ? $this->configPlanModel->obtenerGestionPorId($editGestionId) : null,
             'editEje' => $editEjeId > 0 ? $this->configPlanModel->obtenerEjePorId($editEjeId) : null,
             'editObjetivo' => $editObjetivoId > 0 ? $this->configPlanModel->obtenerObjetivoPorId($editObjetivoId) : null,
             'editEstrategia' => $editEstrategiaId > 0 ? $this->configPlanModel->obtenerEstrategiaDetallePorId($editEstrategiaId) : null,
@@ -3728,6 +3739,119 @@ class AdminController
             : 'No se pudo eliminar el proceso.';
 
         $this->redirectConfiguracion('procesos');
+    }
+
+    public function guardarGestionConfiguracion()
+    {
+        $nombre = trim((string) ($_POST['nombre'] ?? ''));
+        $procesosId = (int) ($_POST['procesos_institucionales_id'] ?? 0);
+
+        if ($nombre === '' || $procesosId <= 0) {
+            $_SESSION['error'] = 'El nombre y el proceso son obligatorios para la gestión.';
+            $this->redirectConfiguracion('gestiones');
+        }
+
+        $ok = $this->configPlanModel->crearGestion($nombre, $procesosId, $this->toBoolEstado($_POST['estado'] ?? '1'));
+        $_SESSION[$ok ? 'success' : 'error'] = $ok
+            ? 'Gestión creada correctamente.'
+            : 'No se pudo crear la gestión.';
+
+        $this->redirectConfiguracion('gestiones');
+    }
+
+    public function guardarProcesoInstitucionalConfiguracion()
+    {
+        $nombre = trim((string) ($_POST['nombre'] ?? ''));
+        if ($nombre === '') {
+            $_SESSION['error'] = 'El nombre del proceso institucional es obligatorio.';
+            $this->redirectConfiguracion('procesos_institucionales');
+        }
+
+        $ok = $this->configPlanModel->crearProcesoInstitucional($nombre, $this->toBoolEstado($_POST['estado'] ?? '1'));
+        $_SESSION[$ok ? 'success' : 'error'] = $ok
+            ? 'Proceso institucional creado correctamente.'
+            : 'No se pudo crear el proceso institucional.';
+
+        $this->redirectConfiguracion('procesos_institucionales');
+    }
+
+    public function actualizarProcesoInstitucionalConfiguracion()
+    {
+        $id = (int) ($_POST['id'] ?? 0);
+        $nombre = trim((string) ($_POST['nombre'] ?? ''));
+
+        if ($id <= 0 || $nombre === '') {
+            $_SESSION['error'] = 'Datos invalidos para actualizar el proceso institucional.';
+            $this->redirectConfiguracion('procesos_institucionales');
+        }
+
+        $ok = $this->configPlanModel->actualizarProcesoInstitucional($id, $nombre, $this->toBoolEstado($_POST['estado'] ?? '1'));
+        $_SESSION[$ok ? 'success' : 'error'] = $ok
+            ? 'Proceso institucional actualizado correctamente.'
+            : 'No se pudo actualizar el proceso institucional.';
+
+        $this->redirectConfiguracion('procesos_institucionales');
+    }
+
+    public function eliminarProcesoInstitucionalConfiguracion($id)
+    {
+        $id = (int) $id;
+        if ($id <= 0) {
+            $_SESSION['error'] = 'Proceso institucional invalido.';
+            $this->redirectConfiguracion('procesos_institucionales');
+        }
+
+        if ($this->configPlanModel->procesoInstitucionalEnUso($id)) {
+            $_SESSION['error'] = 'No se puede eliminar el proceso institucional porque ya se usa en actividades POA. Marquelo como inactivo.';
+            $this->redirectConfiguracion('procesos_institucionales');
+        }
+
+        $ok = $this->configPlanModel->eliminarProcesoInstitucional($id);
+        $_SESSION[$ok ? 'success' : 'error'] = $ok
+            ? 'Proceso institucional eliminado correctamente.'
+            : 'No se pudo eliminar el proceso institucional.';
+
+        $this->redirectConfiguracion('procesos_institucionales');
+    }
+
+    public function actualizarGestionConfiguracion()
+    {
+        $id = (int) ($_POST['id'] ?? 0);
+        $nombre = trim((string) ($_POST['nombre'] ?? ''));
+        $procesosId = (int) ($_POST['procesos_institucionales_id'] ?? 0);
+
+        if ($id <= 0 || $nombre === '' || $procesosId <= 0) {
+            $_SESSION['error'] = 'Datos invalidos para actualizar la gestión.';
+            $this->redirectConfiguracion('gestiones');
+        }
+
+        $ok = $this->configPlanModel->actualizarGestion($id, $procesosId, $nombre, $this->toBoolEstado($_POST['estado'] ?? '1'));
+        $_SESSION[$ok ? 'success' : 'error'] = $ok
+            ? 'Gestión actualizada correctamente.'
+            : 'No se pudo actualizar la gestión.';
+
+        $this->redirectConfiguracion('gestiones');
+    }
+
+    public function eliminarGestionConfiguracion($id)
+    {
+        $id = (int) $id;
+        if ($id <= 0) {
+            $_SESSION['error'] = 'Gestión invalida.';
+            $this->redirectConfiguracion('gestiones');
+        }
+
+        if ($this->configPlanModel->gestionEnUso($id)) {
+            $_SESSION['error'] = 'No se puede eliminar la gestión porque ya se usa en actividades POA. Marquela como inactiva.';
+            $this->redirectConfiguracion('gestiones');
+        }
+
+        $ok = $this->configPlanModel->eliminarGestion($id);
+        $_SESSION[$ok ? 'success' : 'error'] = $ok
+            ? 'Gestión eliminada correctamente.'
+            : 'No se pudo eliminar la gestión.';
+
+        $this->redirectConfiguracion('gestiones');
     }
 
     public function guardarEjeConfiguracion()
@@ -4238,6 +4362,28 @@ class AdminController
             static function ($id) { return $id > 0; }
         ));
         $procesosIds = array_values(array_unique($procesosIds));
+        $procesoId = (int) ($_POST['proceso_id'] ?? 0);
+        $gestionId = (int) ($_POST['gestion_id'] ?? 0);
+
+        if ($procesoId <= 0 || $gestionId <= 0) {
+            $_SESSION['error'] = 'Debe seleccionar un proceso y una gestión para la actividad.';
+            header("Location: " . $this->basePath . "/admin/actividad/create");
+            exit();
+        }
+
+        $procesoValido = $this->configPlanModel->obtenerProcesoInstitucionalPorId($procesoId);
+        if (!$procesoValido || (int) ($procesoValido['estado'] ?? 0) !== 1) {
+            $_SESSION['error'] = 'El proceso seleccionado no está activo.';
+            header("Location: " . $this->basePath . "/admin/actividad/create");
+            exit();
+        }
+
+        $gestionValida = $this->configPlanModel->obtenerGestionPorId($gestionId);
+        if (!$gestionValida || (int) ($gestionValida['procesos_institucionales_id'] ?? 0) !== $procesoId || (int) ($gestionValida['estado'] ?? 0) !== 1) {
+            $_SESSION['error'] = 'La gestión seleccionada no pertenece al proceso indicado o está inactiva.';
+            header("Location: " . $this->basePath . "/admin/actividad/create");
+            exit();
+        }
 
         if (count($procesosIds) === 0) {
             $_SESSION['error'] = 'Debe seleccionar al menos un proceso.';
@@ -4255,10 +4401,23 @@ class AdminController
             $estrategiaId = !empty($_POST['estrategia_id']) ? (int) $_POST['estrategia_id'] : 0;
             $sedeId = !empty($_POST['sede_id']) ? (int) $_POST['sede_id'] : 0;
             if ($estrategiaId && $sedeId) {
+                $anioPlanificacion = (int) date('Y');
+                $idPoaExistente = $this->poaModel->obtenerIdPorCabecera($estrategiaId, $sedeId, $anioPlanificacion);
+                if ($idPoaExistente > 0) {
+                    $idPoa = $idPoaExistente;
+
+                    $procesosActuales = $this->poaModel->obtenerProcesosIdsPorPoa($idPoa);
+                    $procesosFusionados = array_values(array_unique(array_merge($procesosActuales, $procesosIds)));
+                    if (!empty($procesosFusionados)) {
+                        $this->poaModel->sincronizarProcesosPorPoa($idPoa, $procesosFusionados);
+                    }
+                }
+
+                if (!$idPoa) {
                 $poaData = [
                     'estrategia_id' => $estrategiaId,
                     'sede_id' => $sedeId,
-                    'anio_planificacion' => (int) date('Y'),
+                    'anio_planificacion' => $anioPlanificacion,
                     'presupuesto_total_aprobado' => (float) ($_POST['presupuesto_asignado'] ?? 0),
                     'estado_aprobacion' => 'Aprobado',
                     'observaciones' => '',
@@ -4270,6 +4429,7 @@ class AdminController
                     $_SESSION['error'] = 'No se pudo crear el POA.';
                     header("Location: " . $this->basePath . "/admin/poa");
                     exit();
+                }
                 }
             } else {
                 $_SESSION['error'] = 'Debe seleccionar un POA o especificar estrategia y sede.';
@@ -4293,6 +4453,8 @@ class AdminController
             'descripcion' => trim((string) ($_POST['descripcion'] ?? '')),
             'laboratorio' => trim((string) ($_POST['laboratorio'] ?? '')),
             'meta' => trim((string) ($_POST['meta'] ?? '')),
+            'proceso_id' => $procesoId,
+            'gestion_id' => $gestionId,
             'presupuesto_asignado' => $presupuestoActividad,
             'presupuesto_ejecutado' => (float) ($_POST['presupuesto_ejecutado'] ?? 0),
             'avance_actividad' => (float) ($_POST['avance_actividad'] ?? 0),
@@ -4340,11 +4502,33 @@ class AdminController
         $idPoa = (int) ($actividadAnterior['poa_id'] ?? 0);
         $estrategiaId = !empty($_POST['estrategia_id']) ? (int) $_POST['estrategia_id'] : null;
         $sedeId = !empty($_POST['sede_id']) ? (int) $_POST['sede_id'] : null;
+        $procesoId = (int) ($_POST['proceso_id'] ?? 0);
+        $gestionId = (int) ($_POST['gestion_id'] ?? 0);
         $procesosIds = array_values(array_filter(
             array_map('intval', (array) ($_POST['proceso_ids'] ?? [])),
             static function ($pid) { return $pid > 0; }
         ));
         $procesosIds = array_values(array_unique($procesosIds));
+
+        if ($procesoId <= 0 || $gestionId <= 0) {
+            $_SESSION['error'] = 'Debe seleccionar un proceso y una gestión para la actividad.';
+            header("Location: " . $this->basePath . "/admin/actividad/edit/" . $id);
+            exit();
+        }
+
+        $procesoValido = $this->configPlanModel->obtenerProcesoInstitucionalPorId($procesoId);
+        if (!$procesoValido || (int) ($procesoValido['estado'] ?? 0) !== 1) {
+            $_SESSION['error'] = 'El proceso seleccionado no está activo.';
+            header("Location: " . $this->basePath . "/admin/actividad/edit/" . $id);
+            exit();
+        }
+
+        $gestionValida = $this->configPlanModel->obtenerGestionPorId($gestionId);
+        if (!$gestionValida || (int) ($gestionValida['procesos_institucionales_id'] ?? 0) !== $procesoId || (int) ($gestionValida['estado'] ?? 0) !== 1) {
+            $_SESSION['error'] = 'La gestión seleccionada no pertenece al proceso indicado o está inactiva.';
+            header("Location: " . $this->basePath . "/admin/actividad/edit/" . $id);
+            exit();
+        }
 
         if (count($procesosIds) === 0) {
             $_SESSION['error'] = 'Debe seleccionar al menos un proceso.';
@@ -4388,6 +4572,8 @@ class AdminController
             'descripcion' => trim((string) ($_POST['descripcion'] ?? '')),
             'laboratorio' => trim((string) ($_POST['laboratorio'] ?? '')),
             'meta' => trim((string) ($_POST['meta'] ?? '')),
+            'proceso_id' => $procesoId,
+            'gestion_id' => $gestionId,
             'presupuesto_asignado' => $presupuestoActividad,
             'presupuesto_ejecutado' => (float) ($_POST['presupuesto_ejecutado'] ?? 0),
             'avance_actividad' => (float) ($_POST['avance_actividad'] ?? 0),
@@ -4492,7 +4678,9 @@ class AdminController
         $objetivos = $db->query("SELECT id, nombre, eje_id FROM objetivos_estrategicos ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
         $estrategias = $db->query("SELECT id, nombre, objetivo_estrategico_id FROM estrategias ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
         $sedes = $db->query("SELECT id, nombre FROM sedes ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
-        $procesos = $db->query("SELECT id, nombre FROM procesos ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
+        $procesos = $this->configPlanModel->obtenerProcesosInstitucionalesActivos();
+        $responsables = $this->configPlanModel->obtenerProcesosActivos();
+        $gestiones = $this->configPlanModel->obtenerGestionesActivas();
         /*$metasPedi = $this->obtenerMetasPediPorEstrategia($db);*/
         $poas = $this->poaModel->obtenerTodos();
         $meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -4511,6 +4699,8 @@ class AdminController
             'fecha_inicio' => '',
             'fecha_fin' => '',
             'estado' => 1,
+            'proceso_id' => '',
+            'gestion_id' => '',
             'eje_id' => '',
             'objetivo_id' => '',
             'estrategia_id' => '',
@@ -4526,6 +4716,8 @@ class AdminController
             'estrategias' => $estrategias,
             'sedes' => $sedes,
             'procesos' => $procesos,
+            'responsables' => $responsables,
+            'gestiones' => $gestiones,
             /*'metasPedi' => $metasPedi,*/
             'poas' => $poas,
             'cronograma' => [],
@@ -4551,7 +4743,9 @@ class AdminController
         $objetivos = $db->query("SELECT id, nombre, eje_id FROM objetivos_estrategicos ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
         $estrategias = $db->query("SELECT id, nombre, objetivo_estrategico_id FROM estrategias ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
         $sedes = $db->query("SELECT id, nombre FROM sedes ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
-        $procesos = $db->query("SELECT id, nombre FROM procesos ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
+        $procesos = $this->configPlanModel->obtenerProcesosInstitucionalesActivos();
+        $responsables = $this->configPlanModel->obtenerProcesosActivos();
+        $gestiones = $this->configPlanModel->obtenerGestionesActivas();
         /*$metasPedi = $this->obtenerMetasPediPorEstrategia($db);*/
 
         $cronograma = $this->actividadModel->obtenerCronogramaPorActividad((int) $id);
@@ -4565,6 +4759,8 @@ class AdminController
             'estrategias' => $estrategias,
             'sedes' => $sedes,
             'procesos' => $procesos,
+            'responsables' => $responsables,
+            'gestiones' => $gestiones,
             /*'metasPedi' => $metasPedi,*/
             'poas' => [],
             'cronograma' => $cronograma,

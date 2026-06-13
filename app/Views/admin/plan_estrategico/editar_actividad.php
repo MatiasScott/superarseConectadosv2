@@ -22,6 +22,9 @@ if (!empty($actividad['proceso_ids'])) {
 }
 
 $metasPedi = isset($metasPedi) && is_array($metasPedi) ? $metasPedi : [];
+$responsables = isset($responsables) && is_array($responsables) ? $responsables : ($procesos ?? []);
+$procesoActividadSeleccionado = (string) ($actividad['proceso_id'] ?? $actividad['procesos_institucionales_id'] ?? '');
+$gestionActividadSeleccionada = (string) ($actividad['gestion_id'] ?? '');
 ?>
 
 <div class="max-w-5xl mx-auto">
@@ -36,6 +39,28 @@ $metasPedi = isset($metasPedi) && is_array($metasPedi) ? $metasPedi : [];
 
         <div class="p-6">
             <form method="POST" action="<?= $formAction ?>" class="space-y-5">
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Proceso</label>
+                        <select id="procesoActividadSelect" name="proceso_id" class="w-full mt-1 border rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-purple-300 focus:border-purple-500" required>
+                            <option value="">Seleccione un proceso</option>
+                            <?php foreach (($procesos ?? []) as $proc): ?>
+                            <option value="<?= (int) $proc['id'] ?>" <?= $procesoActividadSeleccionado === (string) $proc['id'] ? 'selected' : '' ?>><?= htmlspecialchars((string) $proc['nombre'], ENT_QUOTES, 'UTF-8') ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Gestión</label>
+                        <select id="gestionActividadSelect" name="gestion_id" class="w-full mt-1 border rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-purple-300 focus:border-purple-500" required>
+                            <option value="">Seleccione un proceso primero</option>
+                            <?php foreach (($gestiones ?? []) as $gestion): ?>
+                            <option value="<?= (int) $gestion['id'] ?>" data-proceso-id="<?= (int) $gestion['procesos_institucionales_id'] ?>" <?= $gestionActividadSeleccionada === (string) $gestion['id'] ? 'selected' : '' ?>><?= htmlspecialchars((string) $gestion['nombre'], ENT_QUOTES, 'UTF-8') ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
                 <?php if ($isEdit): ?>
                 <input type="hidden" name="id_actividad" value="<?= (int)$actividad['id'] ?>">
                 <?php endif; ?>
@@ -111,12 +136,12 @@ $metasPedi = isset($metasPedi) && is_array($metasPedi) ? $metasPedi : [];
 
                 <div class="rounded-2xl border border-gray-200 p-4 bg-gray-50/70">
                     <div class="flex items-center justify-between gap-3 mb-3">
-                        <label class="block text-sm font-semibold text-gray-800">PROCESOS</label>
+                        <label class="block text-sm font-semibold text-gray-800">RESPONSABLES</label>
                         <span id="procesoCounter" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700">0/3 seleccionados</span>
                     </div>
 
                     <div id="procesoChecklist" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-                        <?php foreach ($procesos as $proc):
+                        <?php foreach ($responsables as $proc):
                             $isChecked = in_array((string)$proc['id'], $procesosSeleccionados, true);
                         ?>
                         <label class="proceso-item flex items-start gap-2.5 p-3 rounded-xl border transition cursor-pointer <?= $isChecked ? 'bg-purple-100 border-purple-400' : 'bg-white border-gray-200 hover:border-purple-300 hover:bg-purple-50/40' ?>">
@@ -223,6 +248,30 @@ document.addEventListener('DOMContentLoaded', function() {
     const ejeSelect = document.getElementById('ejeSelect');
     const objetivoSelect = document.getElementById('objetivoSelect');
     const estrategiaSelect = document.getElementById('estrategiaSelect');
+    const procesoActividadSelect = document.getElementById('procesoActividadSelect');
+    const gestionActividadSelect = document.getElementById('gestionActividadSelect');
+
+    function filtrarGestionesActividad() {
+        if (!procesoActividadSelect || !gestionActividadSelect) {
+            return;
+        }
+
+        const procesoId = procesoActividadSelect.value;
+        let seleccionValida = false;
+
+        Array.from(gestionActividadSelect.querySelectorAll('option[data-proceso-id]')).forEach(function(option) {
+            const coincide = !procesoId || option.getAttribute('data-proceso-id') === procesoId;
+            option.hidden = !coincide;
+            option.disabled = !coincide;
+            if (option.selected && coincide) {
+                seleccionValida = true;
+            }
+        });
+
+        if (!seleccionValida) {
+            gestionActividadSelect.value = '';
+        }
+    }
 
     function filterOptions(select, filterAttr, filterVal) {
         const options = select.querySelectorAll('option');
@@ -259,6 +308,10 @@ document.addEventListener('DOMContentLoaded', function() {
     ejeSelect.addEventListener('change', onEjeChange);
     objetivoSelect.addEventListener('change', onObjetivoChange);
     estrategiaSelect.addEventListener('change', syncMetaPedi);
+    if (procesoActividadSelect && gestionActividadSelect) {
+        procesoActividadSelect.addEventListener('change', filtrarGestionesActividad);
+        filtrarGestionesActividad();
+    }
     onEjeChange();
     syncMetaPedi();
 

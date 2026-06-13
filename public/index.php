@@ -358,8 +358,32 @@ if (preg_match('#^/admin#', $uri)) {
             $controller->actualizarProcesoConfiguracion();
             break;
 
+        case $uri === '/admin/configuracion/proceso-institucional/store' && $method === 'POST':
+            $controller->guardarProcesoInstitucionalConfiguracion();
+            break;
+
+        case $uri === '/admin/configuracion/proceso-institucional/update' && $method === 'POST':
+            $controller->actualizarProcesoInstitucionalConfiguracion();
+            break;
+
+        case $uri === '/admin/configuracion/gestion/store' && $method === 'POST':
+            $controller->guardarGestionConfiguracion();
+            break;
+
+        case $uri === '/admin/configuracion/gestion/update' && $method === 'POST':
+            $controller->actualizarGestionConfiguracion();
+            break;
+
+        case preg_match('/^\/admin\/configuracion\/gestion\/eliminar\/(\d+)$/', $uri, $matches) && $method === 'POST':
+            $controller->eliminarGestionConfiguracion((int)$matches[1]);
+            break;
+
         case preg_match('/^\/admin\/configuracion\/proceso\/eliminar\/(\d+)$/', $uri, $matches) && $method === 'POST':
             $controller->eliminarProcesoConfiguracion((int)$matches[1]);
+            break;
+
+        case preg_match('/^\/admin\/configuracion\/proceso-institucional\/eliminar\/(\d+)$/', $uri, $matches) && $method === 'POST':
+            $controller->eliminarProcesoInstitucionalConfiguracion((int)$matches[1]);
             break;
 
         case $uri === '/admin/configuracion/eje/store' && $method === 'POST':

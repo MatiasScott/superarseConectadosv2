@@ -105,6 +105,15 @@ class PoaModel extends Database
         return $row;
     }
 
+    public function obtenerIdPorCabecera(int $estrategiaId, int $sedeId, int $anioPlanificacion): int
+    {
+        $db = $this->getConnection();
+        $stmt = $db->prepare("SELECT id FROM poa WHERE estrategia_id = ? AND sede_id = ? AND anio_planificacion = ? LIMIT 1");
+        $stmt->execute([$estrategiaId, $sedeId, $anioPlanificacion]);
+        $id = $stmt->fetchColumn();
+        return $id ? (int) $id : 0;
+    }
+
     public function obtenerProcesosIdsPorPoa($poaId)
     {
         $db = $this->getConnection();

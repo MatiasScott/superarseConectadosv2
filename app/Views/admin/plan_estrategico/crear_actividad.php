@@ -31,6 +31,48 @@
 
         </div>
 
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700">
+                    Proceso
+                </label>
+
+                <select name="proceso_id"
+                    id="procesoActividadSelect"
+                    class="w-full mt-1 border rounded-lg px-4 py-2"
+                    required>
+
+                    <option value="">Seleccione</option>
+
+                    <?php foreach (($procesos ?? []) as $proceso): ?>
+                        <option value="<?= (int) ($proceso['id'] ?? 0) ?>"><?= htmlspecialchars((string) ($proceso['nombre'] ?? ''), ENT_QUOTES, 'UTF-8') ?></option>
+                    <?php endforeach; ?>
+
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">
+                    Gestión
+                </label>
+
+                <select name="gestion_id"
+                    id="gestionActividadSelect"
+                    class="w-full mt-1 border rounded-lg px-4 py-2"
+                    required>
+
+                    <option value="">Seleccione un proceso primero</option>
+
+                    <?php foreach (($gestiones ?? []) as $gestion): ?>
+                        <option value="<?= (int) ($gestion['id'] ?? 0) ?>" data-proceso-id="<?= (int) ($gestion['procesos_institucionales_id'] ?? 0) ?>">
+                            <?= htmlspecialchars((string) ($gestion['nombre'] ?? ''), ENT_QUOTES, 'UTF-8') ?>
+                        </option>
+                    <?php endforeach; ?>
+
+                </select>
+            </div>
+        </div>
+
         <div>
             <label class="block text-sm font-medium text-gray-700">
                 Nombre Actividad
@@ -145,12 +187,35 @@
 <script>
     document.addEventListener("DOMContentLoaded", function() {
         const selectPoa = document.querySelector('select[name="id_poa"]');
+        const procesoSelect = document.getElementById("procesoActividadSelect");
+        const gestionSelect = document.getElementById("gestionActividadSelect");
         const presupuestoInput = document.getElementById("presupuestoActividad");
         const presupuestoInfo = document.getElementById("presupuestoInfo");
 
-        if (!selectPoa || !presupuestoInput || !presupuestoInfo) {
+        if (!selectPoa || !procesoSelect || !gestionSelect || !presupuestoInput || !presupuestoInfo) {
             return;
         }
+
+        const allGestionOptions = Array.from(gestionSelect.querySelectorAll("option[data-proceso-id]"));
+
+        const filtrarGestiones = () => {
+            const procesoId = procesoSelect.value;
+
+            allGestionOptions.forEach((option) => {
+                const coincide = !procesoId || option.dataset.procesoId === procesoId;
+                option.hidden = !coincide;
+                option.disabled = !coincide;
+            });
+
+            const selectedOption = gestionSelect.options[gestionSelect.selectedIndex];
+            if (!gestionSelect.value || (selectedOption && selectedOption.hidden)) {
+                gestionSelect.value = "";
+            }
+
+            if (!procesoId) {
+                gestionSelect.value = "";
+            }
+        };
 
         const actualizarLimitePresupuesto = () => {
             const option = selectPoa.options[selectPoa.selectedIndex];
@@ -168,7 +233,9 @@
             presupuestoInfo.textContent = `Disponible para esta actividad: $${disponible.toFixed(2)}`;
         };
 
+        procesoSelect.addEventListener("change", filtrarGestiones);
         selectPoa.addEventListener("change", actualizarLimitePresupuesto);
+        filtrarGestiones();
         actualizarLimitePresupuesto();
     });
 </script>

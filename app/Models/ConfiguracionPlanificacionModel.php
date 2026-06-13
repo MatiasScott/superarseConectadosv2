@@ -11,6 +11,14 @@ class ConfiguracionPlanificacionModel extends Database
         return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
     }
 
+    public function obtenerProcesosActivos(): array
+    {
+        $db = $this->getConnection();
+        $stmt = $db->prepare("SELECT id, nombre, estado FROM procesos WHERE estado = 1 ORDER BY nombre ASC");
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
     public function obtenerProcesoPorId(int $id): ?array
     {
         $db = $this->getConnection();
@@ -45,6 +53,162 @@ class ConfiguracionPlanificacionModel extends Database
     {
         $db = $this->getConnection();
         $stmt = $db->prepare("SELECT COUNT(*) FROM poa_procesos WHERE proceso_id = ?");
+        $stmt->execute([$id]);
+        return (int) $stmt->fetchColumn() > 0;
+    }
+
+    public function obtenerProcesosInstitucionales(): array
+    {
+        $db = $this->getConnection();
+        $stmt = $db->prepare("SELECT id, nombre, estado FROM procesos_institucionales ORDER BY nombre ASC");
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
+    public function obtenerProcesosInstitucionalesActivos(): array
+    {
+        $db = $this->getConnection();
+        $stmt = $db->prepare("SELECT id, nombre, estado FROM procesos_institucionales WHERE estado = 1 ORDER BY nombre ASC");
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
+    public function obtenerProcesoInstitucionalPorId(int $id): ?array
+    {
+        $db = $this->getConnection();
+        $stmt = $db->prepare("SELECT id, nombre, estado FROM procesos_institucionales WHERE id = ? LIMIT 1");
+        $stmt->execute([$id]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
+    public function crearProcesoInstitucional(string $nombre, bool $estado): bool
+    {
+        $db = $this->getConnection();
+        $stmt = $db->prepare("INSERT INTO procesos_institucionales (nombre, estado) VALUES (?, ?)");
+        return $stmt->execute([trim($nombre), $estado ? 1 : 0]);
+    }
+
+    public function actualizarProcesoInstitucional(int $id, string $nombre, bool $estado): bool
+    {
+        $db = $this->getConnection();
+        $stmt = $db->prepare("UPDATE procesos_institucionales SET nombre = ?, estado = ? WHERE id = ?");
+        return $stmt->execute([trim($nombre), $estado ? 1 : 0, $id]);
+    }
+
+    public function eliminarProcesoInstitucional(int $id): bool
+    {
+        $db = $this->getConnection();
+        $stmt = $db->prepare("DELETE FROM procesos_institucionales WHERE id = ?");
+        return $stmt->execute([$id]);
+    }
+
+    public function procesoInstitucionalEnUso(int $id): bool
+    {
+        $db = $this->getConnection();
+        $stmt = $db->prepare("SELECT COUNT(*) FROM poa_actividades WHERE procesos_institucionales_id = ?");
+        $stmt->execute([$id]);
+        return (int) $stmt->fetchColumn() > 0;
+    }
+
+    public function obtenerGestiones(): array
+    {
+        $db = $this->getConnection();
+        $sql = "SELECT
+                    g.id,
+                        g.procesos_institucionales_id,
+                    g.nombre,
+                    g.estado,
+                    g.fecha_ingreso,
+                    g.fecha_actualizacion,
+                    p.nombre AS proceso_nombre
+                FROM gestion g
+                    INNER JOIN procesos_institucionales p ON p.id = g.procesos_institucionales_id
+                ORDER BY p.nombre ASC, g.nombre ASC";
+        $stmt = $db->prepare($sql);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
+    public function obtenerGestionesActivas(): array
+    {
+        $db = $this->getConnection();
+        $sql = "SELECT
+                    g.id,
+                        g.procesos_institucionales_id,
+                    g.nombre,
+                    g.estado,
+                    p.nombre AS proceso_nombre
+                FROM gestion g
+                    INNER JOIN procesos_institucionales p ON p.id = g.procesos_institucionales_id
+                WHERE g.estado = 1 AND p.estado = 1
+                ORDER BY p.nombre ASC, g.nombre ASC";
+        $stmt = $db->prepare($sql);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
+    public function obtenerGestionPorId(int $id): ?array
+    {
+        $db = $this->getConnection();
+        $sql = "SELECT
+                    g.id,
+                        g.procesos_institucionales_id,
+                    g.nombre,
+                    g.estado,
+                    g.fecha_ingreso,
+                    g.fecha_actualizacion,
+                    p.nombre AS proceso_nombre
+                FROM gestion g
+                    INNER JOIN procesos_institucionales p ON p.id = g.procesos_institucionales_id
+                WHERE g.id = ?
+                LIMIT 1";
+        $stmt = $db->prepare($sql);
+        $stmt->execute([$id]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
+    public function obtenerGestionesPorProceso(int $procesoId, bool $soloActivas = false): array
+    {
+        $db = $this->getConnection();
+        $sql = "SELECT id, procesos_institucionales_id, nombre, estado
+                FROM gestion
+                WHERE procesos_institucionales_id = ?";
+        if ($soloActivas) {
+            $sql .= " AND estado = 1";
+        }
+        $sql .= " ORDER BY nombre ASC";
+        $stmt = $db->prepare($sql);
+        $stmt->execute([(int) $procesoId]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
+    public function crearGestion(string $nombre, int $procesosId, bool $estado): bool
+    {
+        $db = $this->getConnection();
+            $stmt = $db->prepare("INSERT INTO gestion (procesos_institucionales_id, nombre, estado) VALUES (?, ?, ?)");
+        return $stmt->execute([$procesosId, trim($nombre), $estado ? 1 : 0]);
+    }
+
+    public function actualizarGestion(int $id, int $procesosId, string $nombre, bool $estado): bool
+    {
+        $db = $this->getConnection();
+            $stmt = $db->prepare("UPDATE gestion SET procesos_institucionales_id = ?, nombre = ?, estado = ? WHERE id = ?");
+        return $stmt->execute([$procesosId, trim($nombre), $estado ? 1 : 0, $id]);
+    }
+
+    public function eliminarGestion(int $id): bool
+    {
+        $db = $this->getConnection();
+        $stmt = $db->prepare("DELETE FROM gestion WHERE id = ?");
+        return $stmt->execute([$id]);
+    }
+
+    public function gestionEnUso(int $id): bool
+    {
+        $db = $this->getConnection();
+        $stmt = $db->prepare("SELECT COUNT(*) FROM poa_actividades WHERE gestion_id = ?");
         $stmt->execute([$id]);
         return (int) $stmt->fetchColumn() > 0;
     }

@@ -1,10 +1,12 @@
 <?php
 $activeTab = (string) ($activeTab ?? 'procesos');
-if (!in_array($activeTab, ['procesos', 'ejes', 'objetivos', 'estrategias'], true)) {
+if (!in_array($activeTab, ['procesos', 'procesos_institucionales', 'gestiones', 'ejes', 'objetivos', 'estrategias'], true)) {
     $activeTab = 'procesos';
 }
 
 $editProceso = is_array($editProceso ?? null) ? $editProceso : null;
+$editProcesoInstitucional = is_array($editProcesoInstitucional ?? null) ? $editProcesoInstitucional : null;
+$editGestion = is_array($editGestion ?? null) ? $editGestion : null;
 $editEje = is_array($editEje ?? null) ? $editEje : null;
 $editObjetivo = is_array($editObjetivo ?? null) ? $editObjetivo : null;
 $editEstrategia = is_array($editEstrategia ?? null) ? $editEstrategia : null;
@@ -31,7 +33,9 @@ if (empty($metasEdit)) {
 <?php endif; ?>
 
 <div class="mb-6 flex flex-wrap gap-2">
-    <a href="<?= $basePath ?>/admin/configuracion?tab=procesos" class="px-4 py-2 rounded-lg text-sm font-semibold <?= $activeTab === 'procesos' ? 'bg-superarse-morado-medio text-white' : 'bg-white border border-gray-300 text-gray-700' ?>">Gestion de Procesos</a>
+    <a href="<?= $basePath ?>/admin/configuracion?tab=procesos" class="px-4 py-2 rounded-lg text-sm font-semibold <?= $activeTab === 'procesos' ? 'bg-superarse-morado-medio text-white' : 'bg-white border border-gray-300 text-gray-700' ?>">Procesos</a>
+    <a href="<?= $basePath ?>/admin/configuracion?tab=procesos_institucionales" class="px-4 py-2 rounded-lg text-sm font-semibold <?= $activeTab === 'procesos_institucionales' ? 'bg-superarse-morado-medio text-white' : 'bg-white border border-gray-300 text-gray-700' ?>">Procesos Institucionales</a>
+    <a href="<?= $basePath ?>/admin/configuracion?tab=gestiones" class="px-4 py-2 rounded-lg text-sm font-semibold <?= $activeTab === 'gestiones' ? 'bg-superarse-morado-medio text-white' : 'bg-white border border-gray-300 text-gray-700' ?>">Gestiones Institucionales</a>
     <a href="<?= $basePath ?>/admin/configuracion?tab=ejes" class="px-4 py-2 rounded-lg text-sm font-semibold <?= $activeTab === 'ejes' ? 'bg-superarse-morado-medio text-white' : 'bg-white border border-gray-300 text-gray-700' ?>">Ejes Estrategicos</a>
     <a href="<?= $basePath ?>/admin/configuracion?tab=objetivos" class="px-4 py-2 rounded-lg text-sm font-semibold <?= $activeTab === 'objetivos' ? 'bg-superarse-morado-medio text-white' : 'bg-white border border-gray-300 text-gray-700' ?>">Objetivos Estrategicos</a>
     <a href="<?= $basePath ?>/admin/configuracion?tab=estrategias" class="px-4 py-2 rounded-lg text-sm font-semibold <?= $activeTab === 'estrategias' ? 'bg-superarse-morado-medio text-white' : 'bg-white border border-gray-300 text-gray-700' ?>">Estrategias + Linea Base + Metas</a>
@@ -39,8 +43,8 @@ if (empty($metasEdit)) {
 
 <?php if ($activeTab === 'procesos'): ?>
 <section class="bg-white shadow-lg rounded-2xl p-6 mb-6">
-    <h3 class="text-xl font-bold mb-1">Seccion A: Gestion de Procesos</h3>
-    <p class="text-sm text-gray-500 mb-5">Estos procesos alimentan el multiselect del modulo POA.</p>
+    <h3 class="text-xl font-bold mb-1">Seccion A: Procesos</h3>
+    <p class="text-sm text-gray-500 mb-5">Estos procesos se usan en la cabecera del POA.</p>
 
     <form method="POST" action="<?= $basePath . ($editProceso ? '/admin/configuracion/proceso/update' : '/admin/configuracion/proceso/store') ?>" class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <?php if ($editProceso): ?>
@@ -88,6 +92,144 @@ if (empty($metasEdit)) {
                         <td class="px-4 py-3 text-center space-x-2">
                             <a href="<?= $basePath ?>/admin/configuracion?tab=procesos&edit_proceso=<?= (int) ($proceso['id'] ?? 0) ?>" class="text-blue-600 hover:text-blue-800 font-semibold">Editar</a>
                             <form method="POST" action="<?= $basePath ?>/admin/configuracion/proceso/eliminar/<?= (int) ($proceso['id'] ?? 0) ?>" class="inline" onsubmit="return confirm('Si esta en uso debera inactivarlo. Continuar?');">
+                                <button type="submit" class="text-red-600 hover:text-red-800 font-semibold">Eliminar</button>
+                            </form>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<?php endif; ?>
+
+<?php if ($activeTab === 'procesos_institucionales'): ?>
+<section class="bg-white shadow-lg rounded-2xl p-6 mb-6">
+    <h3 class="text-xl font-bold mb-1">Seccion B: Procesos Institucionales</h3>
+    <p class="text-sm text-gray-500 mb-5">Estos procesos institucionales clasifican las actividades del POA.</p>
+
+    <form method="POST" action="<?= $basePath . ($editProcesoInstitucional ? '/admin/configuracion/proceso-institucional/update' : '/admin/configuracion/proceso-institucional/store') ?>" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <?php if ($editProcesoInstitucional): ?>
+            <input type="hidden" name="id" value="<?= (int) ($editProcesoInstitucional['id'] ?? 0) ?>">
+        <?php endif; ?>
+
+        <label class="block md:col-span-2">
+            <span class="text-sm text-gray-700 font-medium">Nombre del proceso institucional</span>
+            <input type="text" name="nombre" required class="w-full mt-1 border rounded-lg px-3 py-2" value="<?= htmlspecialchars((string) ($editProcesoInstitucional['nombre'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+        </label>
+
+        <label class="block">
+            <span class="text-sm text-gray-700 font-medium">Estado</span>
+            <?php $estadoProcesoInstitucional = (string) ($editProcesoInstitucional['estado'] ?? '1'); ?>
+            <select name="estado" class="w-full mt-1 border rounded-lg px-3 py-2">
+                <option value="1" <?= $estadoProcesoInstitucional === '1' ? 'selected' : '' ?>>Activo</option>
+                <option value="0" <?= $estadoProcesoInstitucional === '0' ? 'selected' : '' ?>>Inactivo</option>
+            </select>
+        </label>
+
+        <div class="md:col-span-3 flex flex-wrap gap-3">
+            <button type="submit" class="bg-superarse-morado-medio hover:bg-superarse-morado-oscuro text-white px-5 py-2 rounded-lg font-semibold text-sm">
+                <?= $editProcesoInstitucional ? 'Actualizar proceso institucional' : 'Registrar proceso institucional' ?>
+            </button>
+            <?php if ($editProcesoInstitucional): ?>
+                <a href="<?= $basePath ?>/admin/configuracion?tab=procesos_institucionales" class="px-5 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-semibold hover:bg-gray-50">Nuevo registro</a>
+            <?php endif; ?>
+        </div>
+    </form>
+</section>
+
+<section class="bg-white shadow-lg rounded-2xl p-6">
+    <h3 class="text-xl font-bold mb-4">Procesos institucionales registrados</h3>
+    <div class="overflow-x-auto">
+        <table class="min-w-full text-sm text-left">
+            <thead class="bg-gray-100 text-gray-600 uppercase text-xs tracking-wider">
+                <tr><th class="px-4 py-3">ID</th><th class="px-4 py-3">Nombre</th><th class="px-4 py-3">Estado</th><th class="px-4 py-3 text-center">Acciones</th></tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+                <?php foreach (($procesosInstitucionales ?? []) as $procesoInstitucional): ?>
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3"><?= (int) ($procesoInstitucional['id'] ?? 0) ?></td>
+                        <td class="px-4 py-3"><?= htmlspecialchars((string) ($procesoInstitucional['nombre'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
+                        <td class="px-4 py-3"><?= (int) ($procesoInstitucional['estado'] ?? 0) === 1 ? 'Activo' : 'Inactivo' ?></td>
+                        <td class="px-4 py-3 text-center space-x-2">
+                            <a href="<?= $basePath ?>/admin/configuracion?tab=procesos_institucionales&edit_proceso_institucional=<?= (int) ($procesoInstitucional['id'] ?? 0) ?>" class="text-blue-600 hover:text-blue-800 font-semibold">Editar</a>
+                            <form method="POST" action="<?= $basePath ?>/admin/configuracion/proceso-institucional/eliminar/<?= (int) ($procesoInstitucional['id'] ?? 0) ?>" class="inline" onsubmit="return confirm('Si esta en uso debera inactivarlo. Continuar?');">
+                                <button type="submit" class="text-red-600 hover:text-red-800 font-semibold">Eliminar</button>
+                            </form>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<?php endif; ?>
+
+<?php if ($activeTab === 'gestiones'): ?>
+<section class="bg-white shadow-lg rounded-2xl p-6 mb-6">
+    <h3 class="text-xl font-bold mb-1">Seccion B: Gestiones Institucionales</h3>
+    <p class="text-sm text-gray-500 mb-5">Cada gestión institucional queda asociada a un proceso institucional para usarla en actividades POA.</p>
+
+    <form method="POST" action="<?= $basePath . ($editGestion ? '/admin/configuracion/gestion/update' : '/admin/configuracion/gestion/store') ?>" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <?php if ($editGestion): ?>
+            <input type="hidden" name="id" value="<?= (int) ($editGestion['id'] ?? 0) ?>">
+        <?php endif; ?>
+
+        <label class="block md:col-span-2">
+            <span class="text-sm text-gray-700 font-medium">Nombre de la gestión</span>
+            <input type="text" name="nombre" required class="w-full mt-1 border rounded-lg px-3 py-2" value="<?= htmlspecialchars((string) ($editGestion['nombre'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+        </label>
+
+        <label class="block">
+            <span class="text-sm text-gray-700 font-medium">Estado</span>
+            <?php $estadoGestion = (string) ($editGestion['estado'] ?? '1'); ?>
+            <select name="estado" class="w-full mt-1 border rounded-lg px-3 py-2">
+                <option value="1" <?= $estadoGestion === '1' ? 'selected' : '' ?>>Activo</option>
+                <option value="0" <?= $estadoGestion === '0' ? 'selected' : '' ?>>Inactivo</option>
+            </select>
+        </label>
+
+        <label class="block md:col-span-3">
+            <span class="text-sm text-gray-700 font-medium">Proceso</span>
+            <?php $procesoGestion = (int) ($editGestion['procesos_institucionales_id'] ?? 0); ?>
+            <select name="procesos_institucionales_id" required class="w-full mt-1 border rounded-lg px-3 py-2">
+                <option value="">Seleccione...</option>
+                <?php foreach (($procesosInstitucionalesActivos ?? []) as $proceso): ?>
+                    <option value="<?= (int) ($proceso['id'] ?? 0) ?>" <?= (int) ($proceso['id'] ?? 0) === $procesoGestion ? 'selected' : '' ?>><?= htmlspecialchars((string) ($proceso['nombre'] ?? ''), ENT_QUOTES, 'UTF-8') ?></option>
+                <?php endforeach; ?>
+            </select>
+        </label>
+
+        <div class="md:col-span-3 flex flex-wrap gap-3">
+            <button type="submit" class="bg-superarse-morado-medio hover:bg-superarse-morado-oscuro text-white px-5 py-2 rounded-lg font-semibold text-sm">
+                <?= $editGestion ? 'Actualizar gestion' : 'Registrar gestion' ?>
+            </button>
+            <?php if ($editGestion): ?>
+                <a href="<?= $basePath ?>/admin/configuracion?tab=gestiones" class="px-5 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-semibold hover:bg-gray-50">Nuevo registro</a>
+            <?php endif; ?>
+        </div>
+    </form>
+</section>
+
+<section class="bg-white shadow-lg rounded-2xl p-6">
+    <h3 class="text-xl font-bold mb-4">Gestiones registradas</h3>
+    <div class="overflow-x-auto">
+        <table class="min-w-full text-sm text-left">
+            <thead class="bg-gray-100 text-gray-600 uppercase text-xs tracking-wider">
+                <tr><th class="px-4 py-3">ID</th><th class="px-4 py-3">Proceso</th><th class="px-4 py-3">Gestion</th><th class="px-4 py-3">Estado</th><th class="px-4 py-3 text-center">Acciones</th></tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+                <?php foreach (($gestiones ?? []) as $gestion): ?>
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3"><?= (int) ($gestion['id'] ?? 0) ?></td>
+                        <td class="px-4 py-3"><?= htmlspecialchars((string) ($gestion['proceso_nombre'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
+                        <td class="px-4 py-3"><?= htmlspecialchars((string) ($gestion['nombre'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
+                        <td class="px-4 py-3"><?= (int) ($gestion['estado'] ?? 0) === 1 ? 'Activo' : 'Inactivo' ?></td>
+                        <td class="px-4 py-3 text-center space-x-2">
+                            <a href="<?= $basePath ?>/admin/configuracion?tab=gestiones&edit_gestion=<?= (int) ($gestion['id'] ?? 0) ?>" class="text-blue-600 hover:text-blue-800 font-semibold">Editar</a>
+                            <form method="POST" action="<?= $basePath ?>/admin/configuracion/gestion/eliminar/<?= (int) ($gestion['id'] ?? 0) ?>" class="inline" onsubmit="return confirm('Si esta en uso debera inactivarlo. Continuar?');">
                                 <button type="submit" class="text-red-600 hover:text-red-800 font-semibold">Eliminar</button>
                             </form>
                         </td>

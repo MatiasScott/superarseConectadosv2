@@ -471,6 +471,10 @@ class AdminReportesModel extends Database
                     p2.nombre AS nombre,
                     po.observaciones AS detalle,
                     po.estado_aprobacion,
+                    NULL AS proceso,
+                    NULL AS gestion,
+                    NULL AS proceso,
+                    NULL AS gestion,
                     NULL AS fecha_inicio,
                     NULL AS fecha_fin
                 FROM poa po
@@ -487,9 +491,13 @@ class AdminReportesModel extends Database
                     a.nombre AS nombre,
                     a.descripcion AS detalle,
                     a.estado,
+                    COALESCE(pr.nombre, '') AS proceso,
+                    COALESCE(ge.nombre, '') AS gestion,
                     NULL AS fecha_inicio,
                     NULL AS fecha_fin
                 FROM poa_actividades a
+                LEFT JOIN procesos_institucionales pr ON pr.id = a.procesos_institucionales_id
+                LEFT JOIN gestion ge ON ge.id = a.gestion_id
                 ORDER BY submodulo ASC, id_registro DESC";
 
         try {
@@ -670,6 +678,8 @@ class AdminReportesModel extends Database
                     COALESCE(a.nombre, '') AS nombre_actividad,
                     COALESCE(a.descripcion, '') AS descripcion,
                     COALESCE(NULLIF(TRIM(a.meta), ''), CAST(ml.porcentaje_esperado AS CHAR), pm.meta_texto, '') AS meta_pedi,
+                    COALESCE(pr.nombre, '') AS proceso,
+                    COALESCE(ge.nombre, '') AS gestion,
                     s.nombre AS sede_nombre,
                     COALESCE(a.laboratorio, '') AS laboratorio,
                     COALESCE(a.presupuesto_asignado, 0) AS presupuesto_asignado,
@@ -695,6 +705,8 @@ class AdminReportesModel extends Database
                 LEFT JOIN estrategias est ON est.id = p.estrategia_id
                 LEFT JOIN objetivos_estrategicos obj ON obj.id = est.objetivo_estrategico_id
                 LEFT JOIN ejes_estrategicos eje ON eje.id = obj.eje_id
+                LEFT JOIN procesos_institucionales pr ON pr.id = a.procesos_institucionales_id
+                LEFT JOIN gestion ge ON ge.id = a.gestion_id
                 LEFT JOIN (
                     SELECT estrategia_id, MAX(id) AS linea_base_id
                     FROM lineas_base
@@ -795,6 +807,8 @@ class AdminReportesModel extends Database
                     'NOMBRE DEL PROYECTO/ ACTIVIDAD' => (string) ($r['nombre_actividad'] ?? ''),
                     'DESCRIPCIÓN' => (string) ($r['descripcion'] ?? ''),
                     'META (PEDI)' => $meta,
+                    'PROCESO' => (string) ($r['proceso'] ?? ''),
+                    'GESTION' => (string) ($r['gestion'] ?? ''),
                     'SEDE' => (string) ($r['sede_nombre'] ?? ''),
                     'LABORATORIO' => (string) ($r['laboratorio'] ?? ''),
                     'PRESUPUESTO PLANIFICADO' => $formatMoney($plan),

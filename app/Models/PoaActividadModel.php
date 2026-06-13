@@ -5,6 +5,26 @@ class PoaActividadModel extends Database
 {
     protected $table_name = "poa_actividades";
 
+    private ?array $cacheColumnasActividad = null;
+
+    private function obtenerColumnasActividad(PDO $db): array
+    {
+        if ($this->cacheColumnasActividad !== null) {
+            return $this->cacheColumnasActividad;
+        }
+
+        $sql = "SELECT COLUMN_NAME
+                FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = ?";
+        $stmt = $db->prepare($sql);
+        $stmt->execute([$this->table_name]);
+        $columnas = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+        $this->cacheColumnasActividad = is_array($columnas) ? array_fill_keys($columnas, true) : [];
+        return $this->cacheColumnasActividad;
+    }
+
     public function obtenerPresupuestoUsadoPorPoa($idPoa, $excluirActividadId = null)
     {
         $db = $this->getConnection();
@@ -41,6 +61,11 @@ class PoaActividadModel extends Database
                     a.laboratorio,
                     a.meta,
                     COALESCE(NULLIF(TRIM(a.meta), ''), CAST(ml.porcentaje_esperado AS CHAR)) AS meta_pedi,
+                    a.procesos_institucionales_id,
+                    a.procesos_institucionales_id AS proceso_id,
+                    a.gestion_id,
+                    pr.nombre AS proceso_nombre,
+                    ge.nombre AS gestion_nombre,
                     a.presupuesto_asignado, a.presupuesto_asignado AS presupuesto_planificado,
                     a.presupuesto_ejecutado,
                     a.avance_actividad, a.avance_actividad AS avance_ejecutado,
@@ -75,6 +100,8 @@ class PoaActividadModel extends Database
                 LEFT JOIN estrategias est ON est.id = ptab.estrategia_id
                 LEFT JOIN objetivos_estrategicos obj ON obj.id = est.objetivo_estrategico_id
                 LEFT JOIN ejes_estrategicos eje ON eje.id = obj.eje_id
+                LEFT JOIN procesos_institucionales pr ON pr.id = a.procesos_institucionales_id
+                LEFT JOIN gestion ge ON ge.id = a.gestion_id
                 LEFT JOIN (
                     SELECT estrategia_id, MAX(id) AS linea_base_id
                     FROM lineas_base
@@ -134,6 +161,11 @@ class PoaActividadModel extends Database
                     a.laboratorio,
                     a.meta,
                     COALESCE(NULLIF(TRIM(a.meta), ''), CAST(ml.porcentaje_esperado AS CHAR)) AS meta_pedi,
+                    a.procesos_institucionales_id,
+                    a.procesos_institucionales_id AS proceso_id,
+                    a.gestion_id,
+                    pr.nombre AS proceso_nombre,
+                    ge.nombre AS gestion_nombre,
                     a.presupuesto_asignado, a.presupuesto_asignado AS presupuesto_planificado,
                     a.presupuesto_ejecutado,
                     a.avance_actividad, a.avance_actividad AS avance_ejecutado,
@@ -168,6 +200,8 @@ class PoaActividadModel extends Database
                 LEFT JOIN estrategias est ON est.id = ptab.estrategia_id
                 LEFT JOIN objetivos_estrategicos obj ON obj.id = est.objetivo_estrategico_id
                 LEFT JOIN ejes_estrategicos eje ON eje.id = obj.eje_id
+                LEFT JOIN procesos_institucionales pr ON pr.id = a.procesos_institucionales_id
+                LEFT JOIN gestion ge ON ge.id = a.gestion_id
                 LEFT JOIN (
                     SELECT estrategia_id, MAX(id) AS linea_base_id
                     FROM lineas_base
@@ -233,6 +267,11 @@ class PoaActividadModel extends Database
                     COALESCE(a.laboratorio, '') AS laboratorio,
                     COALESCE(a.meta, '') AS meta,
                     COALESCE(a.meta, '') AS meta_pedi,
+                    a.procesos_institucionales_id,
+                    a.procesos_institucionales_id AS proceso_id,
+                    a.gestion_id,
+                    COALESCE(pr.nombre, '') AS proceso_nombre,
+                    COALESCE(ge.nombre, '') AS gestion_nombre,
                     COALESCE(a.presupuesto_asignado, 0) AS presupuesto_asignado,
                     COALESCE(a.presupuesto_asignado, 0) AS presupuesto_planificado,
                     COALESCE(a.presupuesto_ejecutado, 0) AS presupuesto_ejecutado,
@@ -269,6 +308,8 @@ class PoaActividadModel extends Database
                 LEFT JOIN estrategias est ON est.id = ptab.estrategia_id
                 LEFT JOIN objetivos_estrategicos obj ON obj.id = est.objetivo_estrategico_id
                 LEFT JOIN ejes_estrategicos eje ON eje.id = obj.eje_id
+                LEFT JOIN procesos_institucionales pr ON pr.id = a.procesos_institucionales_id
+                LEFT JOIN gestion ge ON ge.id = a.gestion_id
                 LEFT JOIN (
                     SELECT pp.poa_id, GROUP_CONCAT(p2.nombre SEPARATOR ', ') AS nombre_area
                     FROM poa_procesos pp
@@ -341,7 +382,12 @@ class PoaActividadModel extends Database
                          s.nombre AS sede_nombre,
                          eje.id AS eje_id, eje.nombre AS eje,
                          obj.id AS objetivo_id, obj.nombre AS objetivo_estrategico,
-                         est.nombre AS objetivo_estrategia,
+                 est.nombre AS objetivo_estrategia,
+                         a.procesos_institucionales_id,
+                         a.procesos_institucionales_id AS proceso_id,
+                 a.gestion_id,
+                 pr.nombre AS proceso_nombre,
+                 ge.nombre AS gestion_nombre,
                          GROUP_CONCAT(DISTINCT p2.id ORDER BY p2.id SEPARATOR ',') AS proceso_ids
                 FROM " . $this->table_name . " a
                 INNER JOIN poa p ON p.id = a.poa_id
@@ -349,6 +395,8 @@ class PoaActividadModel extends Database
                 LEFT JOIN estrategias est ON est.id = p.estrategia_id
                 LEFT JOIN objetivos_estrategicos obj ON obj.id = est.objetivo_estrategico_id
                 LEFT JOIN ejes_estrategicos eje ON eje.id = obj.eje_id
+                LEFT JOIN procesos_institucionales pr ON pr.id = a.procesos_institucionales_id
+            LEFT JOIN gestion ge ON ge.id = a.gestion_id
                 LEFT JOIN poa_procesos pp ON pp.poa_id = p.id
                 LEFT JOIN procesos p2 ON p2.id = pp.proceso_id
                 WHERE a.id = ?
@@ -364,28 +412,58 @@ class PoaActividadModel extends Database
     {
         $db = $this->getConnection();
 
-        $query = "INSERT INTO " . $this->table_name . "
-                (poa_id, tipo_registro, nombre, descripcion, laboratorio, meta, presupuesto_asignado, presupuesto_ejecutado, avance_actividad, estado, observaciones, fecha_inicio, fecha_fin)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        $columnasActividad = $this->obtenerColumnasActividad($db);
+        $usarFechaInicio = isset($columnasActividad['fecha_inicio']);
+        $usarFechaFin = isset($columnasActividad['fecha_fin']);
 
+        $columnas = [
+            'poa_id',
+            'tipo_registro',
+            'nombre',
+            'descripcion',
+            'laboratorio',
+            'meta',
+            'procesos_institucionales_id',
+            'gestion_id',
+            'presupuesto_asignado',
+            'presupuesto_ejecutado',
+            'avance_actividad',
+            'estado',
+            'observaciones',
+        ];
+
+        $valores = [
+            (int) $data['poa_id'],
+            (string) $data['tipo_registro'],
+            (string) $data['nombre'],
+            (string) ($data['descripcion'] ?? ''),
+            (string) ($data['laboratorio'] ?? ''),
+            (string) $data['meta'],
+            !empty($data['proceso_id']) ? (int) $data['proceso_id'] : null,
+            !empty($data['gestion_id']) ? (int) $data['gestion_id'] : null,
+            (float) $data['presupuesto_asignado'],
+            (float) $data['presupuesto_ejecutado'],
+            (float) ($data['avance_actividad'] ?? 0),
+            !empty($data['estado']) ? 1 : 0,
+            (string) ($data['observaciones'] ?? ''),
+        ];
+
+        if ($usarFechaInicio) {
+            $columnas[] = 'fecha_inicio';
+            $valores[] = !empty($data['fecha_inicio']) ? $data['fecha_inicio'] : null;
+        }
+
+        if ($usarFechaFin) {
+            $columnas[] = 'fecha_fin';
+            $valores[] = !empty($data['fecha_fin']) ? $data['fecha_fin'] : null;
+        }
+
+        $placeholders = implode(', ', array_fill(0, count($columnas), '?'));
+        $query = "INSERT INTO " . $this->table_name . " (" . implode(', ', $columnas) . ") VALUES (" . $placeholders . ")";
         $stmt = $db->prepare($query);
 
         try {
-            $ok = $stmt->execute([
-                (int) $data['poa_id'],
-                (string) $data['tipo_registro'],
-                (string) $data['nombre'],
-                (string) ($data['descripcion'] ?? ''),
-                (string) ($data['laboratorio'] ?? ''),
-                (string) $data['meta'],
-                (float) $data['presupuesto_asignado'],
-                (float) $data['presupuesto_ejecutado'],
-                (float) ($data['avance_actividad'] ?? 0),
-                !empty($data['estado']) ? 1 : 0,
-                (string) ($data['observaciones'] ?? ''),
-                !empty($data['fecha_inicio']) ? $data['fecha_inicio'] : null,
-                !empty($data['fecha_fin']) ? $data['fecha_fin'] : null,
-            ]);
+            $ok = $stmt->execute($valores);
 
             if (!$ok) {
                 return 0;
@@ -402,41 +480,59 @@ class PoaActividadModel extends Database
     {
         $db = $this->getConnection();
 
-        $query = "UPDATE " . $this->table_name . "
-                SET poa_id = ?,
-                    tipo_registro = ?,
-                    nombre = ?,
-                    descripcion = ?,
-                    laboratorio = ?,
-                    meta = ?,
-                    presupuesto_asignado = ?,
-                    presupuesto_ejecutado = ?,
-                    avance_actividad = ?,
-                    observaciones = ?,
-                    fecha_inicio = ?,
-                    fecha_fin = ?,
-                    estado = ?
-                WHERE id = ?";
+        $columnasActividad = $this->obtenerColumnasActividad($db);
+        $usarFechaInicio = isset($columnasActividad['fecha_inicio']);
+        $usarFechaFin = isset($columnasActividad['fecha_fin']);
 
+        $set = [
+            'poa_id = ?',
+            'tipo_registro = ?',
+            'nombre = ?',
+            'descripcion = ?',
+            'laboratorio = ?',
+            'meta = ?',
+            'procesos_institucionales_id = ?',
+            'gestion_id = ?',
+            'presupuesto_asignado = ?',
+            'presupuesto_ejecutado = ?',
+            'avance_actividad = ?',
+            'observaciones = ?',
+        ];
+
+        $valores = [
+            (int) $data['poa_id'],
+            (string) $data['tipo_registro'],
+            (string) $data['nombre'],
+            (string) ($data['descripcion'] ?? ''),
+            (string) ($data['laboratorio'] ?? ''),
+            (string) $data['meta'],
+            !empty($data['proceso_id']) ? (int) $data['proceso_id'] : null,
+            !empty($data['gestion_id']) ? (int) $data['gestion_id'] : null,
+            (float) $data['presupuesto_asignado'],
+            (float) $data['presupuesto_ejecutado'],
+            (float) ($data['avance_actividad'] ?? 0),
+            (string) ($data['observaciones'] ?? ''),
+        ];
+
+        if ($usarFechaInicio) {
+            $set[] = 'fecha_inicio = ?';
+            $valores[] = !empty($data['fecha_inicio']) ? $data['fecha_inicio'] : null;
+        }
+
+        if ($usarFechaFin) {
+            $set[] = 'fecha_fin = ?';
+            $valores[] = !empty($data['fecha_fin']) ? $data['fecha_fin'] : null;
+        }
+
+        $set[] = 'estado = ?';
+        $valores[] = !empty($data['estado']) ? 1 : 0;
+        $valores[] = (int) $id;
+
+        $query = "UPDATE " . $this->table_name . "\n                SET " . implode(",\n                    ", $set) . "\n                WHERE id = ?";
         $stmt = $db->prepare($query);
 
         try {
-            return $stmt->execute([
-                (int) $data['poa_id'],
-                (string) $data['tipo_registro'],
-                (string) $data['nombre'],
-                (string) ($data['descripcion'] ?? ''),
-                (string) ($data['laboratorio'] ?? ''),
-                (string) $data['meta'],
-                (float) $data['presupuesto_asignado'],
-                (float) $data['presupuesto_ejecutado'],
-                (float) ($data['avance_actividad'] ?? 0),
-                (string) ($data['observaciones'] ?? ''),
-                !empty($data['fecha_inicio']) ? $data['fecha_inicio'] : null,
-                !empty($data['fecha_fin']) ? $data['fecha_fin'] : null,
-                !empty($data['estado']) ? 1 : 0,
-                (int) $id,
-            ]);
+            return $stmt->execute($valores);
         } catch (PDOException $e) {
             error_log("Error actualizar actividad: " . $e->getMessage());
             return false;
