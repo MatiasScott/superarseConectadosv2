@@ -5,6 +5,35 @@ $canCreatePoa = isset($canCreatePoa) ? (bool)$canCreatePoa : false;
 $canEditPoa = isset($canEditPoa) ? (bool)$canEditPoa : false;
 $canDeletePoa = isset($canDeletePoa) ? (bool)$canDeletePoa : false;
 $basePath = isset($basePath) ? (string)$basePath : '';
+$poaData = isset($poa) && is_array($poa) ? $poa : [];
+
+$procesosInstitucionales = [];
+$gestiones = [];
+$responsables = [];
+foreach ($poaData as $item) {
+    $proceso = trim((string)($item['proceso_nombre'] ?? ''));
+    if ($proceso !== '') {
+        $procesosInstitucionales[$proceso] = true;
+    }
+
+    $gestion = trim((string)($item['gestion_nombre'] ?? ''));
+    if ($gestion !== '') {
+        $gestiones[$gestion] = true;
+    }
+
+    $responsable = trim((string)($item['nombre_area'] ?? ''));
+    if ($responsable !== '') {
+        $responsables[$responsable] = true;
+    }
+}
+
+$procesosInstitucionales = array_keys($procesosInstitucionales);
+$gestiones = array_keys($gestiones);
+$responsables = array_keys($responsables);
+
+sort($procesosInstitucionales, SORT_NATURAL | SORT_FLAG_CASE);
+sort($gestiones, SORT_NATURAL | SORT_FLAG_CASE);
+sort($responsables, SORT_NATURAL | SORT_FLAG_CASE);
 ?>
 <div class="max-w-7xl mx-auto">
 
@@ -36,11 +65,34 @@ $basePath = isset($basePath) ? (string)$basePath : '';
         <?php endif; ?>
 
         <div class="p-5">
-            <div class="relative mb-4">
-                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                </svg>
-                <input type="text" id="buscadorPoa" placeholder="Buscar por actividad, eje, objetivo..." class="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-500 transition">
+            <div class="mb-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                <div class="relative">
+                    <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                    <input type="text" id="buscadorPoa" placeholder="Buscar por actividad, eje, objetivo..." class="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-500 transition">
+                </div>
+
+                <select id="filtroProcesoInstitucional" class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-500 transition">
+                    <option value="">Todos los procesos institucionales</option>
+                    <?php foreach ($procesosInstitucionales as $proceso): ?>
+                        <option value="<?= htmlspecialchars((string)$proceso, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars((string)$proceso, ENT_QUOTES, 'UTF-8') ?></option>
+                    <?php endforeach; ?>
+                </select>
+
+                <select id="filtroGestion" class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-500 transition">
+                    <option value="">Todas las gestiones</option>
+                    <?php foreach ($gestiones as $gestion): ?>
+                        <option value="<?= htmlspecialchars((string)$gestion, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars((string)$gestion, ENT_QUOTES, 'UTF-8') ?></option>
+                    <?php endforeach; ?>
+                </select>
+
+                <select id="filtroResponsable" class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-500 transition">
+                    <option value="">Todos los responsables</option>
+                    <?php foreach ($responsables as $responsable): ?>
+                        <option value="<?= htmlspecialchars((string)$responsable, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars((string)$responsable, ENT_QUOTES, 'UTF-8') ?></option>
+                    <?php endforeach; ?>
+                </select>
             </div>
 
             <div class="overflow-x-auto">
@@ -57,6 +109,8 @@ $basePath = isset($basePath) ? (string)$basePath : '';
                             <th class="px-2 py-3 text-center border-r border-gray-200" rowspan="2">Eje Estratégico (PEDI)</th>
                             <th class="px-2 py-3 text-center border-r border-gray-200" rowspan="2">Objetivo Estratégico (PEDI)</th>
                             <th class="px-2 py-3 text-center border-r border-gray-200" rowspan="2">Estrategia (PEDI)</th>
+                            <th class="px-2 py-3 text-center border-r border-gray-200" rowspan="2">Proceso</th>
+                            <th class="px-2 py-3 text-center border-r border-gray-200" rowspan="2">Gestión</th>
                             <th class="px-2 py-3 text-center border-r border-gray-200" rowspan="2">Nombre del Proyecto/Actividad</th>
                             <th class="px-2 py-3 text-center border-r border-gray-200" rowspan="2">Descripción</th>
                             <th class="px-2 py-3 text-center border-r border-gray-200" rowspan="2">Meta (PEDI)</th>
@@ -83,7 +137,12 @@ $basePath = isset($basePath) ? (string)$basePath : '';
                     <tbody class="divide-y divide-gray-100">
                         <?php if (!empty($poa)): ?>
                             <?php foreach ($poa as $p): ?>
-                                <tr class="hover:bg-gray-50 transition">
+                                <tr
+                                    class="hover:bg-gray-50 transition"
+                                    data-proceso-institucional="<?= htmlspecialchars(strtolower(trim((string)($p['proceso_nombre'] ?? ''))), ENT_QUOTES, 'UTF-8') ?>"
+                                    data-gestion="<?= htmlspecialchars(strtolower(trim((string)($p['gestion_nombre'] ?? ''))), ENT_QUOTES, 'UTF-8') ?>"
+                                    data-responsable="<?= htmlspecialchars(strtolower(trim((string)($p['nombre_area'] ?? ''))), ENT_QUOTES, 'UTF-8') ?>"
+                                >
                                     <td class="px-2 py-3 border-r border-gray-100">
                                         <span class="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
                                             <?= htmlspecialchars($p['eje'] ?? '') ?>
@@ -94,6 +153,12 @@ $basePath = isset($basePath) ? (string)$basePath : '';
                                     </td>
                                     <td class="px-2 py-3 max-w-[140px] truncate border-r border-gray-100 text-gray-600" title="<?= htmlspecialchars($p['objetivo_estrategia'] ?? '') ?>">
                                         <?= htmlspecialchars($p['objetivo_estrategia'] ?? '') ?>
+                                    </td>
+                                    <td class="px-2 py-3 max-w-[140px] truncate border-r border-gray-100 text-gray-600" title="<?= htmlspecialchars($p['proceso_nombre'] ?? $p['proceso'] ?? '') ?>">
+                                        <?= htmlspecialchars($p['proceso_nombre'] ?? $p['proceso'] ?? '') ?>
+                                    </td>
+                                    <td class="px-2 py-3 max-w-[140px] truncate border-r border-gray-100 text-gray-600" title="<?= htmlspecialchars($p['gestion_nombre'] ?? $p['gestion'] ?? '') ?>">
+                                        <?= htmlspecialchars($p['gestion_nombre'] ?? $p['gestion'] ?? '') ?>
                                     </td>
                                     <td class="px-2 py-3 font-medium border-r border-gray-100 max-w-[180px] truncate" title="<?= htmlspecialchars($p['nombre_actividad'] ?? '') ?>">
                                         <?= htmlspecialchars($p['nombre_actividad'] ?? '') ?>
@@ -250,8 +315,11 @@ $basePath = isset($basePath) ? (string)$basePath : '';
     document.addEventListener("DOMContentLoaded", function() {
         const tabla = document.getElementById("tablaPoa");
         const buscador = document.getElementById("buscadorPoa");
+        const filtroProcesoInstitucional = document.getElementById("filtroProcesoInstitucional");
+        const filtroGestion = document.getElementById("filtroGestion");
+        const filtroResponsable = document.getElementById("filtroResponsable");
         const paginacion = document.getElementById("paginacionPoa");
-        if (!tabla || !buscador || !paginacion) return;
+        if (!tabla || !buscador || !filtroProcesoInstitucional || !filtroGestion || !filtroResponsable || !paginacion) return;
 
         const filasPorPagina = 10;
         const todasFilas = Array.from(tabla.querySelectorAll("tbody tr")).filter(fila => fila.querySelectorAll("td").length > 0);
@@ -281,11 +349,43 @@ $basePath = isset($basePath) ? (string)$basePath : '';
             }
         };
 
-        buscador.addEventListener("input", function() {
-            const valor = this.value.toLowerCase();
-            filasFiltradas = todasFilas.filter(fila => (fila.textContent || "").toLowerCase().includes(valor));
+        const aplicarFiltros = () => {
+            const texto = (buscador.value || "").toLowerCase().trim();
+            const procesoSeleccionado = (filtroProcesoInstitucional.value || "").toLowerCase().trim();
+            const gestionSeleccionada = (filtroGestion.value || "").toLowerCase().trim();
+            const responsableSeleccionado = (filtroResponsable.value || "").toLowerCase().trim();
+
+            filasFiltradas = todasFilas.filter((fila) => {
+                const textoFila = (fila.textContent || "").toLowerCase();
+                if (texto !== '' && !textoFila.includes(texto)) {
+                    return false;
+                }
+
+                const procesoFila = (fila.dataset.procesoInstitucional || "").toLowerCase().trim();
+                if (procesoSeleccionado !== '' && procesoFila !== procesoSeleccionado) {
+                    return false;
+                }
+
+                const gestionFila = (fila.dataset.gestion || "").toLowerCase().trim();
+                if (gestionSeleccionada !== '' && gestionFila !== gestionSeleccionada) {
+                    return false;
+                }
+
+                const responsableFila = (fila.dataset.responsable || "").toLowerCase().trim();
+                if (responsableSeleccionado !== '' && responsableFila !== responsableSeleccionado) {
+                    return false;
+                }
+
+                return true;
+            });
+
             mostrarPagina(1);
-        });
+        };
+
+        buscador.addEventListener("input", aplicarFiltros);
+        filtroProcesoInstitucional.addEventListener("change", aplicarFiltros);
+        filtroGestion.addEventListener("change", aplicarFiltros);
+        filtroResponsable.addEventListener("change", aplicarFiltros);
 
         mostrarPagina(1);
     });
