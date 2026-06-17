@@ -931,18 +931,18 @@ class AdminReportesModel extends Database
                             COALESCE(proc.procesos_nombres, '') AS procesos,
                             COALESCE(a.observaciones, '') AS observaciones,
                             COALESCE(a.estado, 0) AS estado,
-                            0 AS ene_pct,
-                            0 AS feb_pct,
-                            0 AS mar_pct,
-                            0 AS abr_pct,
-                            0 AS may_pct,
-                            0 AS jun_pct,
-                            0 AS jul_pct,
-                            0 AS ago_pct,
-                            0 AS sep_pct,
-                            0 AS oct_pct,
-                            0 AS nov_pct,
-                            0 AS dic_pct
+                            COALESCE(cr.ene_pct, 0) AS ene_pct,
+                            COALESCE(cr.feb_pct, 0) AS feb_pct,
+                            COALESCE(cr.mar_pct, 0) AS mar_pct,
+                            COALESCE(cr.abr_pct, 0) AS abr_pct,
+                            COALESCE(cr.may_pct, 0) AS may_pct,
+                            COALESCE(cr.jun_pct, 0) AS jun_pct,
+                            COALESCE(cr.jul_pct, 0) AS jul_pct,
+                            COALESCE(cr.ago_pct, 0) AS ago_pct,
+                            COALESCE(cr.sep_pct, 0) AS sep_pct,
+                            COALESCE(cr.oct_pct, 0) AS oct_pct,
+                            COALESCE(cr.nov_pct, 0) AS nov_pct,
+                            COALESCE(cr.dic_pct, 0) AS dic_pct
                         FROM poa_actividades a
                         INNER JOIN poa p ON p.id = a.poa_id
                         LEFT JOIN sedes s ON s.id = p.sede_id
@@ -959,7 +959,25 @@ class AdminReportesModel extends Database
                             FROM poa_procesos pp
                             INNER JOIN procesos pr2 ON pr2.id = pp.proceso_id
                             GROUP BY pp.poa_id
-                        ) proc ON proc.poa_id = p.id";
+                        ) proc ON proc.poa_id = p.id
+                        LEFT JOIN (
+                            SELECT
+                                poa_actividad_id,
+                                COALESCE(MAX(CASE WHEN mes = 1 THEN avance END), 0) AS ene_pct,
+                                COALESCE(MAX(CASE WHEN mes = 2 THEN avance END), 0) AS feb_pct,
+                                COALESCE(MAX(CASE WHEN mes = 3 THEN avance END), 0) AS mar_pct,
+                                COALESCE(MAX(CASE WHEN mes = 4 THEN avance END), 0) AS abr_pct,
+                                COALESCE(MAX(CASE WHEN mes = 5 THEN avance END), 0) AS may_pct,
+                                COALESCE(MAX(CASE WHEN mes = 6 THEN avance END), 0) AS jun_pct,
+                                COALESCE(MAX(CASE WHEN mes = 7 THEN avance END), 0) AS jul_pct,
+                                COALESCE(MAX(CASE WHEN mes = 8 THEN avance END), 0) AS ago_pct,
+                                COALESCE(MAX(CASE WHEN mes = 9 THEN avance END), 0) AS sep_pct,
+                                COALESCE(MAX(CASE WHEN mes = 10 THEN avance END), 0) AS oct_pct,
+                                COALESCE(MAX(CASE WHEN mes = 11 THEN avance END), 0) AS nov_pct,
+                                COALESCE(MAX(CASE WHEN mes = 12 THEN avance END), 0) AS dic_pct
+                            FROM cronogramas
+                            GROUP BY poa_actividad_id
+                        ) cr ON cr.poa_actividad_id = a.id";
 
         $fallbackParams = [];
         if ($areaId !== null && $areaId !== '' && ctype_digit((string) $areaId)) {

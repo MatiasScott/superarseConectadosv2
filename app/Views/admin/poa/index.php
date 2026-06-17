@@ -69,7 +69,7 @@ $basePath = isset($basePath) ? (string)$basePath : '';
                             <th class="px-2 py-3 text-center border-r border-gray-200" rowspan="2">Presupuesto Planificado</th>
                             <th class="px-2 py-3 text-center border-r border-gray-200" rowspan="2">Presupuesto Ejecutado</th>
                             <th class="px-2 py-3 text-center border-r border-gray-200" rowspan="2">Ejecución Presupuestaria (%)</th>
-                            <th class="px-2 py-3 text-center border-r border-gray-200" rowspan="2">PROCESOS</th>
+                            <th class="px-2 py-3 text-center border-r border-gray-200" rowspan="2">Responsables</th>
                             <th class="px-2 py-3 text-center border-r border-gray-200" rowspan="2">Observaciones</th>
                             <th class="px-2 py-3 text-center border-r border-gray-200" rowspan="2">Estado</th>
                             <th class="px-2 py-3 text-center" rowspan="2">Acciones</th>

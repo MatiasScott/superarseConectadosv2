@@ -15,7 +15,7 @@
         <div class="text-4xl mb-4">
             <svg class="w-10 h-10 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
         </div>
-        <h3 class="text-xl font-bold text-gray-800 mb-2">PEDI</h3>
+        <h3 class="text-xl font-bold text-gray-800 mb-2">Plan Estratégico de Desarrollo Institucional</h3>
         <p class="text-sm text-gray-500 mb-4">Plan Estratégico de Desarrollo Institucional. Gestiona los objetivos estratégicos y su avance.</p>
         <div class="text-purple-600 font-semibold text-sm flex items-center gap-1">
             Gestionar
@@ -28,7 +28,7 @@
         <div class="text-4xl mb-4">
             <svg class="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
         </div>
-        <h3 class="text-xl font-bold text-gray-800 mb-2">POA</h3>
+        <h3 class="text-xl font-bold text-gray-800 mb-2">Plan Operativo Anual</h3>
         <p class="text-sm text-gray-500 mb-4">Plan Operativo Anual. Administra cabeceras, presupuestos, procesos y actividades operativas.</p>
         <div class="text-blue-600 font-semibold text-sm flex items-center gap-1">
             Gestionar
