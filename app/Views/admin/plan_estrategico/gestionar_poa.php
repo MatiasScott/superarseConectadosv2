@@ -119,7 +119,7 @@ $presupuestoDisponibleSeleccionado = max(0, $presupuestoTotalSeleccionado - $pre
                         <th class="px-4 py-3">Estrategia</th>
                         <th class="px-4 py-3">Sede</th>
                         <th class="px-4 py-3">Año</th>
-                        <th class="px-4 py-3">Procesos</th>
+                        <th class="px-4 py-3">Responsable</th>
                         <th class="px-4 py-3">Presupuesto</th>
                         <th class="px-4 py-3">Asignado</th>
                         <th class="px-4 py-3">Disponible</th>
@@ -254,7 +254,7 @@ $presupuestoDisponibleSeleccionado = max(0, $presupuestoTotalSeleccionado - $pre
                             <th class="px-2 py-3 text-center border-r border-gray-200" rowspan="2">Presupuesto Planificado</th>
                             <th class="px-2 py-3 text-center border-r border-gray-200" rowspan="2">Presupuesto Ejecutado</th>
                             <th class="px-2 py-3 text-center border-r border-gray-200" rowspan="2">Ejecución Presupuestaria (%)</th>
-                            <th class="px-2 py-3 text-center border-r border-gray-200" rowspan="2">PROCESOS</th>
+                            <th class="px-2 py-3 text-center border-r border-gray-200" rowspan="2">Responsable</th>
                             <th class="px-2 py-3 text-center border-r border-gray-200" rowspan="2">Observaciones</th>
                             <th class="px-2 py-3 text-center border-r border-gray-200" rowspan="2">Estado</th>
                             <th class="px-2 py-3 text-center" rowspan="2">Acciones</th>

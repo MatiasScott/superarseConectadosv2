@@ -640,30 +640,106 @@ class AdminReportesModel extends Database
     {
         $sql = "SELECT
                     po.id,
-                    po.estrategia_id,
-                    po.sede_id,
+                    COALESCE(s.nombre, '') AS sede,
                     po.anio_planificacion,
-                    po.presupuesto_total_aprobado,
-                    po.estado_aprobacion,
-                    po.observaciones,
-                    po.estado,
-                    s.nombre AS sede_nombre,
-                    p2.nombre AS procesos_nombres
+                    COALESCE(po.presupuesto_total_aprobado, 0) AS presupuesto_total_aprobado,
+                    COALESCE(po.estado_aprobacion, '') AS estado_aprobacion,
+                    COALESCE(po.observaciones, '') AS observaciones,
+                    COALESCE(po.estado, 0) AS estado,
+                    COALESCE(proc.procesos_nombres, '') AS procesos,
+                    COALESCE(procinst.proceso_institucional, '') AS proceso_institucional,
+                    COALESCE(gest.gestion, '') AS gestion
                 FROM poa po
                 LEFT JOIN sedes s ON s.id = po.sede_id
                 LEFT JOIN (
-                    SELECT pp.poa_id, GROUP_CONCAT(p2.nombre SEPARATOR ', ') AS nombre
+                    SELECT pp.poa_id, GROUP_CONCAT(p2.nombre ORDER BY p2.nombre SEPARATOR ', ') AS procesos_nombres
                     FROM poa_procesos pp
                     INNER JOIN procesos p2 ON p2.id = pp.proceso_id
                     GROUP BY pp.poa_id
-                ) p2 ON p2.poa_id = po.id
+                ) proc ON proc.poa_id = po.id
+                LEFT JOIN (
+                    SELECT
+                        a.poa_id,
+                        GROUP_CONCAT(DISTINCT pi.nombre ORDER BY pi.nombre SEPARATOR ', ') AS proceso_institucional
+                    FROM poa_actividades a
+                    LEFT JOIN procesos_institucionales pi ON pi.id = a.procesos_institucionales_id
+                    GROUP BY a.poa_id
+                ) procinst ON procinst.poa_id = po.id
+                LEFT JOIN (
+                    SELECT
+                        a.poa_id,
+                        GROUP_CONCAT(DISTINCT g.nombre ORDER BY g.nombre SEPARATOR ', ') AS gestion
+                    FROM poa_actividades a
+                    LEFT JOIN gestion g ON g.id = a.gestion_id
+                    GROUP BY a.poa_id
+                ) gest ON gest.poa_id = po.id
                 ORDER BY po.id DESC";
 
         try {
             $stmt = $this->db->query($sql);
-            return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+            $raw = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+            $rows = [];
+            $index = 1;
+            foreach ($raw as $r) {
+                $rows[] = [
+                    'N' => $index++,
+                    'ID POA' => (string) ($r['id'] ?? ''),
+                    'SEDE' => (string) ($r['sede'] ?? ''),
+                    'AÑO PLANIFICACIÓN' => (string) ($r['anio_planificacion'] ?? ''),
+                    'PRESUPUESTO TOTAL APROBADO' => '$' . number_format((float) ($r['presupuesto_total_aprobado'] ?? 0), 2, '.', ','),
+                    'ESTADO APROBACIÓN' => (string) ($r['estado_aprobacion'] ?? ''),
+                    'OBSERVACIONES' => (string) ($r['observaciones'] ?? ''),
+                    'ESTADO' => ((int) ($r['estado'] ?? 0) === 1) ? 'ACTIVO' : 'INACTIVO',
+                    'PROCESOS' => (string) ($r['procesos'] ?? ''),
+                    'PROCESO INSTITUCIONAL' => (string) ($r['proceso_institucional'] ?? ''),
+                    'GESTIÓN' => (string) ($r['gestion'] ?? ''),
+                ];
+            }
+
+            return $rows;
         } catch (PDOException $e) {
-            error_log('AdminReportesModel::getPoaRows -> ' . $e->getMessage());
+            error_log('AdminReportesModel::getPoaRows consulta completa -> ' . $e->getMessage());
+        }
+
+        // Fallback: si faltan tablas/columnas auxiliares, al menos devuelve datos base del POA.
+        $fallbackSql = "SELECT
+                            po.id,
+                            COALESCE(s.nombre, '') AS sede,
+                            po.anio_planificacion,
+                            COALESCE(po.presupuesto_total_aprobado, 0) AS presupuesto_total_aprobado,
+                            COALESCE(po.estado_aprobacion, '') AS estado_aprobacion,
+                            COALESCE(po.observaciones, '') AS observaciones,
+                            COALESCE(po.estado, 0) AS estado
+                        FROM poa po
+                        LEFT JOIN sedes s ON s.id = po.sede_id
+                        ORDER BY po.id DESC";
+
+        try {
+            $stmt = $this->db->query($fallbackSql);
+            $raw = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+            $rows = [];
+            $index = 1;
+            foreach ($raw as $r) {
+                $rows[] = [
+                    'N' => $index++,
+                    'ID POA' => (string) ($r['id'] ?? ''),
+                    'SEDE' => (string) ($r['sede'] ?? ''),
+                    'AÑO PLANIFICACIÓN' => (string) ($r['anio_planificacion'] ?? ''),
+                    'PRESUPUESTO TOTAL APROBADO' => '$' . number_format((float) ($r['presupuesto_total_aprobado'] ?? 0), 2, '.', ','),
+                    'ESTADO APROBACIÓN' => (string) ($r['estado_aprobacion'] ?? ''),
+                    'OBSERVACIONES' => (string) ($r['observaciones'] ?? ''),
+                    'ESTADO' => ((int) ($r['estado'] ?? 0) === 1) ? 'ACTIVO' : 'INACTIVO',
+                    'PROCESOS' => '',
+                    'PROCESO INSTITUCIONAL' => '',
+                    'GESTIÓN' => '',
+                ];
+            }
+
+            return $rows;
+        } catch (PDOException $e) {
+            error_log('AdminReportesModel::getPoaRows fallback -> ' . $e->getMessage());
             return [];
         }
     }
@@ -807,8 +883,8 @@ class AdminReportesModel extends Database
                     'NOMBRE DEL PROYECTO/ ACTIVIDAD' => (string) ($r['nombre_actividad'] ?? ''),
                     'DESCRIPCIÓN' => (string) ($r['descripcion'] ?? ''),
                     'META (PEDI)' => $meta,
-                    'PROCESO' => (string) ($r['proceso'] ?? ''),
-                    'GESTION' => (string) ($r['gestion'] ?? ''),
+                    'PROCESO INSTITUCIONAL' => (string) ($r['proceso'] ?? ''),
+                    'GESTIÓN' => (string) ($r['gestion'] ?? ''),
                     'SEDE' => (string) ($r['sede_nombre'] ?? ''),
                     'LABORATORIO' => (string) ($r['laboratorio'] ?? ''),
                     'PRESUPUESTO PLANIFICADO' => $formatMoney($plan),
@@ -834,7 +910,128 @@ class AdminReportesModel extends Database
 
             return $rows;
         } catch (PDOException $e) {
-            error_log('AdminReportesModel::getPoaActividadesRows -> ' . $e->getMessage());
+            error_log('AdminReportesModel::getPoaActividadesRows consulta completa -> ' . $e->getMessage());
+        }
+
+        // Fallback: evita reporte vacío si faltan tablas/columnas auxiliares.
+        $fallbackSql = "SELECT
+                            a.id,
+                            COALESCE(eje.nombre, '') AS eje,
+                            COALESCE(obj.nombre, '') AS objetivo_estrategico,
+                            COALESCE(est.nombre, '') AS estrategia,
+                            COALESCE(a.nombre, '') AS nombre_actividad,
+                            COALESCE(a.descripcion, '') AS descripcion,
+                            COALESCE(a.meta, '') AS meta_pedi,
+                            COALESCE(pr.nombre, '') AS proceso,
+                            COALESCE(ge.nombre, '') AS gestion,
+                            COALESCE(s.nombre, '') AS sede_nombre,
+                            COALESCE(a.laboratorio, '') AS laboratorio,
+                            COALESCE(a.presupuesto_asignado, 0) AS presupuesto_asignado,
+                            COALESCE(a.presupuesto_ejecutado, 0) AS presupuesto_ejecutado,
+                            COALESCE(proc.procesos_nombres, '') AS procesos,
+                            COALESCE(a.observaciones, '') AS observaciones,
+                            COALESCE(a.estado, 0) AS estado,
+                            0 AS ene_pct,
+                            0 AS feb_pct,
+                            0 AS mar_pct,
+                            0 AS abr_pct,
+                            0 AS may_pct,
+                            0 AS jun_pct,
+                            0 AS jul_pct,
+                            0 AS ago_pct,
+                            0 AS sep_pct,
+                            0 AS oct_pct,
+                            0 AS nov_pct,
+                            0 AS dic_pct
+                        FROM poa_actividades a
+                        INNER JOIN poa p ON p.id = a.poa_id
+                        LEFT JOIN sedes s ON s.id = p.sede_id
+                        LEFT JOIN estrategias est ON est.id = p.estrategia_id
+                        LEFT JOIN objetivos_estrategicos obj ON obj.id = est.objetivo_estrategico_id
+                        LEFT JOIN ejes_estrategicos eje ON eje.id = obj.eje_id
+                        LEFT JOIN procesos_institucionales pr ON pr.id = a.procesos_institucionales_id
+                        LEFT JOIN gestion ge ON ge.id = a.gestion_id
+                        LEFT JOIN (
+                            SELECT
+                                pp.poa_id,
+                                GROUP_CONCAT(pr2.nombre ORDER BY pr2.nombre SEPARATOR ', ') AS procesos_nombres,
+                                GROUP_CONCAT(pr2.id ORDER BY pr2.id SEPARATOR ',') AS procesos_ids
+                            FROM poa_procesos pp
+                            INNER JOIN procesos pr2 ON pr2.id = pp.proceso_id
+                            GROUP BY pp.poa_id
+                        ) proc ON proc.poa_id = p.id";
+
+        $fallbackParams = [];
+        if ($areaId !== null && $areaId !== '' && ctype_digit((string) $areaId)) {
+            $fallbackSql .= " WHERE FIND_IN_SET(:area_id, proc.procesos_ids) > 0";
+            $fallbackParams[':area_id'] = (string) (int) $areaId;
+        }
+
+        $fallbackSql .= " ORDER BY a.id DESC";
+
+        try {
+            $stmt = $this->db->prepare($fallbackSql);
+            foreach ($fallbackParams as $key => $value) {
+                $stmt->bindValue($key, $value, PDO::PARAM_STR);
+            }
+            $stmt->execute();
+            $raw = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+            $formatMoney = static function ($value): string {
+                $num = is_numeric($value) ? (float) $value : 0.0;
+                return '$' . number_format($num, 2, '.', ',');
+            };
+
+            $monthMark = static function ($value): string {
+                return (is_numeric($value) && (float) $value > 0) ? 'V' : '—';
+            };
+
+            $rows = [];
+            foreach ($raw as $r) {
+                $plan = is_numeric($r['presupuesto_asignado'] ?? null) ? (float) $r['presupuesto_asignado'] : 0.0;
+                $ejec = is_numeric($r['presupuesto_ejecutado'] ?? null) ? (float) $r['presupuesto_ejecutado'] : 0.0;
+                $avance = $plan > 0 ? ($ejec / $plan) * 100 : 0.0;
+
+                $meta = (string) ($r['meta_pedi'] ?? '');
+                if (is_numeric($meta)) {
+                    $meta = rtrim(rtrim(number_format((float) $meta, 2, '.', ''), '0'), '.');
+                }
+
+                $rows[] = [
+                    'EJE ESTRATÉGICO (PEDI)' => (string) ($r['eje'] ?? ''),
+                    'OBJETIVO ESTRATÉGICO (PEDI)' => (string) ($r['objetivo_estrategico'] ?? ''),
+                    'ESTRATEGIA (PEDI)' => (string) ($r['estrategia'] ?? ''),
+                    'NOMBRE DEL PROYECTO/ ACTIVIDAD' => (string) ($r['nombre_actividad'] ?? ''),
+                    'DESCRIPCIÓN' => (string) ($r['descripcion'] ?? ''),
+                    'META (PEDI)' => $meta,
+                    'PROCESO INSTITUCIONAL' => (string) ($r['proceso'] ?? ''),
+                    'GESTIÓN' => (string) ($r['gestion'] ?? ''),
+                    'SEDE' => (string) ($r['sede_nombre'] ?? ''),
+                    'LABORATORIO' => (string) ($r['laboratorio'] ?? ''),
+                    'PRESUPUESTO PLANIFICADO' => $formatMoney($plan),
+                    'PRESUPUESTO EJECUTADO' => $formatMoney($ejec),
+                    'EJECUCIÓN PRESUPUESTARIA (%)' => number_format($avance, 2, '.', '') . '%',
+                    'PROCESOS' => (string) ($r['procesos'] ?? ''),
+                    'OBSERVACIONES' => (string) ($r['observaciones'] ?? ''),
+                    'ESTADO' => ((int) ($r['estado'] ?? 0) === 1) ? 'ACTIVO' : 'CADUCADO',
+                    'ENE' => $monthMark($r['ene_pct'] ?? 0),
+                    'FEB' => $monthMark($r['feb_pct'] ?? 0),
+                    'MAR' => $monthMark($r['mar_pct'] ?? 0),
+                    'ABR' => $monthMark($r['abr_pct'] ?? 0),
+                    'MAY' => $monthMark($r['may_pct'] ?? 0),
+                    'JUN' => $monthMark($r['jun_pct'] ?? 0),
+                    'JUL' => $monthMark($r['jul_pct'] ?? 0),
+                    'AGO' => $monthMark($r['ago_pct'] ?? 0),
+                    'SEP' => $monthMark($r['sep_pct'] ?? 0),
+                    'OCT' => $monthMark($r['oct_pct'] ?? 0),
+                    'NOV' => $monthMark($r['nov_pct'] ?? 0),
+                    'DIC' => $monthMark($r['dic_pct'] ?? 0),
+                ];
+            }
+
+            return $rows;
+        } catch (PDOException $e) {
+            error_log('AdminReportesModel::getPoaActividadesRows fallback -> ' . $e->getMessage());
             return [];
         }
     }
