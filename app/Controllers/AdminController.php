@@ -5089,10 +5089,17 @@ class AdminController
             ? 'Actividad/proyecto eliminado correctamente.'
             : 'No se pudo eliminar la actividad/proyecto.';
 
+        $returnTo = strtolower(trim((string) ($_POST['return_to'] ?? '')));
+        if ($returnTo === 'poa_index') {
+            header("Location: " . $this->basePath . "/admin/poa");
+            exit();
+        }
+
         $target = $this->basePath . '/admin/plan-estrategico';
         if ($poaId > 0) {
             $target .= '?poa=' . $poaId;
         }
+
         header("Location: " . $target);
         exit();
     }
