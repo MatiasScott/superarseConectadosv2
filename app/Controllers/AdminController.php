@@ -1151,22 +1151,54 @@ class AdminController
             ob_end_clean();
         }
 
+        $prevDisplayErrors = ini_get('display_errors');
+        @ini_set('display_errors', '0');
+
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle($this->sanitizeExcelSheetName((string) $sheetTitle));
 
         $this->writeRowsToSheet($sheet, $rows, $columns, $module);
 
+        $tmpFile = tempnam(sys_get_temp_dir(), 'xlsx_');
+        if ($tmpFile === false) {
+            $spreadsheet->disconnectWorksheets();
+            unset($spreadsheet);
+            @ini_set('display_errors', (string) $prevDisplayErrors);
+            http_response_code(500);
+            echo 'No se pudo generar el archivo Excel.';
+            exit();
+        }
+
+        // Evita que notices/deprecated contaminen la respuesta binaria.
+        ob_start();
+        try {
+            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+            $writer->save($tmpFile);
+        } finally {
+            if (ob_get_level() > 0) {
+                ob_end_clean();
+            }
+        }
+
+        $spreadsheet->disconnectWorksheets();
+        unset($spreadsheet);
+
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
         header('Cache-Control: max-age=0, no-cache, no-store, must-revalidate');
         header('Pragma: public');
         header('Expires: 0');
+        header('X-Content-Type-Options: nosniff');
 
-        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
-        $writer->save('php://output');
-        $spreadsheet->disconnectWorksheets();
-        unset($spreadsheet);
+        $fileSize = filesize($tmpFile);
+        if ($fileSize !== false) {
+            header('Content-Length: ' . (string) $fileSize);
+        }
+
+        readfile($tmpFile);
+        @unlink($tmpFile);
+        @ini_set('display_errors', (string) $prevDisplayErrors);
 
         exit();
     }
@@ -1176,6 +1208,9 @@ class AdminController
         while (ob_get_level() > 0) {
             ob_end_clean();
         }
+
+        $prevDisplayErrors = ini_get('display_errors');
+        @ini_set('display_errors', '0');
 
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $first = true;
@@ -1195,16 +1230,45 @@ class AdminController
             $this->writeRowsToSheet($sheet, $rows, $columns);
         }
 
+        $tmpFile = tempnam(sys_get_temp_dir(), 'xlsx_');
+        if ($tmpFile === false) {
+            $spreadsheet->disconnectWorksheets();
+            unset($spreadsheet);
+            @ini_set('display_errors', (string) $prevDisplayErrors);
+            http_response_code(500);
+            echo 'No se pudo generar el archivo Excel.';
+            exit();
+        }
+
+        // Evita que notices/deprecated contaminen la respuesta binaria.
+        ob_start();
+        try {
+            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+            $writer->save($tmpFile);
+        } finally {
+            if (ob_get_level() > 0) {
+                ob_end_clean();
+            }
+        }
+
+        $spreadsheet->disconnectWorksheets();
+        unset($spreadsheet);
+
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
         header('Cache-Control: max-age=0, no-cache, no-store, must-revalidate');
         header('Pragma: public');
         header('Expires: 0');
+        header('X-Content-Type-Options: nosniff');
 
-        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
-        $writer->save('php://output');
-        $spreadsheet->disconnectWorksheets();
-        unset($spreadsheet);
+        $fileSize = filesize($tmpFile);
+        if ($fileSize !== false) {
+            header('Content-Length: ' . (string) $fileSize);
+        }
+
+        readfile($tmpFile);
+        @unlink($tmpFile);
+        @ini_set('display_errors', (string) $prevDisplayErrors);
 
         exit();
     }
