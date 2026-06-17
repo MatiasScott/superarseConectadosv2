@@ -391,7 +391,7 @@ class PoaActividadModel extends Database
                          GROUP_CONCAT(DISTINCT p2.id ORDER BY p2.id SEPARATOR ',') AS proceso_ids
                 FROM " . $this->table_name . " a
                 INNER JOIN poa p ON p.id = a.poa_id
-                INNER JOIN sedes s ON s.id = p.sede_id
+                LEFT JOIN sedes s ON s.id = p.sede_id
                 LEFT JOIN estrategias est ON est.id = p.estrategia_id
                 LEFT JOIN objetivos_estrategicos obj ON obj.id = est.objetivo_estrategico_id
                 LEFT JOIN ejes_estrategicos eje ON eje.id = obj.eje_id

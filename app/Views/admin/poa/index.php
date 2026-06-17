@@ -233,12 +233,13 @@ sort($responsables, SORT_NATURAL | SORT_FLAG_CASE);
                                     $planif = (float)($p['presupuesto_planificado'] ?? 0);
                                     $ejec = (float)($p['presupuesto_ejecutado'] ?? 0);
                                     $pct = ($planif > 0)
-                                        ? max(0, min(100, round((($planif - $ejec) / $planif) * 100, 2)))
+                                        ? max(0, min(100, (($ejec / $planif) * 100)))
                                         : 0;
+                                    $pctText = rtrim(rtrim(number_format($pct, 2, '.', ''), '0'), '.');
                                     ?>
                                     <td class="px-2 py-3 text-right font-medium border-r border-gray-100 whitespace-nowrap">$<?= number_format($planif, 2) ?></td>
                                     <td class="px-2 py-3 text-right border-r border-gray-100 whitespace-nowrap">$<?= number_format($ejec, 2) ?></td>
-                                    <td class="px-2 py-3 text-right font-semibold border-r border-gray-100 whitespace-nowrap <?= $pct >= 70 ? 'text-green-700' : ($pct >= 50 ? 'text-yellow-600' : 'text-red-600') ?>"><?= $pct ?>%</td>
+                                    <td class="px-2 py-3 text-right font-semibold border-r border-gray-100 whitespace-nowrap <?= $pct >= 70 ? 'text-green-700' : ($pct >= 50 ? 'text-yellow-600' : 'text-red-600') ?>\"><?= $pctText ?>%</td>
                                     <td class="px-2 py-3 border-r border-gray-100 text-gray-600"><?= htmlspecialchars($p['nombre_area'] ?? '') ?></td>
                                     <td class="px-2 py-3 max-w-[180px] truncate border-r border-gray-100 text-gray-500" title="<?= htmlspecialchars($p['observaciones'] ?? '') ?>">
                                         <?= htmlspecialchars($p['observaciones'] ?? '') ?>
@@ -270,7 +271,7 @@ sort($responsables, SORT_NATURAL | SORT_FLAG_CASE);
                                     <td class="px-2 py-3 text-center whitespace-nowrap">
                                         <div class="flex items-center justify-center gap-1">
                                             <?php if ($canEditPoa): ?>
-                                                <a href="<?= $basePath ?>/admin/actividad/edit/<?= $p['id_actividad'] ?>" class="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 hover:text-blue-800 transition" title="Editar">
+                                                <a href="<?= $basePath ?>/admin/actividad/edit/<?= (int)($p['id_actividad'] ?? $p['id'] ?? 0) ?>" class="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 hover:text-blue-800 transition" title="Editar">
                                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                                                 </a>
                                             <?php endif; ?>

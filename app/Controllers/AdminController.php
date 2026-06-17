@@ -4568,15 +4568,21 @@ class AdminController
         }
 
         $idPoa = (int) ($actividadAnterior['poa_id'] ?? 0);
-        $estrategiaId = !empty($_POST['estrategia_id']) ? (int) $_POST['estrategia_id'] : null;
-        $sedeId = !empty($_POST['sede_id']) ? (int) $_POST['sede_id'] : null;
-        $procesoId = (int) ($_POST['proceso_id'] ?? 0);
-        $gestionId = (int) ($_POST['gestion_id'] ?? 0);
+        // En edición no se permite cambiar cabecera funcional (proceso/gestión/eje/objetivo/estrategia/sede).
+        $estrategiaId = null;
+        $sedeId = null;
+        $procesoId = (int) ($actividadAnterior['proceso_id'] ?? $actividadAnterior['procesos_institucionales_id'] ?? 0);
+        $gestionId = (int) ($actividadAnterior['gestion_id'] ?? 0);
         $procesosIds = array_values(array_filter(
             array_map('intval', (array) ($_POST['proceso_ids'] ?? [])),
             static function ($pid) { return $pid > 0; }
         ));
         $procesosIds = array_values(array_unique($procesosIds));
+
+        if (empty($procesosIds)) {
+            $procesosIds = array_map('intval', (array) explode(',', (string) ($actividadAnterior['proceso_ids'] ?? '')));
+            $procesosIds = array_values(array_filter(array_unique($procesosIds), static function ($pid) { return $pid > 0; }));
+        }
 
         if ($procesoId <= 0 || $gestionId <= 0) {
             $_SESSION['error'] = 'Debe seleccionar un proceso y una gestión para la actividad.';
@@ -4594,12 +4600,6 @@ class AdminController
         $gestionValida = $this->configPlanModel->obtenerGestionPorId($gestionId);
         if (!$gestionValida || (int) ($gestionValida['procesos_institucionales_id'] ?? 0) !== $procesoId || (int) ($gestionValida['estado'] ?? 0) !== 1) {
             $_SESSION['error'] = 'La gestión seleccionada no pertenece al proceso indicado o está inactiva.';
-            header("Location: " . $this->basePath . "/admin/actividad/edit/" . $id);
-            exit();
-        }
-
-        if (count($procesosIds) === 0) {
-            $_SESSION['error'] = 'Debe seleccionar al menos un proceso.';
             header("Location: " . $this->basePath . "/admin/actividad/edit/" . $id);
             exit();
         }
