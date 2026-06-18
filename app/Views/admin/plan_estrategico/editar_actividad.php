@@ -44,7 +44,7 @@ $gestionActividadSeleccionada = (string) ($actividad['gestion_id'] ?? '');
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Proceso</label>
-                        <select id="procesoActividadSelect" name="proceso_id" class="w-full mt-1 border rounded-xl px-4 py-2.5 text-sm bg-gray-100 text-gray-600 cursor-not-allowed" required disabled>
+                        <select id="procesoActividadSelect" name="proceso_id" class="w-full mt-1 border rounded-xl px-4 py-2.5 text-sm <?= $isEdit ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : 'focus:ring-2 focus:ring-purple-300 focus:border-purple-500' ?>" required <?= $isEdit ? 'disabled' : '' ?>>
                             <option value="">Seleccione un proceso</option>
                             <?php foreach (($procesos ?? []) as $proc): ?>
                             <option value="<?= (int) $proc['id'] ?>" <?= $procesoActividadSeleccionado === (string) $proc['id'] ? 'selected' : '' ?>><?= htmlspecialchars((string) $proc['nombre'], ENT_QUOTES, 'UTF-8') ?></option>
@@ -54,7 +54,7 @@ $gestionActividadSeleccionada = (string) ($actividad['gestion_id'] ?? '');
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Gestión</label>
-                        <select id="gestionActividadSelect" name="gestion_id" class="w-full mt-1 border rounded-xl px-4 py-2.5 text-sm bg-gray-100 text-gray-600 cursor-not-allowed" required disabled>
+                        <select id="gestionActividadSelect" name="gestion_id" class="w-full mt-1 border rounded-xl px-4 py-2.5 text-sm <?= $isEdit ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : 'focus:ring-2 focus:ring-purple-300 focus:border-purple-500' ?>" required <?= $isEdit ? 'disabled' : '' ?>>
                             <option value="">Seleccione un proceso primero</option>
                             <?php foreach (($gestiones ?? []) as $gestion): ?>
                             <option value="<?= (int) $gestion['id'] ?>" data-proceso-id="<?= (int) $gestion['procesos_institucionales_id'] ?>" <?= $gestionActividadSeleccionada === (string) $gestion['id'] ? 'selected' : '' ?>><?= htmlspecialchars((string) $gestion['nombre'], ENT_QUOTES, 'UTF-8') ?></option>
@@ -74,7 +74,7 @@ $gestionActividadSeleccionada = (string) ($actividad['gestion_id'] ?? '');
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Eje Estratégico (PEDI)</label>
-                        <select id="ejeSelect" class="w-full mt-1 border rounded-xl px-4 py-2.5 text-sm bg-gray-100 text-gray-600 cursor-not-allowed" disabled>
+                        <select id="ejeSelect" class="w-full mt-1 border rounded-xl px-4 py-2.5 text-sm <?= $isEdit ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : 'focus:ring-2 focus:ring-purple-300 focus:border-purple-500' ?>" <?= $isEdit ? 'disabled' : '' ?>>
                             <option value="">Seleccione un eje</option>
                             <?php foreach ($ejes as $e): ?>
                             <option value="<?= (int)$e['id'] ?>" <?= (string)($actividad['eje_id'] ?? '') === (string)$e['id'] ? 'selected' : '' ?>><?= htmlspecialchars($e['nombre']) ?></option>
@@ -84,7 +84,7 @@ $gestionActividadSeleccionada = (string) ($actividad['gestion_id'] ?? '');
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Objetivo Estratégico (PEDI)</label>
-                        <select id="objetivoSelect" name="objetivo_id" class="w-full mt-1 border rounded-xl px-4 py-2.5 text-sm bg-gray-100 text-gray-600 cursor-not-allowed" disabled>
+                        <select id="objetivoSelect" name="objetivo_id" class="w-full mt-1 border rounded-xl px-4 py-2.5 text-sm <?= $isEdit ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : 'focus:ring-2 focus:ring-purple-300 focus:border-purple-500' ?>" <?= $isEdit ? 'disabled' : '' ?>>
                             <option value="">Seleccione un objetivo</option>
                             <?php foreach ($objetivos as $o): ?>
                             <option value="<?= (int)$o['id'] ?>" data-eje-id="<?= (int)$o['eje_id'] ?>" <?= (string)($actividad['objetivo_id'] ?? '') === (string)$o['id'] ? 'selected' : '' ?>><?= htmlspecialchars($o['nombre']) ?></option>
@@ -94,7 +94,7 @@ $gestionActividadSeleccionada = (string) ($actividad['gestion_id'] ?? '');
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Estrategia (PEDI)</label>
-                        <select id="estrategiaSelect" name="estrategia_id" class="w-full mt-1 border rounded-xl px-4 py-2.5 text-sm bg-gray-100 text-gray-600 cursor-not-allowed" required disabled>
+                        <select id="estrategiaSelect" name="estrategia_id" class="w-full mt-1 border rounded-xl px-4 py-2.5 text-sm <?= $isEdit ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : 'focus:ring-2 focus:ring-purple-300 focus:border-purple-500' ?>" required <?= $isEdit ? 'disabled' : '' ?>>
                             <option value="">Seleccione una estrategia</option>
                             <?php foreach ($estrategias as $es): ?>
                             <option value="<?= (int)$es['id'] ?>" data-objetivo-id="<?= (int)$es['objetivo_estrategico_id'] ?>" data-meta-pedi="<?= htmlspecialchars((string)($metasPedi[(int)$es['id']] ?? ''), ENT_QUOTES, 'UTF-8') ?>" <?= (string)($actividad['estrategia_id'] ?? '') === (string)$es['id'] ? 'selected' : '' ?>><?= htmlspecialchars($es['nombre']) ?></option>

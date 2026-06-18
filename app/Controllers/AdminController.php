@@ -4776,7 +4776,7 @@ class AdminController
             'proceso_ids' => '',
         ];
 
-        $this->render('admin/plan_estrategico/editar_actividad', [
+        $this->render('admin/plan_estrategico/crear_actividad', [
             'title' => 'Crear Actividad',
             'actividad' => $actividad,
             'ejes' => $ejes,
