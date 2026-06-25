@@ -2147,10 +2147,16 @@ class AdminController
             $errors['nombre_empresa'] = 'El nombre de la entidad es obligatorio.';
         }
 
+        $idPrograma = (int) ($payload['id_programa'] ?? 0);
+
         if ($payload['ruc'] === '') {
             $errors['ruc'] = 'El RUC es obligatorio.';
         } elseif (!preg_match('/^\d{10,13}$/', $payload['ruc'])) {
             $errors['ruc'] = 'El RUC debe contener entre 10 y 13 dígitos.';
+        } elseif ($idPrograma > 0) {
+            if ($this->entidadModel->existeRucEnPrograma($payload['ruc'], $idPrograma, $idEntidad)) {
+                $errors['ruc'] = 'Ya existe una entidad registrada con ese RUC para este programa.';
+            }
         } elseif ($this->entidadModel->existeRuc($payload['ruc'], $idEntidad)) {
             $errors['ruc'] = 'Ya existe una entidad registrada con ese RUC.';
         }

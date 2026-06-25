@@ -123,6 +123,32 @@ class EntidadModel extends Database
         return (bool) $stmt->fetchColumn();
     }
 
+    public function existeRucEnPrograma(string $ruc, int $idPrograma, ?int $excluirIdEntidad = null): bool
+    {
+        $rucNormalizado = preg_replace('/\D+/', '', $ruc);
+
+        $sql = "SELECT 1
+                FROM entidades
+                WHERE REPLACE(REPLACE(REPLACE(ruc, '-', ''), ' ', ''), '.', '') = :ruc
+                  AND id_programa = :id_programa";
+        $params = [
+            ':ruc' => $rucNormalizado,
+            ':id_programa' => $idPrograma,
+        ];
+
+        if ($excluirIdEntidad !== null) {
+            $sql .= " AND id_entidad <> :id_entidad";
+            $params[':id_entidad'] = $excluirIdEntidad;
+        }
+
+        $sql .= " LIMIT 1";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+
+        return (bool) $stmt->fetchColumn();
+    }
+
     public function crearEntidad(array $payload): int
     {
         $this->db->beginTransaction();
