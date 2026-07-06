@@ -379,7 +379,7 @@
 
                         <!-- ESTADO EDITABLE -->
                         <section class="border border-gray-200 rounded-xl p-4 sm:p-5">
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                                 <div>
                                     <label for="estado_fase_uno_completado" class="block text-base font-semibold text-gray-900 mb-3">
                                         Fase
@@ -413,6 +413,16 @@
                                     </label>
                                     <input type="text" id="fecha_fin_visual"
                                         value="<?php echo !empty($practica['fecha_fin']) ? htmlspecialchars(date('d/m/Y', strtotime($practica['fecha_fin']))) : 'No definida'; ?>"
+                                        readonly
+                                        class="block w-full px-4 py-3 text-base border-2 border-gray-200 bg-gray-100 rounded-xl text-gray-700">
+                                </div>
+
+                                <div>
+                                    <label for="periodo_cierre_visual" class="block text-base font-semibold text-gray-900 mb-3">
+                                        Periodo de cierre
+                                    </label>
+                                    <input type="text" id="periodo_cierre_visual"
+                                        value="<?php echo !empty($practica['periodo_cierre_practica']) ? htmlspecialchars((string) $practica['periodo_cierre_practica'], ENT_QUOTES, 'UTF-8') : 'No definido'; ?>"
                                         readonly
                                         class="block w-full px-4 py-3 text-base border-2 border-gray-200 bg-gray-100 rounded-xl text-gray-700">
                                 </div>

@@ -1066,7 +1066,7 @@ class AdminController
             $html = '<h2>Reporte de estudiantes por fase</h2>';
             $html .= '<p><strong>Filtro:</strong> ' . htmlspecialchars(strtoupper(str_replace('_', ' ', $fase)), ENT_QUOTES, 'UTF-8') . '</p>';
             $html .= '<table border="1" cellpadding="6" cellspacing="0" width="100%">';
-            $html .= '<tr><th>Cédula</th><th>Estudiante</th><th>Email</th><th>Carrera</th><th>Empresa</th><th>Modalidad</th><th>Fase</th></tr>';
+            $html .= '<tr><th>Cédula</th><th>Estudiante</th><th>Email</th><th>Carrera</th><th>Empresa</th><th>Modalidad</th><th>Fase</th><th>Periodo cierre práctica</th></tr>';
             foreach ($rows as $row) {
                 $html .= '<tr>';
                 $html .= '<td>' . htmlspecialchars((string) ($row['identificacion'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
@@ -1076,6 +1076,7 @@ class AdminController
                 $html .= '<td>' . htmlspecialchars((string) ($row['empresa'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
                 $html .= '<td>' . htmlspecialchars((string) ($row['modalidad'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
                 $html .= '<td>' . htmlspecialchars((string) ($row['fase'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
+                $html .= '<td>' . htmlspecialchars((string) ($row['periodo_cierre_practica'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>';
                 $html .= '</tr>';
             }
             $html .= '</table>';
@@ -1096,6 +1097,7 @@ class AdminController
                 'ruc' => (string) ($row['ruc'] ?? ''),
                 'modalidad' => (string) ($row['modalidad'] ?? ''),
                 'fase' => (string) ($row['fase'] ?? ''),
+                'periodo_cierre_practica' => (string) ($row['periodo_cierre_practica'] ?? ''),
                 'fecha_registro' => (string) ($row['fecha_registro'] ?? ''),
             ];
         }
@@ -1113,6 +1115,7 @@ class AdminController
                 'ruc' => 'RUC',
                 'modalidad' => 'Modalidad',
                 'fase' => 'Fase',
+                'periodo_cierre_practica' => 'Periodo cierre practica',
                 'fecha_registro' => 'Fecha Registro',
             ],
             'Estudiantes por Fase'
@@ -1356,6 +1359,9 @@ class AdminController
             }
             $rowNumber++;
         }
+
+        $lastDataRow = max($headerRow, $rowNumber - 1);
+        $sheet->setAutoFilter('A' . $headerRow . ':' . $lastHeaderColumn . $lastDataRow);
 
         for ($column = 1; $column <= count($keys); $column++) {
             $columnRef = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($column);
@@ -1866,6 +1872,7 @@ class AdminController
         $buscar = $_GET['buscar'] ?? '';
         $fase = $_GET['fase'] ?? ($_GET['estado'] ?? '');
         $estadoPractica = strtoupper(trim((string) ($_GET['estado_practica'] ?? 'TODOS')));
+        $periodoCierre = trim((string) ($_GET['periodo_cierre'] ?? ''));
         if ($estadoPractica === 'CANCELADA') {
             $estadoPractica = 'NO FINALIZADO';
         }
@@ -1877,10 +1884,11 @@ class AdminController
         $offset = ($pagina - 1) * $limite;
 
         // Obtener total general (para contador)
-        $totalRegistros = $this->pasantiaModel->contarPracticas($buscar, $fase, $estadoPractica);
+        $totalRegistros = $this->pasantiaModel->contarPracticas($buscar, $fase, $estadoPractica, $periodoCierre);
 
         // Obtener registros paginados
-        $pasantias = $this->pasantiaModel->getPracticasPaginadas($buscar, $fase, $limite, $offset, $estadoPractica);
+        $pasantias = $this->pasantiaModel->getPracticasPaginadas($buscar, $fase, $limite, $offset, $estadoPractica, $periodoCierre);
+        $periodosCierre = $this->pasantiaModel->getPeriodosCierrePracticas();
 
         // Contadores KPI
         $totalCompletadas = $this->pasantiaModel->contarPorEstado(1, $estadoPractica);
@@ -1904,6 +1912,8 @@ class AdminController
             'totalPaginas' => $totalPaginas,
             'estado' => $fase,
             'estadoPractica' => $estadoPractica,
+            'periodoCierre' => $periodoCierre,
+            'periodosCierre' => $periodosCierre,
             'buscar' => $buscar
         ]);
     }

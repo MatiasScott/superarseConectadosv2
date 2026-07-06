@@ -4,6 +4,7 @@ class PasantiaModel extends Database
 {
     private $db;
     private ?bool $hasObservacionColumn = null;
+    private ?bool $hasPeriodoCierrePracticaColumn = null;
 
     private function normalizarTexto(string $texto): string
     {
@@ -50,6 +51,46 @@ class PasantiaModel extends Database
         }
 
         return $this->hasObservacionColumn;
+    }
+
+    private function practicaTienePeriodoCierrePracticaColumn(): bool
+    {
+        if ($this->hasPeriodoCierrePracticaColumn !== null) {
+            return $this->hasPeriodoCierrePracticaColumn;
+        }
+
+        try {
+            $stmt = $this->db->query("SHOW COLUMNS FROM practicas_estudiantes LIKE 'periodo_cierre_practica'");
+            $this->hasPeriodoCierrePracticaColumn = (bool) $stmt->fetch(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            $this->hasPeriodoCierrePracticaColumn = false;
+        }
+
+        return $this->hasPeriodoCierrePracticaColumn;
+    }
+
+    private function obtenerPeriodoActualPorPracticaId(int $idPractica): ?string
+    {
+        try {
+            $stmt = $this->db->prepare(
+                "SELECT COALESCE(NULLIF(TRIM(u.periodo), ''), NULL) AS periodo
+                 FROM practicas_estudiantes pe
+                 INNER JOIN users u ON u.id = pe.user_id
+                 WHERE pe.id_practica = :id_practica
+                 LIMIT 1"
+            );
+            $stmt->execute([':id_practica' => $idPractica]);
+            $periodo = $stmt->fetchColumn();
+
+            if ($periodo === false || $periodo === null) {
+                return null;
+            }
+
+            return trim((string) $periodo) !== '' ? trim((string) $periodo) : null;
+        } catch (PDOException $e) {
+            error_log("Error al obtener periodo actual del estudiante: " . $e->getMessage());
+            return null;
+        }
     }
     public function getActiveDocentes()
     {
@@ -111,6 +152,10 @@ class PasantiaModel extends Database
             ? "pe.observacion,"
             : "'' AS observacion,";
 
+        $selectPeriodoCierre = $this->practicaTienePeriodoCierrePracticaColumn()
+            ? "pe.periodo_cierre_practica,"
+            : "'' AS periodo_cierre_practica,";
+
         $query = "SELECT
             pe.id_practica,
             pe.modalidad,
@@ -124,6 +169,7 @@ class PasantiaModel extends Database
             pe.estado,
             pe.fecha_fin,
             {$selectObservacion}
+            {$selectPeriodoCierre}
             ent.ruc,
             ent.nombre_empresa,
             ent.id_entidad,
@@ -1236,20 +1282,28 @@ class PasantiaModel extends Database
             }
 
             $fechaFin = $datos['fecha_fin_actual'] ?? null;
+            $periodoCierrePractica = trim((string) ($datos['periodo_cierre_practica_actual'] ?? ''));
+            $periodoCierrePractica = $periodoCierrePractica !== '' ? $periodoCierrePractica : null;
             if ($nuevoEstado === 'ACTIVA') {
                 $fechaFin = null;
+                $periodoCierrePractica = null;
             } elseif ($nuevoEstado !== $estadoActual) {
                 // Si cambió a FINALIZADA/NO FINALIZADO, registrar fecha fin del día del cambio.
                 $fechaFin = date('Y-m-d');
+                $periodoActual = $this->obtenerPeriodoActualPorPracticaId((int) $id_practica);
+                if ($periodoActual !== null) {
+                    $periodoCierrePractica = $periodoActual;
+                }
             }
 
             $setObservacion = $this->practicaTieneObservacionColumn() ? ",\n                    observacion = :observacion" : "";
+            $setPeriodoCierre = $this->practicaTienePeriodoCierrePracticaColumn() ? ",\n                    periodo_cierre_practica = :periodo_cierre_practica" : "";
 
             $queryPractica = "UPDATE practicas_estudiantes SET 
                     estado_fase_uno_completado = :estado_fase_uno_completado,
                     afiliacion_iess = :afiliacion_iess,
                     estado = :estado,
-                    fecha_fin = :fecha_fin{$setObservacion}
+                    fecha_fin = :fecha_fin{$setObservacion}{$setPeriodoCierre}
                     WHERE id_practica = :id_practica";
             $stmtPractica = $this->db->prepare($queryPractica);
             $paramsPractica = [
@@ -1262,6 +1316,9 @@ class PasantiaModel extends Database
 
             if ($this->practicaTieneObservacionColumn()) {
                 $paramsPractica[':observacion'] = trim((string) ($datos['observacion'] ?? ''));
+            }
+            if ($this->practicaTienePeriodoCierrePracticaColumn()) {
+                $paramsPractica[':periodo_cierre_practica'] = $periodoCierrePractica;
             }
 
             $stmtPractica->execute($paramsPractica);
@@ -2119,7 +2176,7 @@ class PasantiaModel extends Database
         return (int) $stmt->fetchColumn();
     }
 
-    public function contarPracticas($buscar = '', $estado = '', $estadoPractica = 'ACTIVA')
+    public function contarPracticas($buscar = '', $estado = '', $estadoPractica = 'ACTIVA', $periodoCierre = '')
     {
         $sql = "SELECT COUNT(*) FROM practicas_estudiantes pe
             INNER JOIN users u ON u.id = pe.user_id
@@ -2144,12 +2201,17 @@ class PasantiaModel extends Database
             $params['estado'] = $estado;
         }
 
+        if ($periodoCierre !== '' && $this->practicaTienePeriodoCierrePracticaColumn()) {
+            $sql .= " AND UPPER(TRIM(COALESCE(pe.periodo_cierre_practica, ''))) = :periodo_cierre";
+            $params['periodo_cierre'] = strtoupper(trim((string) $periodoCierre));
+        }
+
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
         return $stmt->fetchColumn();
     }
 
-    public function getPracticasPaginadas($buscar, $estado, $limite, $offset, $estadoPractica = 'ACTIVA')
+    public function getPracticasPaginadas($buscar, $estado, $limite, $offset, $estadoPractica = 'ACTIVA', $periodoCierre = '')
     {
         $sql = "SELECT pe.*, 
             e.nombre_empresa,
@@ -2177,6 +2239,11 @@ class PasantiaModel extends Database
             $params['estado'] = $estado;
         }
 
+        if ($periodoCierre !== '' && $this->practicaTienePeriodoCierrePracticaColumn()) {
+            $sql .= " AND UPPER(TRIM(COALESCE(pe.periodo_cierre_practica, ''))) = :periodo_cierre";
+            $params['periodo_cierre'] = strtoupper(trim((string) $periodoCierre));
+        }
+
         $sql .= " LIMIT :limite OFFSET :offset";
 
         $stmt = $this->db->prepare($sql);
@@ -2190,5 +2257,26 @@ class PasantiaModel extends Database
 
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function getPeriodosCierrePracticas(): array
+    {
+        if (!$this->practicaTienePeriodoCierrePracticaColumn()) {
+            return [];
+        }
+
+        try {
+            $stmt = $this->db->query(
+                "SELECT DISTINCT TRIM(periodo_cierre_practica) AS periodo
+                 FROM practicas_estudiantes
+                 WHERE periodo_cierre_practica IS NOT NULL
+                   AND TRIM(periodo_cierre_practica) <> ''
+                 ORDER BY periodo DESC"
+            );
+            return $stmt->fetchAll(PDO::FETCH_COLUMN) ?: [];
+        } catch (PDOException $e) {
+            error_log("Error al obtener periodos de cierre de practicas: " . $e->getMessage());
+            return [];
+        }
     }
 }

@@ -988,6 +988,7 @@ class PasantiaController
                 'estado' => $estadoEditadoRaw,
                 'estado_actual' => $practica['estado'] ?? 'ACTIVA',
                 'fecha_fin_actual' => $practica['fecha_fin'] ?? null,
+                'periodo_cierre_practica_actual' => $practica['periodo_cierre_practica'] ?? null,
                 'observacion' => $_POST['observacion'] ?? ($practica['observacion'] ?? ''),
                 'tutor_emp_nombre_completo' => $esHomologableLaboral ? ($practica['tutor_emp_nombre_completo'] ?? null) : ($_POST['tutor_emp_nombre_completo'] ?? $practica['tutor_emp_nombre_completo']),
                 'tutor_emp_cedula' => $esHomologableLaboral ? ($practica['tutor_emp_cedula'] ?? null) : ($_POST['tutor_emp_cedula'] ?? $practica['tutor_emp_cedula']),

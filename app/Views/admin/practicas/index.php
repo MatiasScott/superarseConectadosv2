@@ -88,6 +88,16 @@
 
         </select>
 
+        <select name="periodo_cierre"
+            class="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-purple-600 focus:outline-none">
+            <option value="">Todos los periodos de cierre</option>
+            <?php foreach (($periodosCierre ?? []) as $periodo): ?>
+                <option value="<?= htmlspecialchars((string) $periodo, ENT_QUOTES, 'UTF-8') ?>" <?= (($periodoCierre ?? '') === (string) $periodo) ? 'selected' : '' ?>>
+                    <?= htmlspecialchars((string) $periodo, ENT_QUOTES, 'UTF-8') ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+
         <button type="submit"
             class="bg-purple-700 text-white px-5 py-2 rounded-lg hover:bg-purple-800 transition">
             Filtrar
@@ -115,6 +125,7 @@
                 <th class="px-6 py-3 text-left font-semibold text-gray-600">Empresa</th>
                 <th class="px-6 py-3 text-left font-semibold text-gray-600">Fase</th>
                 <th class="px-6 py-3 text-left font-semibold text-gray-600">Estado Práctica</th>
+                <th class="px-6 py-3 text-left font-semibold text-gray-600">Periodo de cierre</th>
                 <th class="px-6 py-3 text-left font-semibold text-gray-600">Acciones</th>
             </tr>
         </thead>
@@ -166,6 +177,10 @@
                             <?php endif; ?>
                         </td>
 
+                        <td class="px-6 py-4 text-gray-700">
+                            <?= htmlspecialchars((string) ($p['periodo_cierre_practica'] ?? 'N/A'), ENT_QUOTES, 'UTF-8') ?>
+                        </td>
+
                         <td class="px-6 py-4 text-center space-x-3">
 
                             <a href="<?= $basePath ?>/admin/practicas/editar/<?= $p['id_practica'] ?>"
@@ -193,7 +208,7 @@
             <?php else: ?>
 
                 <tr>
-                    <td colspan="6" class="text-center py-10 text-gray-500">
+                    <td colspan="7" class="text-center py-10 text-gray-500">
                         No hay registros disponibles.
                     </td>
                 </tr>
@@ -218,7 +233,7 @@
         <div class="flex gap-2">
 
             <?php for ($i = 1; $i <= $totalPaginas; $i++): ?>
-                <a href="<?= $basePath ?>/admin/practicas?page=<?= $i ?>&fase=<?= $estado ?>&estado_practica=<?= urlencode($estadoPractica ?? 'TODOS') ?>&buscar=<?= urlencode($buscar) ?>"
+                <a href="<?= $basePath ?>/admin/practicas?page=<?= $i ?>&fase=<?= $estado ?>&estado_practica=<?= urlencode($estadoPractica ?? 'TODOS') ?>&periodo_cierre=<?= urlencode($periodoCierre ?? '') ?>&buscar=<?= urlencode($buscar) ?>"
                     class="px-4 py-2 rounded-lg border text-sm
                         <?= ($i == $paginaActual)
                             ? 'bg-purple-700 text-white border-purple-700'

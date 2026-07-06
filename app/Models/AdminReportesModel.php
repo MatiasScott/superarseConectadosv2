@@ -6,6 +6,7 @@ class AdminReportesModel extends Database
 {
     private $db;
     private ?bool $practicaTieneObservacionColumnCache = null;
+    private ?bool $practicaTienePeriodoCierreColumnCache = null;
 
     public function __construct()
     {
@@ -27,6 +28,22 @@ class AdminReportesModel extends Database
         }
 
         return $this->practicaTieneObservacionColumnCache;
+    }
+
+    private function practicaTienePeriodoCierreColumn(): bool
+    {
+        if ($this->practicaTienePeriodoCierreColumnCache !== null) {
+            return $this->practicaTienePeriodoCierreColumnCache;
+        }
+
+        try {
+            $stmt = $this->db->query("SHOW COLUMNS FROM practicas_estudiantes LIKE 'periodo_cierre_practica'");
+            $this->practicaTienePeriodoCierreColumnCache = (bool) $stmt->fetch(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            $this->practicaTienePeriodoCierreColumnCache = false;
+        }
+
+        return $this->practicaTienePeriodoCierreColumnCache;
     }
 
     public function getTotalesPracticas(): array
@@ -68,6 +85,9 @@ class AdminReportesModel extends Database
         $selectObservacion = $this->practicaTieneObservacionColumn()
             ? "COALESCE(NULLIF(TRIM(pe.observacion), ''), 'N/A') AS observacion,"
             : "'N/A' AS observacion,";
+        $selectPeriodoCierre = $this->practicaTienePeriodoCierreColumn()
+            ? "COALESCE(NULLIF(TRIM(pe.periodo_cierre_practica), ''), 'N/A') AS periodo_cierre_practica,"
+            : "'N/A' AS periodo_cierre_practica,";
 
         $sql = "SELECT
                     pe.id_practica,
@@ -82,6 +102,7 @@ class AdminReportesModel extends Database
                     END AS fase,
                     pe.fecha_registro,
                     pe.fecha_fin,
+                    {$selectPeriodoCierre}
                     {$selectObservacion}
                     COALESCE(NULLIF(TRIM(pe.modalidad), ''), 'Sin modalidad') AS modalidad,
                     COALESCE(NULLIF(TRIM(e.nombre_empresa), ''), 'Sin empresa') AS empresa,
@@ -144,6 +165,9 @@ class AdminReportesModel extends Database
         $selectObservacion = $this->practicaTieneObservacionColumn()
             ? "COALESCE(NULLIF(TRIM(pe.observacion), ''), 'N/A') AS observacion,"
             : "'N/A' AS observacion,";
+        $selectPeriodoCierre = $this->practicaTienePeriodoCierreColumn()
+            ? "COALESCE(NULLIF(TRIM(pe.periodo_cierre_practica), ''), 'N/A') AS periodo_cierre_practica,"
+            : "'N/A' AS periodo_cierre_practica,";
 
         $sql = "SELECT
                     pe.id_practica,
@@ -158,6 +182,7 @@ class AdminReportesModel extends Database
                     END AS fase,
                     pe.fecha_registro,
                     pe.fecha_fin,
+                    {$selectPeriodoCierre}
                     {$selectObservacion}
                     COALESCE(NULLIF(TRIM(pe.modalidad), ''), 'Sin modalidad') AS modalidad,
                     COALESCE(NULLIF(TRIM(e.nombre_empresa), ''), 'Sin empresa') AS empresa,
@@ -284,10 +309,14 @@ class AdminReportesModel extends Database
     {
         $fase = strtolower(trim($fase));
         $estado = $fase === 'fase_dos' ? 1 : 0;
+        $selectPeriodoCierre = $this->practicaTienePeriodoCierreColumn()
+            ? "COALESCE(NULLIF(TRIM(pe.periodo_cierre_practica), ''), 'N/A') AS periodo_cierre_practica,"
+            : "'N/A' AS periodo_cierre_practica,";
 
         $sql = "SELECT
                     pe.id_practica,
                     pe.fecha_registro,
+                    {$selectPeriodoCierre}
                     COALESCE(NULLIF(TRIM(pe.modalidad), ''), 'Sin modalidad') AS modalidad,
                     CASE
                         WHEN pe.estado_fase_uno_completado = 2 THEN 'Práctica Finalizada'
