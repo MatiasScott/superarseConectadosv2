@@ -115,7 +115,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    function buscarEntidadPorRUC(programa, ruc, esAuto = false) {
+    function buscarEntidadPorRUC(programa, ruc, esAuto = false, modalidad = '') {
         const dataBasePath = (typeof DATOS_ESTUDIANTE !== 'undefined' && DATOS_ESTUDIANTE && DATOS_ESTUDIANTE.basePath)
             ? DATOS_ESTUDIANTE.basePath
             : null;
@@ -134,7 +134,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 method: 'POST',
                 body: new URLSearchParams({
                     ruc: ruc,
-                    idPrograma: programa
+                    idPrograma: programa,
+                    modalidad: modalidad || (modalidadSelect && modalidadSelect.selectedOptions[0] ? modalidadSelect.selectedOptions[0].textContent.trim() : '')
                 })
             })
             .then(r => r.json())
@@ -165,7 +166,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     showEntidad('No encontrada', 'nf');
                     inputRuc.classList.add('border-yellow-500');
                     setTimeout(() => inputRuc.classList.remove('border-yellow-500'), 1500);
-                    notificar(data.message || 'Empresa no encontrada. Puede ingresar los datos manualmente.', 'warning');
+                    notificar(data.message || 'Empresa no encontrada.', 'warning');
                     setTimeout(hideEntidad, 3000);
                 }
             })

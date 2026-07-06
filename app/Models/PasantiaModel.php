@@ -5,6 +5,31 @@ class PasantiaModel extends Database
     private $db;
     private ?bool $hasObservacionColumn = null;
 
+    private function normalizarTexto(string $texto): string
+    {
+        return strtoupper(strtr(trim($texto), [
+            'á' => 'A',
+            'é' => 'E',
+            'í' => 'I',
+            'ó' => 'O',
+            'ú' => 'U',
+            'Á' => 'A',
+            'É' => 'E',
+            'Í' => 'I',
+            'Ó' => 'O',
+            'Ú' => 'U',
+        ]));
+    }
+
+    private function modalidadEsConveniosInstitucionales(?string $modalidad): bool
+    {
+        if ($modalidad === null || trim($modalidad) === '') {
+            return false;
+        }
+
+        return strpos($this->normalizarTexto($modalidad), 'CONVENIOS INSTITUCIONALES') !== false;
+    }
+
     public function __construct()
     {
         $this->db = $this->getConnection();
@@ -892,15 +917,20 @@ class PasantiaModel extends Database
         }
     }
 
-    public function getEntidadByRUC($ruc, $idPrograma)
+    public function getEntidadByRUC($ruc, $idPrograma, ?string $modalidad = null)
     {
         try {
             $normalizedRuc = preg_replace('/\D+/', '', (string) $ruc);
             $normalizedPrograma = is_numeric($idPrograma) ? (int) $idPrograma : null;
+            $soloEntidadesActivas = $this->modalidadEsConveniosInstitucionales($modalidad);
 
             if ($normalizedRuc === '') {
                 return null;
             }
+
+            $filtroEstadoActivo = $soloEntidadesActivas
+                ? " AND UPPER(TRIM(COALESCE(entidades.estado, ''))) IN ('ACTIVO', 'DISPONIBLE')"
+                : '';
 
             $entidad = null;
 
@@ -911,6 +941,7 @@ class PasantiaModel extends Database
             LEFT JOIN tutores_empresariales te ON entidades.id_tutor_empresarial = te.id_tutor_empresa
             WHERE REPLACE(REPLACE(REPLACE(entidades.ruc, '-', ''), ' ', ''), '.', '') = :ruc
               AND entidades.id_programa = :idPrograma
+              {$filtroEstadoActivo}
             ORDER BY entidades.id_entidad DESC
             LIMIT 1
             ");
@@ -925,6 +956,7 @@ class PasantiaModel extends Database
             FROM entidades
             LEFT JOIN tutores_empresariales te ON entidades.id_tutor_empresarial = te.id_tutor_empresa
             WHERE REPLACE(REPLACE(REPLACE(entidades.ruc, '-', ''), ' ', ''), '.', '') = :ruc
+              {$filtroEstadoActivo}
             ORDER BY entidades.id_entidad DESC
             LIMIT 1
             ");
@@ -960,7 +992,10 @@ class PasantiaModel extends Database
             WHERE estado = 'Activo'
             ");
             $stmt->execute();
-            $modalidades = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $modalidades = array_values(array_filter($stmt->fetchAll(PDO::FETCH_ASSOC), function (array $modalidad): bool {
+                $nombreNormalizado = $this->normalizarTexto((string) ($modalidad['modalidad'] ?? ''));
+                return strpos($nombreNormalizado, 'AYUDANTIAS EN INVESTIGACION') === false;
+            }));
             return $modalidades ?: null;
         } catch (Exception $e) {
             error_log("Error al buscar las modalidades: " . $e->getMessage());

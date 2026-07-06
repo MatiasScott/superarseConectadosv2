@@ -486,6 +486,7 @@ class PasantiaController
 
         $ruc = preg_replace('/\D+/', '', (string) ($_POST['ruc'] ?? ''));
         $idPrograma = is_numeric($_POST['idPrograma'] ?? null) ? (int) $_POST['idPrograma'] : null;
+        $modalidad = trim((string) ($_POST['modalidad'] ?? ''));
 
         if (empty($ruc)) {
             echo json_encode(['success' => false, 'message' => 'RUC requerido']);
@@ -493,7 +494,7 @@ class PasantiaController
         }
 
         try {
-            $entidad = $this->pasantiaModel->getEntidadByRUC($ruc, $idPrograma);
+            $entidad = $this->pasantiaModel->getEntidadByRUC($ruc, $idPrograma, $modalidad);
 
             if ($entidad) {
                 echo json_encode([
