@@ -267,11 +267,14 @@
                                     <!-- Formulario del nuevo tutor -->
                                     <div id="panelFormTutor" class="hidden">
                                         <input type="hidden" name="cambiar_tutor" value="1">
+                                        <p class="text-xs text-gray-500 mb-4">
+                                            Si la cédula no existe, registre aquí el nuevo tutor. Se asociará únicamente a esta práctica.
+                                        </p>
                                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div>
                                                 <label class="block text-sm font-semibold text-gray-700 mb-1">Nombre Completo</label>
-                                                <input type="text" id="tutor_emp_nombre_completo" name="tutor_emp_nombre_completo" readonly
-                                                    class="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-100">
+                                                <input type="text" id="tutor_emp_nombre_completo" name="tutor_emp_nombre_completo"
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none">
                                             </div>
                                             <div>
                                                 <label class="block text-sm font-semibold text-gray-700 mb-1">Cédula</label>
@@ -290,13 +293,13 @@
                                             </div>
                                             <div>
                                                 <label class="block text-sm font-semibold text-gray-700 mb-1">Teléfono</label>
-                                                <input type="text" id="tutor_emp_telefono" name="tutor_emp_telefono" readonly
-                                                    class="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-100">
+                                                <input type="text" id="tutor_emp_telefono" name="tutor_emp_telefono"
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none">
                                             </div>
                                             <div>
                                                 <label class="block text-sm font-semibold text-gray-700 mb-1">Departamento</label>
-                                                <input type="text" id="tutor_emp_departamento" name="tutor_emp_departamento" readonly
-                                                    class="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-100">
+                                                <input type="text" id="tutor_emp_departamento" name="tutor_emp_departamento"
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none">
                                             </div>
                                         </div>
                                     </div>
@@ -318,6 +321,7 @@
                                             panelForm.classList.add('hidden');
                                             feedback.classList.add('hidden');
                                             document.getElementById('cedulaBuscar').value = '';
+                                            clearForm();
                                         }
                                     });
 
@@ -372,6 +376,10 @@
                                         document.getElementById('tutor_emp_telefono').value = t.telefono || '';
                                         document.getElementById('tutor_emp_email').value = t.email || '';
                                         document.getElementById('tutor_emp_departamento').value = t.departamento || '';
+                                    }
+
+                                    function clearForm() {
+                                        fillForm({});
                                     }
                                 }());
                             </script>
