@@ -1,0 +1,12 @@
+.git
+.gitignore
+.env
+node_modules
+MANUAL
+composer.phar
+composer-setup.php
+tmp_pedi.xlsx
+tmp_poa.xlsx
+tmp_poa_test.xlsx
+Dockerfile
+docker-compose.yml

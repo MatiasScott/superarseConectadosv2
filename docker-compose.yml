@@ -1,0 +1,23 @@
+services:
+  superar1_conectados:
+    build: .
+
+    container_name: superar1_conectados
+
+    restart: unless-stopped
+
+    ports:
+      - "8087:80"
+
+    env_file:
+      - .env
+
+    volumes:
+      - ./public/uploads:/var/www/html/public/uploads
+
+    networks:
+      - moodle_net
+
+networks:
+  moodle_net:
+    external: true
